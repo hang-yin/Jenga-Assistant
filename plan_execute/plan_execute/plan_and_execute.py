@@ -18,14 +18,12 @@ class PlanAndExecute:
         self.node.IK = self.node.create_client(GetPositionIK,
                                                "compute_ik",
                                                callback_group = self.cbgroup)
-        self.future = None
-    def call_ik(self, end_pose):
-        self.future = self.node.IK.call_async(end_pose)
-    def plan_to_position(self, start_pose, end_pos):
+    async def plan_to_position(self, start_pose, end_pos):
         """Returns MoveGroup action from a start pose to an end end position"""
         mvg = MoveGroup()
-        if self.future.done():
-            angles = self.future.result()
+        # convert end_pos to end_pose
+        angles = await self.node.IK.call_async(end_pos)
+        # put into the move group 
         # 1. Call GetPositionIK.srv to get the joint states of final position 
         # 2. Wait for service response (await?)
         # 3. Receive RobotState soln. soln.joint_state gives joint_state type msg
