@@ -10,14 +10,14 @@ class PlanAndExecute:
     def __init__(self, node):
         self.node = node
         # Create a client
-        self.node._action_client = ActionClient(self,
+        self.node._action_client = ActionClient(self.node,
                                                 MoveGroup,
                                                 '/move_action')
         # Make it so we can call the IK service
-        self.cbgroup = ReentrantCallbackGroup()
+        self.node.cbgroup = ReentrantCallbackGroup()
         self.node.IK = self.node.create_client(GetPositionIK,
                                                "compute_ik",
-                                               callback_group = self.cbgroup)
+                                               callback_group = self.node.cbgroup)
         # Get MoveGroup() from the node
         self.move_group = self.node.movegroup #idk if this is even close to right <3 -Liz
     async def plan_to_position(self, start_pose, end_pos):
