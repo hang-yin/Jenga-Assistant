@@ -3,6 +3,7 @@ from rclpy.node import Node
 from enum import Enum, auto
 from plan_execute.plan_and_execute import PlanAndExecute
 from moveit_msgs.action import MoveGroup
+from geometry_msgs.msg import Point
 
 class State(Enum):
     """
@@ -10,9 +11,8 @@ class State(Enum):
 
     Determines what the main timer function should be doing on each iteration
     """
-    WAIT = auto()
-    FORWARD = auto()
-    BACKWARD = auto()
+    IDLE = auto(),
+    CALL = auto()
 
 
 class Test(Node):
@@ -32,8 +32,15 @@ class Test(Node):
 
         self.PlanEx = PlanAndExecute(self)
 
+        self.state = State.CALL
+
     def timer_callback(self):
-        self.get_logger().info("test")
+        if self.state == State.CALL: 
+            start = Point(x=1.0, y=1.0, z=1.0)
+            end = Point(x=2.0, y=2.0, z=2.0)
+            self.PlanEx.plan_to_position(start, end)
+            self.state = State.IDLE
+        # self.get_logger().info("test")
 
 
 def test_entry(args=None):
