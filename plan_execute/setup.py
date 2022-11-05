@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'test_node=plan_execute.test_node:test_entry'
         ],
     },
 )

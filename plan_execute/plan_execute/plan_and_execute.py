@@ -36,7 +36,7 @@ class PlanAndExecute:
         """Returns MoveGroup action from a start pose to an end orientation"""
         # Make copy of MoveGroup
         mvg = self.move_group
-        # Call GetP
+        # Call GetPositionIK.srv
         angles = await self.node.IK.call_async(end_orientation)
         return mvg
     def plan_to_pose(self,start_pose, end_pose):
