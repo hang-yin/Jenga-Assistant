@@ -1,10 +1,9 @@
-from ament_index_python.packages import get_package_share_path
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.conditions import UnlessCondition, IfCondition
-from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterValue
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -15,6 +14,17 @@ def generate_launch_description():
         output='screen'
     )
 
+    launch_franka = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+                PathJoinSubstitution([
+                    FindPackageShare('franka_moveit_config'),
+                    'launch/moveit.launch.py'
+                ])
+            ]),
+        launch_arguments=[('robot_ip', 'dont-care'), ('use_fake_hardware', 'true')]
+    )
+
     return LaunchDescription([
+        launch_franka,
         test_node
 ])
