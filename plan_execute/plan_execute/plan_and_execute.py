@@ -18,6 +18,8 @@ class PlanAndExecute:
         self.node.IK = self.node.create_client(GetPositionIK,
                                                "compute_ik",
                                                callback_group = self.cbgroup)
+        # Get MoveGroup() from the node
+        self.move_group = self.node.movegroup #idk if this is even close to right <3 -Liz
     async def plan_to_position(self, start_pose, end_pos):
         """Returns MoveGroup action from a start pose to an end end position"""
         mvg = MoveGroup()
@@ -30,9 +32,12 @@ class PlanAndExecute:
         # 4. Plug this into mvg.request.goal_constraints.joint_constraints (joint_state type)
         # 5. Return mvg action
         return mvg
-    def plan_to_orientation(self, start_pose, end_orientation):
+    async def plan_to_orientation(self, start_pose, end_orientation):
         """Returns MoveGroup action from a start pose to an end orientation"""
-        mvg = MoveGroup()
+        # Make copy of MoveGroup
+        mvg = self.move_group
+        # Call GetP
+        angles = await self.node.IK.call_async(end_orientation)
         return mvg
     def plan_to_pose(self,start_pose, end_pose):
         """Returns MoveGroup action from a start pose to an end pose (position + orientation)"""
