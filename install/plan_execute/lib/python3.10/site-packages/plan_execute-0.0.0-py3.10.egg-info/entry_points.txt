@@ -1,0 +1,3 @@
+[console_scripts]
+simple_move = plan_execute.simple_move:test_entry
+
