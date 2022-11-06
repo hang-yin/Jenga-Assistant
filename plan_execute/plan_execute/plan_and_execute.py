@@ -25,13 +25,24 @@ class PlanAndExecute:
                                                callback_group = self.node.cbgroup)
         # Get MoveGroup() from the node
         self.move_group = self.node.movegroup #idk if this is even close to right <3 -Liz
-    def plan_to_position(self, start_pose, end_pos):
+    async def plan_to_position(self, start_pose, end_pos):
         """Returns MoveGroup action from a start pose to an end position"""
-        request = PositionIKRequest()
+        request = PositionIKRequest# PositionIKRequest()
         printIKreq(request)
         request.group_name = '' # NOt sure how to find this
         # Robot state is "Seed" guess. IDK how to get this. Since it's in angles? 
         # MUST CONTAIN STATE OF ALL JOINTS TO BE USED BY IK SOLVER
+
+        # I think we should use the joint_state message, I also think this can probably be initialized
+        request.robot_state.fset()
+        request.robot_state.joint_state.name = ['panda_joint1', 'panda_joint2',
+                       'panda_joint3','panda_joint4',
+                       'panda_joint5','panda_joint6,panda_joint7',
+                       'panda_finger_joint1','panda_finger_joint2']
+        request.robot_state.joint_state.position = [-0.2231403838057399, 0.13284448454250933, 
+                                                    -0.19602126983568066, -1.4435717608445389, 
+                                                    0.0700470262663259, 1.302200406478571,
+                                                    0.1637209011241946, 0.035, 0.035]
         # Do we get this by looking at JSP? What if the start state is not current pos? 
         request.robot_state.joint_state.header.stamp = self.node.get_clock().now().to_msg()
         # Constraints: Default empty. Do we need to add?
@@ -41,9 +52,11 @@ class PlanAndExecute:
         request.pose_stamped.header.stamp = self.node.get_clock().now().to_msg()
         request.pose_stamped.header.frame_id = 'name_of_end_effector'
         request.pose_stamped.pose.position = end_pos
+        request.timeout.sec = 20
         printIKreq(request)
         # convert end_pos to end_pose
-        # angles = await self.node.IK.call_async(request)
+        angles, _ = await self.node.IK.call_async(request)
+        print(angles)
         # put into the move group 
         # 1. Call GetPositionIK.srv to get the joint states of final position 
         # 2. Wait for service response (await?)
