@@ -1,0 +1,17 @@
+[0.860s] Invoking command in '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py develop --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute --editable --build-directory /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/build --no-deps install_data --install-dir /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute
+[1.217s] running develop
+[1.416s] running egg_info
+[1.417s] writing plan_execute.egg-info/PKG-INFO
+[1.417s] writing dependency_links to plan_execute.egg-info/dependency_links.txt
+[1.417s] writing entry points to plan_execute.egg-info/entry_points.txt
+[1.417s] writing requirements to plan_execute.egg-info/requires.txt
+[1.417s] writing top-level names to plan_execute.egg-info/top_level.txt
+[1.419s] reading manifest file 'plan_execute.egg-info/SOURCES.txt'
+[1.420s] writing manifest file 'plan_execute.egg-info/SOURCES.txt'
+[1.421s] running build_ext
+[1.421s] Creating /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages/plan-execute.egg-link (link to .)
+[1.423s] Installing simple_move script to /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/plan_execute
+[1.423s] 
+[1.423s] Installed /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute
+[1.423s] running install_data
+[1.461s] Invoked command in '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute' returned '0': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py develop --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute --editable --build-directory /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/build --no-deps install_data --install-dir /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute

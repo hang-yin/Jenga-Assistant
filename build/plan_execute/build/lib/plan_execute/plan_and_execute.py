@@ -36,7 +36,7 @@ class PlanAndExecute:
         self.master_goal.request.workspace_parameters.max_corner.x = 1.0
         self.master_goal.request.workspace_parameters.max_corner.y = 1.0
         self.master_goal.request.workspace_parameters.max_corner.z = 1.0
-        self.master_goal.request.group_name = 'panda_manipulator'
+        self.master_goal.request.group_name = 'panda_arm'
         self.master_goal.request.num_planning_attempts = 10
         self.master_goal.request.allowed_planning_time = 5.0
         self.master_goal.request.planner_id = ''
@@ -92,17 +92,19 @@ class PlanAndExecute:
                                                                 tolerance_below=0.0001,
                                                                 weight=1.0)])]
         self.master_goal.request.pipeline_id = 'move_group'
-        self.master_goal.request.group_name = 'panda_manipulator'
+        self.master_goal.request.group_name = 'panda_arm'
         self.master_goal.request.max_velocity_scaling_factor = 1.0
         self.master_goal.request.max_acceleration_scaling_factor = 0.1
-        printIKreq(self.master_goal)
+        # when planning, set goal.request.plan_only to True, 
+        # when executing, set goal.request.plan_only to False
+        # printIKreq(self.master_goal)
 
     
     async def plan_to_position(self, start_pose, end_pos):
         """Returns MoveGroup action from a start pose to an end position"""
         request = PositionIKRequest()
         # printIKreq(request)
-        request.group_name = 'panda_manipulator' # NOt sure how to find this
+        request.group_name = 'panda_arm' # NOt sure how to find this
         # Robot state is "Seed" guess. IDK how to get this. Since it's in angles? 
         # MUST CONTAIN STATE OF ALL JOINTS TO BE USED BY IK SOLVER
 
@@ -129,6 +131,8 @@ class PlanAndExecute:
         # printIKreq(request)
         # convert end_pos to end_pose
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
+        printIKreq(response.solution)
+        printIKreq(response.error_code)
         joint_states = response.solution.joint_state
         # return response.solution, response.error_code
         # put into the move group 

@@ -39,7 +39,7 @@ class Test(Node):
     async def timer_callback(self):
         if self.state == State.CALL: 
             start = Point(x=1.0, y=1.0, z=1.0)
-            end = Point(x=2.0, y=2.0, z=2.0)
+            end = Point(x=0.5, y=0.5, z=0.5)
             await self.PlanEx.plan_to_position(start, end)
             self.state = State.IDLE
         # self.get_logger().info("test")
