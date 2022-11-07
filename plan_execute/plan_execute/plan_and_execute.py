@@ -57,42 +57,6 @@ class PlanAndExecute:
         self.master_goal.request.start_state.is_diff = False
         self.fill_constraints(self.master_goal.request.start_state.joint_state.name,
                               [0, 0, 0, 0, 0, 0, 0, 0, 0])
-        # [Constraints(name='',
-        #                                                         joint_constraints=[JointConstraint(joint_name='panda_joint1',
-        #                                                         position=0.3535315116304808,
-        #                                                         tolerance_above=0.0001,
-        #                                                         tolerance_below=0.0001,
-        #                                                         weight=1.0),
-        #                                                         JointConstraint(joint_name='panda_joint2',
-        #                                                         position=0.37833109390337477,
-        #                                                         tolerance_above=0.0001,
-        #                                                         tolerance_below=0.0001,
-        #                                                         weight=1.0),
-        #                                                         JointConstraint(joint_name='panda_joint3',
-        #                                                         position=0.10174750319363225,
-        #                                                         tolerance_above=0.0001,
-        #                                                         tolerance_below=0.0001,
-        #                                                         weight=1.0),
-        #                                                         JointConstraint(joint_name='panda_joint4',
-        #                                                         position=-2.1913787730084997,
-        #                                                         tolerance_above=0.0001,
-        #                                                         tolerance_below=0.0001,
-        #                                                         weight=1.0),
-        #                                                         JointConstraint(joint_name='panda_joint5',
-        #                                                         position=-0.06907521835084417,
-        #                                                         tolerance_above=0.0001,
-        #                                                         tolerance_below=0.0001,
-        #                                                         weight=1.0),
-        #                                                         JointConstraint(joint_name='panda_joint6',
-        #                                                         position=2.56684427410562,
-        #                                                         tolerance_above=0.0001,
-        #                                                         tolerance_below=0.0001,
-        #                                                         weight=1.0),
-        #                                                         JointConstraint(joint_name='panda_joint7',
-        #                                                         position=1.291530524005508,
-        #                                                         tolerance_above=0.0001,
-        #                                                         tolerance_below=0.0001,
-        #                                                         weight=1.0)])]
         self.master_goal.request.pipeline_id = 'move_group'
         self.master_goal.request.group_name = 'panda_arm'
         self.master_goal.request.max_velocity_scaling_factor = 1.0
@@ -158,6 +122,13 @@ class PlanAndExecute:
         print(np.array(joint_positions))
         print("FILLING WITH RESULT OF IK \n\n\n")
         self.fill_constraints(joint_names, joint_positions)
+        self.master_goal.planning_options.plan_only = True
+        print("wait for server")
+        self.node._action_client.wait_for_server()
+        print("return")
+        plan = self.node._action_client.send_goal_async(self.master_goal)
+        printIKreq(plan)
+        return plan
         
 
         # return response.solution, response.error_code
@@ -181,4 +152,5 @@ class PlanAndExecute:
         return mvg
     def execute(self, mvg):
         """Takes a MoveGroup object, sends it through the client"""
+        self.master_goal.planning_options.plan_only = False
         pass
