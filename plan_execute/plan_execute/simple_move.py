@@ -40,7 +40,8 @@ class Test(Node):
         if self.state == State.CALL: 
             start = Point(x=1.0, y=1.0, z=1.0)
             end = Point(x=0.5, y=0.5, z=0.5)
-            await self.PlanEx.plan_to_position(start, end)
+            plan = await self.PlanEx.plan_to_position(start, end)
+            print(plan)
             self.state = State.IDLE
         # self.get_logger().info("test")
 
