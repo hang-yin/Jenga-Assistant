@@ -55,42 +55,44 @@ class PlanAndExecute:
         self.master_goal.request.start_state.multi_dof_joint_state.header.frame_id = 'panda_link0'
         self.master_goal.request.start_state.attached_collision_objects = []
         self.master_goal.request.start_state.is_diff = False
-        self.master_goal.request.goal_constraints = [Constraints(name='',
-                                                                joint_constraints=[JointConstraint(joint_name='panda_joint1',
-                                                                position=0.3535315116304808,
-                                                                tolerance_above=0.0001,
-                                                                tolerance_below=0.0001,
-                                                                weight=1.0),
-                                                                JointConstraint(joint_name='panda_joint2',
-                                                                position=0.37833109390337477,
-                                                                tolerance_above=0.0001,
-                                                                tolerance_below=0.0001,
-                                                                weight=1.0),
-                                                                JointConstraint(joint_name='panda_joint3',
-                                                                position=0.10174750319363225,
-                                                                tolerance_above=0.0001,
-                                                                tolerance_below=0.0001,
-                                                                weight=1.0),
-                                                                JointConstraint(joint_name='panda_joint4',
-                                                                position=-2.1913787730084997,
-                                                                tolerance_above=0.0001,
-                                                                tolerance_below=0.0001,
-                                                                weight=1.0),
-                                                                JointConstraint(joint_name='panda_joint5',
-                                                                position=-0.06907521835084417,
-                                                                tolerance_above=0.0001,
-                                                                tolerance_below=0.0001,
-                                                                weight=1.0),
-                                                                JointConstraint(joint_name='panda_joint6',
-                                                                position=2.56684427410562,
-                                                                tolerance_above=0.0001,
-                                                                tolerance_below=0.0001,
-                                                                weight=1.0),
-                                                                JointConstraint(joint_name='panda_joint7',
-                                                                position=1.291530524005508,
-                                                                tolerance_above=0.0001,
-                                                                tolerance_below=0.0001,
-                                                                weight=1.0)])]
+        self.fill_constraints(self.master_goal.request.start_state.joint_state.name,
+                              [0, 0, 0, 0, 0, 0, 0, 0, 0])
+        # [Constraints(name='',
+        #                                                         joint_constraints=[JointConstraint(joint_name='panda_joint1',
+        #                                                         position=0.3535315116304808,
+        #                                                         tolerance_above=0.0001,
+        #                                                         tolerance_below=0.0001,
+        #                                                         weight=1.0),
+        #                                                         JointConstraint(joint_name='panda_joint2',
+        #                                                         position=0.37833109390337477,
+        #                                                         tolerance_above=0.0001,
+        #                                                         tolerance_below=0.0001,
+        #                                                         weight=1.0),
+        #                                                         JointConstraint(joint_name='panda_joint3',
+        #                                                         position=0.10174750319363225,
+        #                                                         tolerance_above=0.0001,
+        #                                                         tolerance_below=0.0001,
+        #                                                         weight=1.0),
+        #                                                         JointConstraint(joint_name='panda_joint4',
+        #                                                         position=-2.1913787730084997,
+        #                                                         tolerance_above=0.0001,
+        #                                                         tolerance_below=0.0001,
+        #                                                         weight=1.0),
+        #                                                         JointConstraint(joint_name='panda_joint5',
+        #                                                         position=-0.06907521835084417,
+        #                                                         tolerance_above=0.0001,
+        #                                                         tolerance_below=0.0001,
+        #                                                         weight=1.0),
+        #                                                         JointConstraint(joint_name='panda_joint6',
+        #                                                         position=2.56684427410562,
+        #                                                         tolerance_above=0.0001,
+        #                                                         tolerance_below=0.0001,
+        #                                                         weight=1.0),
+        #                                                         JointConstraint(joint_name='panda_joint7',
+        #                                                         position=1.291530524005508,
+        #                                                         tolerance_above=0.0001,
+        #                                                         tolerance_below=0.0001,
+        #                                                         weight=1.0)])]
         self.master_goal.request.pipeline_id = 'move_group'
         self.master_goal.request.group_name = 'panda_arm'
         self.master_goal.request.max_velocity_scaling_factor = 1.0
@@ -99,6 +101,23 @@ class PlanAndExecute:
         # when executing, set goal.request.plan_only to False
         # printIKreq(self.master_goal)
 
+    def fill_constraints(self, joint_names, joint_positions):
+        constraints = []
+        for n, i in enumerate(joint_names):
+            name = i
+            pos = joint_positions[n]
+            print(name, pos)
+            constraint_i = JointConstraint(joint_name=name,
+                                           position=float(pos),
+                                           tolerance_above=0.0001,
+                                           tolerance_below=0.0001,
+                                           weight=1.0)
+            constraints.append(constraint_i)
+        print("BEFORE")
+        printIKreq(self.master_goal.request.goal_constraints)
+        self.master_goal.request.goal_constraints = [Constraints(name='', joint_constraints=constraints)]
+        print("AFTER")
+        printIKreq(self.master_goal.request.goal_constraints)
     
     async def plan_to_position(self, start_pose, end_pos):
         """Returns MoveGroup action from a start pose to an end position"""
@@ -133,7 +152,14 @@ class PlanAndExecute:
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
         printIKreq(response.solution)
         printIKreq(response.error_code)
-        joint_states = response.solution.joint_state
+        joint_names = response.solution.joint_state.name
+        joint_positions = np.array(response.solution.joint_state.position)
+        print(joint_names)
+        print(np.array(joint_positions))
+        print("FILLING WITH RESULT OF IK \n\n\n")
+        self.fill_constraints(joint_names, joint_positions)
+        
+
         # return response.solution, response.error_code
         # put into the move group 
         # 1. Call GetPositionIK.srv to get the joint states of final position 
