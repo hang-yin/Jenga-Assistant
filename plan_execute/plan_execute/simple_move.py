@@ -59,7 +59,7 @@ class Test(Node):
             start = Point(x=1.0, y=1.0, z=1.0)
             endpos = Point(x=0.5, y=0.5, z=0.5)
             endori = Quaternion(x=0.0, y=0.0, z=1.0, w=1.0)
-            self.future = await self.PlanEx.plan_to_pose(start, Pose(position=endpos, orientation=endori), True)
+            self.future = await self.PlanEx.plan_to_pose(start, Pose(position=self.goal_pose.position, orientation=self.goal_pose.orientation), self.execute)
             print(type(self.future))
             print("MAIN LOOP:", self.future)
         # self.get_logger().info("test")
