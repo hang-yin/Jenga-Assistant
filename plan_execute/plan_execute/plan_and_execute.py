@@ -84,7 +84,7 @@ class PlanAndExecute:
             constraints.append(constraint_i)
         self.master_goal.request.goal_constraints = [Constraints(name='', joint_constraints=constraints)]
     
-    async def plan_to_position(self, start_pose, end_pos):
+    async def plan_to_position(self, start_pose, end_pos, execute):
         """Returns MoveGroup action from a start pose to an end position"""
         request = PositionIKRequest()
         # printIKreq(request)
@@ -111,6 +111,7 @@ class PlanAndExecute:
         request.pose_stamped.header.stamp = self.node.get_clock().now().to_msg()
         request.pose_stamped.header.frame_id = 'panda_link0'
         request.pose_stamped.pose.position = end_pos
+        # request.pose_stamped.pose.orientation = start_pose.orientation # will change when recieve joint states
         request.timeout.sec = 20
         # printIKreq(request)
         # convert end_pos to end_pose
@@ -133,18 +134,21 @@ class PlanAndExecute:
         result = await plan.get_result_async()
         print("RESULT")
         printIKreq(result)
-        print("Wait for execute client")
-        self.node._execute_client.wait_for_server()
-        print("Send thing")
-        print(type(result))
-        print("\n\nhere\n\n")
-        # printIKreq(result.result.error_code)
-        printIKreq(result.result.planned_trajectory)
-        print("go")
-        plan2 = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=result.result.planned_trajectory))
-        print("DONE??")
-        printIKreq(plan2)
-        return plan
+        if execute:
+            print("Wait for execute client")
+            self.node._execute_client.wait_for_server()
+            print("Send thing")
+            print(type(result))
+            print("\n\nhere\n\n")
+            # printIKreq(result.result.error_code)
+            printIKreq(result.result.planned_trajectory)
+            print("go")
+            plan2 = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=result.result.planned_trajectory))
+            print("DONE??")
+            printIKreq(plan2)
+            return plan2
+        else:
+            return result
         
 
         # return response.solution, response.error_code
@@ -155,13 +159,72 @@ class PlanAndExecute:
         # 4. Plug this into mvg.request.goal_constraints.joint_constraints (joint_state type)
         # 5. Return mvg action
         # return mvg
-    async def plan_to_orientation(self, start_pose, end_orientation):
+    async def plan_to_orientation(self, start_pose, end_orientation, execute):
         """Returns MoveGroup action from a start pose to an end orientation"""
-        # Make copy of MoveGroup
-        mvg = self.move_group
-        # Call GetPositionIK.srv
-        angles = await self.node.IK.call_async(end_orientation)
-        return mvg
+        request = PositionIKRequest()
+        # printIKreq(request)
+        request.group_name = 'panda_arm' # NOt sure how to find this
+        # Robot state is "Seed" guess. IDK how to get this. Since it's in angles? 
+        # MUST CONTAIN STATE OF ALL JOINTS TO BE USED BY IK SOLVER
+
+        # I think we should use the joint_state message, I also think this can probably be initialized
+        # print(type(request))
+        request.robot_state.joint_state.name = ['panda_joint1', 'panda_joint2',
+                       'panda_joint3','panda_joint4',
+                       'panda_joint5','panda_joint6','panda_joint7',
+                       'panda_finger_joint1','panda_finger_joint2']
+        request.robot_state.joint_state.position = [-0.2231403838057399, 0.13284448454250933, 
+                                                    -0.19602126983568066, -1.4435717608445389, 
+                                                    0.0700470262663259, 1.302200406478571,
+                                                    0.1637209011241946, 0.035, 0.035]
+        # Do we get this by looking at JSP? What if the start state is not current pos? 
+        request.robot_state.joint_state.header.stamp = self.node.get_clock().now().to_msg()
+        # Constraints: Default empty. Do we need to add?
+        request.constraints.name = ''
+        # Pose Stamped: How we specify a location of a joint.
+        # I think we will assume that the joint we want the position of is the end effector.
+        request.pose_stamped.header.stamp = self.node.get_clock().now().to_msg()
+        request.pose_stamped.header.frame_id = 'panda_link0'
+        # request.pose_stamped.pose.position = start_pose.position # will change when recieve joint states
+        request.pose_stamped.pose.orientation = end_orientation
+        request.timeout.sec = 20
+        # printIKreq(request)
+        # convert end_pos to end_pose
+        response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
+        printIKreq(response.solution)
+        printIKreq(response.error_code)
+        joint_names = response.solution.joint_state.name
+        joint_positions = np.array(response.solution.joint_state.position)
+        print(joint_names)
+        print(np.array(joint_positions))
+        print("FILLING WITH RESULT OF IK \n\n\n")
+        self.fill_constraints(joint_names, joint_positions)
+        self.master_goal.planning_options.plan_only = True
+        print("wait for server")
+        self.node._action_client.wait_for_server()
+        print("return")
+        plan = await self.node._action_client.send_goal_async(self.master_goal)
+        printIKreq(plan)
+        print(type(plan))
+        result = await plan.get_result_async()
+        print("RESULT")
+        if execute:
+            print("Wait for execute client")
+            self.node._execute_client.wait_for_server()
+            print("Send thing")
+            print(type(result))
+            print("\n\nhere\n\n")
+            # printIKreq(result.result.error_code)
+            printIKreq(result.result.planned_trajectory)
+            print("go")
+            plan2 = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=result.result.planned_trajectory))
+            print("DONE??")
+            printIKreq(plan2)
+            return plan2
+        else:
+            return result
+
+    
     def plan_to_pose(self,start_pose, end_pose):
         """Returns MoveGroup action from a start pose to an end pose (position + orientation)"""
         mvg = MoveGroup()
