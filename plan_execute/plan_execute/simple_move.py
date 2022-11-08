@@ -12,6 +12,7 @@ class State(Enum):
 
     Determines what the main timer function should be doing on each iteration
     """
+    START = auto(),
     IDLE = auto(),
     CALL = auto()
 
@@ -34,11 +35,18 @@ class Test(Node):
 
         self.PlanEx = PlanAndExecute(self)
 
-        self.state = State.CALL
+        self.state = State.START
+        self.ct = 0
 
         self.future = None
 
     async def timer_callback(self):
+        if self.state == State.START:
+            # add a bit of a time buffer so js can be read in
+            if self.ct==100:
+                self.state = State.CALL
+            else:
+                self.ct += 1
         if self.state == State.CALL: 
             self.state = State.IDLE
             start = Point(x=1.0, y=1.0, z=1.0)
