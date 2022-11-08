@@ -3,9 +3,8 @@ from rclpy.node import Node
 from enum import Enum, auto
 from plan_execute.plan_and_execute import PlanAndExecute
 from moveit_msgs.action import MoveGroup
-from geometry_msgs.msg import Point
-from rclpy.callback_groups import ReentrantCallbackGroup
-
+from geometry_msgs.msg import Point, Quaternion, Pose
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 class State(Enum):
     """
     Current state of the system.
@@ -29,7 +28,7 @@ class Test(Node):
         super().__init__('simple_move')
         # Start timer
         self.freq = 100.
-        self.cbgroup = ReentrantCallbackGroup()
+        self.cbgroup = MutuallyExclusiveCallbackGroup()
         self.timer = self.create_timer(1./self.freq, self.timer_callback, callback_group=self.cbgroup)
         self.movegroup = None # Fill this in later lol
 
@@ -50,8 +49,9 @@ class Test(Node):
         if self.state == State.CALL: 
             self.state = State.IDLE
             start = Point(x=1.0, y=1.0, z=1.0)
-            end = Point(x=0.5, y=0.5, z=0.5)
-            self.future = await self.PlanEx.plan_to_position(start, end, True)
+            endpos = Point(x=0.5, y=0.5, z=0.5)
+            endori = Quaternion(x=0.0, y=0.0, z=1.0, w=1.0)
+            self.future = await self.PlanEx.plan_to_pose(start, Pose(position=endpos, orientation=endori), True)
             print(type(self.future))
             print("MAIN LOOP:", self.future)
         # self.get_logger().info("test")
