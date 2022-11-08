@@ -44,12 +44,14 @@ class Test(Node):
         self.start_pose = request.start_pose
         self.goal_pose = request.goal_pose
         self.execute = request.execute
-        self.state = State.CALL
-        response.success = True
+        
         if len(self.start_pose) > 1:
             self.get_logger().info('Enter either zero or one initial poses.')
             self.state = State.IDLE
             response.success = False
+        else:
+            self.state = State.CALL
+            response.success = True
         return response
 
     async def timer_callback(self):
@@ -62,8 +64,6 @@ class Test(Node):
         if self.state == State.CALL: 
             self.state = State.IDLE
             start = []
-            endpos = Point(x=0.5, y=0.5, z=0.5)
-            endori = Quaternion(x=0.0, y=0.2, z=1.0, w=1.0)
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose, self.goal_pose, self.execute)
             print(type(self.future))
             print("MAIN LOOP:", self.future)
