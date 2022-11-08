@@ -41,17 +41,22 @@ class Test(Node):
         self.future = None
 
     def go_here_callback(self, request, response):
+        self.start_pose = request.start_pose
         self.goal_pose = request.goal_pose
         self.execute = request.execute
-        print(self.goal_pose)
-        print(self.execute)
+        self.state = State.CALL
+        response.success = True
+        if len(self.start_pose) > 1:
+            self.get_logger().info('Enter either zero or one initial poses.')
+            self.state = State.IDLE
+            response.success = False
         return response
 
     async def timer_callback(self):
         if self.state == State.START:
             # add a bit of a time buffer so js can be read in
             if self.ct==100:
-                self.state = State.CALL
+                self.state = State.IDLE
             else:
                 self.ct += 1
         if self.state == State.CALL: 
