@@ -1,15 +1,15 @@
 import numpy as np
 import rclpy
-from moveit_msgs.action import MoveGroup
+from moveit_msgs.action import MoveGroup, ExecuteTrajectory
 from rclpy.action import ActionClient
 from moveit_msgs.srv import GetPositionIK
-from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint
+from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, RobotTrajectory
 from rclpy.callback_groups import ReentrantCallbackGroup
 # import moveit movegroup
 
 def printIKreq(req):
     print()
-    print((str(req)).replace(',','\n'))
+    print((str(req)).replace(',',',\n'))
     print()
 
 class PlanAndExecute:
@@ -19,11 +19,16 @@ class PlanAndExecute:
         self.node._action_client = ActionClient(self.node,
                                                 MoveGroup,
                                                 '/move_action')
+        self.node._execute_client = ActionClient(self.node,
+                                                ExecuteTrajectory,
+                                                '/execute_trajectory')
         # Make it so we can call the IK service
         self.node.cbgroup = ReentrantCallbackGroup()
         self.node.IK = self.node.create_client(GetPositionIK,
                                                "compute_ik",
                                                callback_group = self.node.cbgroup)
+        if not self.node.IK.wait_for_service(timeout_sec=1.0):
+            raise RuntimeError('Timeout waiting for "IK" service to become available')
         # Get MoveGroup() from the node
         self.move_group = self.node.movegroup #idk if this is even close to right <3 -Liz
 
@@ -77,11 +82,7 @@ class PlanAndExecute:
                                            tolerance_below=0.0001,
                                            weight=1.0)
             constraints.append(constraint_i)
-        print("BEFORE")
-        printIKreq(self.master_goal.request.goal_constraints)
         self.master_goal.request.goal_constraints = [Constraints(name='', joint_constraints=constraints)]
-        print("AFTER")
-        printIKreq(self.master_goal.request.goal_constraints)
     
     async def plan_to_position(self, start_pose, end_pos):
         """Returns MoveGroup action from a start pose to an end position"""
@@ -126,8 +127,23 @@ class PlanAndExecute:
         print("wait for server")
         self.node._action_client.wait_for_server()
         print("return")
-        plan = self.node._action_client.send_goal_async(self.master_goal)
+        plan = await self.node._action_client.send_goal_async(self.master_goal)
         printIKreq(plan)
+        print(type(plan))
+        result = await plan.get_result_async()
+        print("RESULT")
+        printIKreq(result)
+        print("Wait for execute client")
+        self.node._execute_client.wait_for_server()
+        print("Send thing")
+        print(type(result))
+        print("\n\nhere\n\n")
+        # printIKreq(result.result.error_code)
+        printIKreq(result.result.planned_trajectory)
+        print("go")
+        plan2 = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=result.result.planned_trajectory))
+        print("DONE??")
+        printIKreq(plan2)
         return plan
         
 

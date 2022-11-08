@@ -36,13 +36,15 @@ class Test(Node):
 
         self.state = State.CALL
 
+        self.future = None
+
     async def timer_callback(self):
         if self.state == State.CALL: 
+            self.state = State.IDLE
             start = Point(x=1.0, y=1.0, z=1.0)
             end = Point(x=0.5, y=0.5, z=0.5)
-            plan = await self.PlanEx.plan_to_position(start, end)
-            print(plan)
-            self.state = State.IDLE
+            self.future = await self.PlanEx.plan_to_position(start, end)
+            print("MAIN LOOP:", self.future)
         # self.get_logger().info("test")
 
 
