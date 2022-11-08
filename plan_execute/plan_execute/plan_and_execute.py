@@ -106,8 +106,7 @@ class PlanAndExecute:
         request.timeout.sec = 20
         return request
 
-    async def plan_to_position(self, start_pose, end_pos, execute):
-        """Returns MoveGroup action from a start pose to an end position"""
+    def getStartPose(self):
         startpose = Pose()
         t = self.tf_buffer.lookup_transform(
                                             self.master_goal.request.workspace_parameters.header.frame_id,
@@ -121,7 +120,13 @@ class PlanAndExecute:
         startpose.orientation.z = t.transform.rotation.z
         startpose.orientation.w = t.transform.rotation.w
         printIKreq(f"START POSITION{startpose}")
-        request = self.createIKreq(end_pos, startpose.orientation)
+        return startpose
+
+    async def plan_to_position(self, start_pose, end_pos, execute):
+        """Returns MoveGroup action from a start pose to an end position"""
+        start_pose = self.getStartPose()
+        
+        request = self.createIKreq(end_pos, start_pose.orientation)
 
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
         # printIKreq(response.solution)
@@ -169,7 +174,8 @@ class PlanAndExecute:
         # return mvg
     async def plan_to_orientation(self, start_pose, end_orientation, execute):
         """Returns MoveGroup action from a start pose to an end orientation"""
-        request = self.createIKreq(Point(), end_orientation)
+        start_pose = self.getStartPose()
+        request = self.createIKreq(start_pose.position, end_orientation)
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
         printIKreq(response.solution)
         printIKreq(response.error_code)

@@ -61,10 +61,10 @@ class Test(Node):
                 self.ct += 1
         if self.state == State.CALL: 
             self.state = State.IDLE
-            start = Point(x=1.0, y=1.0, z=1.0)
+            start = []
             endpos = Point(x=0.5, y=0.5, z=0.5)
             endori = Quaternion(x=0.0, y=0.0, z=1.0, w=1.0)
-            self.future = await self.PlanEx.plan_to_position(start, endpos, True)
+            self.future = await self.PlanEx.plan_to_orientation(start, endori, True)
             print(type(self.future))
             print("MAIN LOOP:", self.future)
         # self.get_logger().info("test")
