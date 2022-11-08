@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from enum import Enum, auto
+from plan_execute_interface.srv import GoHere
 from plan_execute.plan_and_execute import PlanAndExecute
 from moveit_msgs.action import MoveGroup
 from geometry_msgs.msg import Point, Quaternion, Pose
@@ -31,13 +32,20 @@ class Test(Node):
         self.cbgroup = MutuallyExclusiveCallbackGroup()
         self.timer = self.create_timer(1./self.freq, self.timer_callback, callback_group=self.cbgroup)
         self.movegroup = None # Fill this in later lol
-
+        self.go_here = self.create_service(GoHere, 'go_here', self.go_here_callback)
         self.PlanEx = PlanAndExecute(self)
 
         self.state = State.START
         self.ct = 0
-
+        self.goal_pose = Pose()
         self.future = None
+
+    def go_here_callback(self, request, response):
+        self.goal_pose = request.goal_pose
+        self.execute = request.execute
+        print(self.goal_pose)
+        print(self.execute)
+        return response
 
     async def timer_callback(self):
         if self.state == State.START:
