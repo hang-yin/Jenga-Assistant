@@ -1,0 +1,28 @@
+[0.778s] Invoking command in '/home/alyssa/hw3_ws/src/hw3group-jengabells/build/plan_execute': PYTHONPATH=/home/alyssa/hw3_ws/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py develop --prefix /home/alyssa/hw3_ws/src/hw3group-jengabells/install/plan_execute --editable --build-directory /home/alyssa/hw3_ws/src/hw3group-jengabells/build/plan_execute/build --no-deps install_data --install-dir /home/alyssa/hw3_ws/src/hw3group-jengabells/install/plan_execute
+[1.123s] running develop
+[1.123s] /usr/lib/python3/dist-packages/setuptools/command/easy_install.py:158: EasyInstallDeprecationWarning: easy_install command is deprecated. Use build and pip and other standards-based tools.
+[1.123s]   warnings.warn(
+[1.124s] /usr/lib/python3/dist-packages/setuptools/command/install.py:34: SetuptoolsDeprecationWarning: setup.py install is deprecated. Use build and pip and other standards-based tools.
+[1.125s]   warnings.warn(
+[1.204s] /usr/lib/python3/dist-packages/pkg_resources/__init__.py:116: PkgResourcesDeprecationWarning: 1.16.0-unknown is an invalid version and will not be supported in a future release
+[1.205s]   warnings.warn(
+[1.205s] /usr/lib/python3/dist-packages/pkg_resources/__init__.py:116: PkgResourcesDeprecationWarning: 1.1build1 is an invalid version and will not be supported in a future release
+[1.205s]   warnings.warn(
+[1.205s] /usr/lib/python3/dist-packages/pkg_resources/__init__.py:116: PkgResourcesDeprecationWarning: 0.1.43ubuntu1 is an invalid version and will not be supported in a future release
+[1.205s]   warnings.warn(
+[1.357s] running egg_info
+[1.357s] writing plan_execute.egg-info/PKG-INFO
+[1.357s] writing dependency_links to plan_execute.egg-info/dependency_links.txt
+[1.358s] writing entry points to plan_execute.egg-info/entry_points.txt
+[1.358s] writing requirements to plan_execute.egg-info/requires.txt
+[1.358s] writing top-level names to plan_execute.egg-info/top_level.txt
+[1.363s] reading manifest file 'plan_execute.egg-info/SOURCES.txt'
+[1.364s] writing manifest file 'plan_execute.egg-info/SOURCES.txt'
+[1.368s] running build_ext
+[1.368s] Creating /home/alyssa/hw3_ws/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages/plan-execute.egg-link (link to .)
+[1.370s] Installing simple_move script to /home/alyssa/hw3_ws/src/hw3group-jengabells/install/plan_execute/lib/plan_execute
+[1.371s] 
+[1.371s] Installed /home/alyssa/hw3_ws/src/hw3group-jengabells/build/plan_execute
+[1.371s] running install_data
+[1.372s] copying plan_execute/plan_and_execute.py -> /home/alyssa/hw3_ws/src/hw3group-jengabells/install/plan_execute/share/plan_execute
+[1.428s] Invoked command in '/home/alyssa/hw3_ws/src/hw3group-jengabells/build/plan_execute' returned '0': PYTHONPATH=/home/alyssa/hw3_ws/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py develop --prefix /home/alyssa/hw3_ws/src/hw3group-jengabells/install/plan_execute --editable --build-directory /home/alyssa/hw3_ws/src/hw3group-jengabells/build/plan_execute/build --no-deps install_data --install-dir /home/alyssa/hw3_ws/src/hw3group-jengabells/install/plan_execute

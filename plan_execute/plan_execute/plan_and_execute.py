@@ -6,7 +6,9 @@ from moveit_msgs.srv import GetPositionIK
 from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, RobotTrajectory
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import JointState
-from geometry_msgs.msg import Point, Quaternion
+from geometry_msgs.msg import Point, Quaternion, Pose
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 # import moveit movegroup
 
 def printIKreq(req):
@@ -38,7 +40,8 @@ class PlanAndExecute:
                                                     self.js_callback,
                                                     10)
         self.js = None
-
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self.node)
         # define a generic MoveGroup Goal
         self.master_goal = MoveGroup.Goal()
         self.master_goal.request.workspace_parameters.header.frame_id = 'panda_link0'
@@ -105,39 +108,52 @@ class PlanAndExecute:
 
     async def plan_to_position(self, start_pose, end_pos, execute):
         """Returns MoveGroup action from a start pose to an end position"""
-        request = self.createIKreq(end_pos, Quaternion())
+        startpose = Pose()
+        t = self.tf_buffer.lookup_transform(
+                                            self.master_goal.request.workspace_parameters.header.frame_id,
+                                            'panda_link8',
+                                            rclpy.time.Time())
+        startpose.position.x = t.transform.translation.x
+        startpose.position.y = t.transform.translation.y
+        startpose.position.z = t.transform.translation.z
+        startpose.orientation.x = t.transform.rotation.x
+        startpose.orientation.y =  t.transform.rotation.y
+        startpose.orientation.z = t.transform.rotation.z
+        startpose.orientation.w = t.transform.rotation.w
+        printIKreq(f"START POSITION{startpose}")
+        request = self.createIKreq(end_pos, startpose.orientation)
 
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
-        printIKreq(response.solution)
-        printIKreq(response.error_code)
+        # printIKreq(response.solution)
+        # printIKreq(response.error_code)
         joint_names = response.solution.joint_state.name
         joint_positions = np.array(response.solution.joint_state.position)
-        print(joint_names)
-        print(np.array(joint_positions))
-        print("FILLING WITH RESULT OF IK \n\n\n")
+        # print(joint_names)
+        # print(np.array(joint_positions))
+        # print("FILLING WITH RESULT OF IK \n\n\n")
         self.fill_constraints(joint_names, joint_positions)
         self.master_goal.planning_options.plan_only = True
-        print("wait for server")
+        # print("wait for server")
         self.node._action_client.wait_for_server()
-        print("return")
+        # print("return")
         plan = await self.node._action_client.send_goal_async(self.master_goal)
-        printIKreq(plan)
-        print(type(plan))
+        # printIKreq(plan)
+        # print(type(plan))
         result = await plan.get_result_async()
-        print("RESULT")
-        printIKreq(result)
+        # print("RESULT")
+        # printIKreq(result)
         if execute:
-            print("Wait for execute client")
+            # print("Wait for execute client")
             self.node._execute_client.wait_for_server()
-            print("Send thing")
-            print(type(result))
-            print("\n\nhere\n\n")
+            # print("Send thing")
+            # print(type(result))
+            # print("\n\nhere\n\n")
             # printIKreq(result.result.error_code)
-            printIKreq(result.result.planned_trajectory)
-            print("go")
+            # printIKreq(result.result.planned_trajectory)
+            # print("go")
             plan2 = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=result.result.planned_trajectory))
-            print("DONE??")
-            printIKreq(plan2)
+            # print("DONE??")
+            # printIKreq(plan2)
             return plan2
         else:
             return result
