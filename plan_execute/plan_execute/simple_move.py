@@ -56,15 +56,15 @@ class Test(Node):
         if self.state == State.START:
             # add a bit of a time buffer so js can be read in
             if self.ct==100:
-                self.state = State.CALL
+                self.state = State.IDLE
             else:
                 self.ct += 1
         if self.state == State.CALL: 
             self.state = State.IDLE
             start = []
             endpos = Point(x=0.5, y=0.5, z=0.5)
-            endori = Quaternion(x=0.0, y=0.0, z=1.0, w=1.0)
-            self.future = await self.PlanEx.plan_to_orientation(start, endori, True)
+            endori = Quaternion(x=0.0, y=0.2, z=1.0, w=1.0)
+            self.future = await self.PlanEx.plan_to_orientation(self.start_pose, self.goal_pose, self.execute)
             print(type(self.future))
             print("MAIN LOOP:", self.future)
         # self.get_logger().info("test")

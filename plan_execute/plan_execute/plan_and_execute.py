@@ -124,9 +124,9 @@ class PlanAndExecute:
 
     async def plan_to_position(self, start_pose, end_pos, execute):
         """Returns MoveGroup action from a start pose to an end position"""
-        start_pose = self.getStartPose()
-        
-        request = self.createIKreq(end_pos, start_pose.orientation)
+        if len(start_pose)==0:
+            start_pose = self.getStartPose()
+        request = self.createIKreq(end_pos.position, start_pose.orientation)
 
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
         # printIKreq(response.solution)
@@ -174,8 +174,9 @@ class PlanAndExecute:
         # return mvg
     async def plan_to_orientation(self, start_pose, end_orientation, execute):
         """Returns MoveGroup action from a start pose to an end orientation"""
-        start_pose = self.getStartPose()
-        request = self.createIKreq(start_pose.position, end_orientation)
+        if len(start_pose)==0:
+            start_pose = self.getStartPose()
+        request = self.createIKreq(start_pose.position, end_orientation.orientation)
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
         printIKreq(response.solution)
         printIKreq(response.error_code)
@@ -213,6 +214,8 @@ class PlanAndExecute:
     
     async def plan_to_pose(self, start_pose, end_pose, execute):
         """Returns MoveGroup action from a start pose to an end pose (position + orientation)"""
+        if len(start_pose)==0:
+            start_pose = self.getStartPose()
         request = self.createIKreq(end_pose.position, end_pose.orientation)
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
         printIKreq(response.solution)
