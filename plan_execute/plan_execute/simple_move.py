@@ -56,7 +56,7 @@ class Test(Node):
         if self.state == State.START:
             # add a bit of a time buffer so js can be read in
             if self.ct==100:
-                self.state = State.IDLE
+                self.state = State.CALL
             else:
                 self.ct += 1
         if self.state == State.CALL: 
