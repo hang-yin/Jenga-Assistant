@@ -3,7 +3,7 @@ import rclpy
 from moveit_msgs.action import MoveGroup, ExecuteTrajectory
 from rclpy.action import ActionClient
 from moveit_msgs.srv import GetPositionIK
-from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, RobotTrajectory
+from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, PlanningScene
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Point, Quaternion, Pose
@@ -38,6 +38,7 @@ class PlanAndExecute:
         self.js = None
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self.node)
+        self.node.block_pub = self.node.create_publisher(PlanningScene, "/planning_scene", 10)
         # define a generic MoveGroup Goal
         self.master_goal = MoveGroup.Goal()
         self.master_goal.request.workspace_parameters.header.frame_id = 'panda_link0'
@@ -202,3 +203,11 @@ class PlanAndExecute:
         execute_future = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=plan_result.result.planned_trajectory))
         execute_result = await execute_future.get_result_async()
         return execute_result
+
+    def place_block(self, pos):
+        print("Place Block")
+        scene = PlanningScene()
+        # Fill in with position
+        scene.robot_state.joint_state = self.js
+        scene.robot_model_name = 'panda'
+        self.node.block_pub.publish(scene)
