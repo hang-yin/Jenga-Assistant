@@ -87,7 +87,7 @@ class Test(Node):
         if self.state == State.PLACE:
             self.get_logger().info("test1")
             self.state = State.IDLE
-            self.PlanEx.place_block(self.block_pose)
+            await self.PlanEx.place_block(self.block_pose)
             self.get_logger().info("test")
 
 
