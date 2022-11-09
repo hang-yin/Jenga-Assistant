@@ -27,4 +27,4 @@ def generate_launch_description():
     return LaunchDescription([
         launch_franka,
         test_node
-])
+    ])

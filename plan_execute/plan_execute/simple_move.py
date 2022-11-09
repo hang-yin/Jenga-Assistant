@@ -89,7 +89,7 @@ class Test(Node):
             #                                                     self.execute)
         if self.state == State.PLACE:
             self.state = State.IDLE
-            self.PlanEx.place_block(self.block_pose)
+            await self.PlanEx.place_block(self.block_pose)
 
 
 def test_entry(args=None):
