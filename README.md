@@ -1,6 +1,25 @@
-README!
+**Group Members:**
+Katie Hughes, Alyssa Chen, Hang Yin, Liz Metzger
+
+**Instructions:**
+
+To plan or execute you need to call our service `/go_here` (there are sample commands below), which
+takes in start pose, goal pose, and a boolean to indicate whether to plan or execute. If there is no 
+start position indicated then the plan/execute happens with the robot's current position. If there 
+is one given then the robot will plan from that postion. If there is more than one start position 
+given then the program throws you an error.
+
+Our node defaults to using our `plan_to_pose` function which takes the user input and moves the 
+robot to the indicated pose. To see the robot move and execute you can run one of the service calls 
+with no start position indicated and execute set to true. To test the other functions you can
+comment out the current call in the node and uncomment one of the other ones.
+
+Sometime our IK service doesn't load up, to fix it relaunch the program.
 
 # Sample Commands
+
+## Run the Launch File
+`ros2 launch plan_execute simple_move.launch.py`
 
 ## 0 initial start orientations
 
