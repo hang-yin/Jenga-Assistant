@@ -2,11 +2,11 @@ import numpy as np
 import rclpy
 from moveit_msgs.action import MoveGroup, ExecuteTrajectory
 from rclpy.action import ActionClient
-from moveit_msgs.srv import GetPositionIK
-from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, PlanningScene
+from moveit_msgs.srv import GetPositionIK, GetPlanningScene
+from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, PlanningScene, PlanningSceneComponents#, AllowCollisionMatrix, AllowedCollisionEntry
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import JointState
-from geometry_msgs.msg import Point, Quaternion, Pose
+from geometry_msgs.msg import Point, Quaternion, Pose, Transform
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 # import moveit movegroup
@@ -23,13 +23,17 @@ class PlanAndExecute:
                                                 ExecuteTrajectory,
                                                 '/execute_trajectory')
         # Make it so we can call the IK service
-        self.node.cbgroup = MutuallyExclusiveCallbackGroup()
         self.node.IK = self.node.create_client(GetPositionIK,
                                                "compute_ik",
                                                callback_group = self.node.cbgroup)
-        if not self.node.IK.wait_for_service(timeout_sec=1.0):
+        if not self.node.IK.wait_for_service(timeout_sec=5.0):
             raise RuntimeError('Timeout waiting for "IK" service to become available')
         # Get MoveGroup() from the node
+        self.node.planscene = self.node.create_client(GetPlanningScene,
+                                               "get_planning_scene",
+                                               callback_group = self.node.cbgroup)
+        if not self.node.planscene.wait_for_service(timeout_sec=5.0):
+            raise RuntimeError('Timeout waiting for "planscene" service to become available')
         self.move_group = self.node.movegroup #idk if this is even close to right <3 -Liz
         self.node.js_sub = self.node.create_subscription(JointState,
                                                     "/joint_states",
@@ -63,6 +67,65 @@ class PlanAndExecute:
         self.master_goal.request.pipeline_id = 'move_group'
         self.master_goal.request.max_velocity_scaling_factor = 1.0
         self.master_goal.request.max_acceleration_scaling_factor = 0.1
+        
+        # collision matrix for robot
+        # self.collision_matrix = AllowCollisionMatrix()
+        # self.collision_matrix.entery_names = ['panda_hand',
+        #                                       'panda_leftfinger',
+        #                                       'panda_link0',
+        #                                       'panda_link1',
+        #                                       'panda_link2',
+        #                                       'panda_link3',
+        #                                       'panda_link4',
+        #                                       'panda_link5',
+        #                                       'panda_link6',
+        #                                       'panda_link7',
+        #                                       'panda_link8',
+        #                                       'panda_rightfinger']
+        # self.collision_matrix.entry_values = [AllowedCollisionEntry([False, True, False,
+        #                                                               False, False, True,
+        #                                                               True, False, True,
+        #                                                               True, True, True]),
+        #                                       AllowedCollisionEntry([True, False, False,
+        #                                                               False, False, True, 
+        #                                                               True, False, True,
+        #                                                               True, True, True]),
+        #                                       AllowedCollisionEntry([False, False, False,
+        #                                                               True, True, True,
+        #                                                               True, False, False,
+        #                                                               False, False, False]),
+        #                                       AllowedCollisionEntry([False, False, True,
+        #                                                               False, True, True,
+        #                                                               True, False, False,
+        #                                                               False, False, False]),
+        #                                       AllowedCollisionEntry([False, False, True,
+        #                                                               True, False, True,
+        #                                                               True, False, True,
+        #                                                               False, False, False]),
+        #                                       AllowedCollisionEntry([True, True, True,
+        #                                                               True, True, False,
+        #                                                               True, True, True,
+        #                                                               True, False, True]),
+        #                                       AllowedCollisionEntry([True, True, True,
+        #                                                               True, True, True,
+        #                                                               False, True, True,
+        #                                                               True, True, True]),
+        #                                       AllowedCollisionEntry([False, False, False,
+        #                                                               False, False, True,
+        #                                                               True, False, True,
+        #                                                               False, False, False]),
+        #                                       AllowedCollisionEntry([True, True, False,
+        #                                                               False, True, True,
+        #                                                               True, True, False,
+        #                                                               True, True, True]),
+        #                                       AllowedCollisionEntry([True, True, False,
+        #                                                               False, False, True,
+        #                                                               True, False, True,
+        #                                                               False, True, True]),
+        #                                       AllowedCollisionEntry([True, True, False,
+        #                                                               False, True, True,
+        #                                                               True, True, True,
+        #                                                               True, True, True])]
         # when planning, set goal.request.plan_only to True, 
         # when executing, set goal.request.plan_only to False
     
@@ -209,10 +272,17 @@ class PlanAndExecute:
         execute_result = await execute_future.get_result_async()
         return execute_result
 
-    def place_block(self, pos):
+    async def place_block(self, pos):
         print("Place Block")
-        scene = PlanningScene()
+
+        scene = await self.node.planscene.call_async(GetPlanningScene.Request(components=PlanningSceneComponents(components=0)))
+        self.printIKreq(scene)
         # Fill in with position
         scene.robot_state.joint_state = self.js
-        scene.robot_model_name = 'panda'
+        # scene.robot_model_name = 'panda'
+        # scene.fixed_frame_transformations.header = self.js.header
+        # scene.fixed_frame_transformations.header.frame_id = 'panda_link0'
+        # scene.fixed_frame_transformations.header.child_frame_id = 'panda_link0'
+        # scene.fixed_frame_transformations.header.transform = Transform(translation.x=0,translation.y=0,translation.z=0)
+        # scene.allowed_collosion_matrix=
         self.node.block_pub.publish(scene)
