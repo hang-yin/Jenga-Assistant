@@ -67,6 +67,7 @@ class Test(Node):
     
     def place_callback(self, request, response):
         self.block_pose = request.place
+        print(f'block_pose{type(self.block_pose)}')
         self.state = State.PLACE
         return response
 
@@ -84,8 +85,9 @@ class Test(Node):
             print(type(self.future))
             print("MAIN LOOP:", self.future)
         if self.state == State.PLACE:
+            self.get_logger().info("test1")
             self.state = State.IDLE
-            self.future = await self.place_block(self.block_pose)
+            self.PlanEx.place_block(self.block_pose)
             self.get_logger().info("test")
 
 
