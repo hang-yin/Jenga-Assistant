@@ -10,7 +10,8 @@ is one given then the robot will plan from that postion. If there is more than o
 given then the program throws you an error.
 
 To place a obstacle call the `/place` service (sample command below) and give it a pose. A block
-will spawn at the indicated location realtive to the end effector.
+will spawn at the indicated location realtive to the end effector. If the service is called again 
+then a new block is not made, the current block just moves. 
 
 Our node defaults to using our `plan_to_pose` function which takes the user input and moves the 
 robot to the indicated pose. To see the robot move and execute you can run one of the service calls 
