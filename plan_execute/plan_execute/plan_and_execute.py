@@ -11,10 +11,6 @@ from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 # import moveit movegroup
 
-def printIKreq(req):
-    print()
-    print((str(req)).replace(',',',\n'))
-    print()
 
 class PlanAndExecute:
     def __init__(self, node):
@@ -64,12 +60,14 @@ class PlanAndExecute:
         self.master_goal.request.start_state.attached_collision_objects = []
         self.master_goal.request.start_state.is_diff = False
         self.master_goal.request.pipeline_id = 'move_group'
-        self.master_goal.request.group_name = 'panda_arm'
         self.master_goal.request.max_velocity_scaling_factor = 1.0
         self.master_goal.request.max_acceleration_scaling_factor = 0.1
         # when planning, set goal.request.plan_only to True, 
         # when executing, set goal.request.plan_only to False
-        # printIKreq(self.master_goal)
+    
+    def printIKreq(self, req):
+        new_str = (str(req)).replace(',',',\n')
+        self.node.get_logger().info(new_str)
 
     def js_callback(self, data):
         """Save js (sensor_msgs/JointStates type)."""
@@ -91,7 +89,7 @@ class PlanAndExecute:
     
     def createIKreq(self, end_pos, end_orientation):
         request = PositionIKRequest()
-        request.group_name = 'panda_arm'
+        request.group_name = self.master_goal.request.group_name
         # "Seed" position but it doesn't really matter since almost always converges
         request.robot_state.joint_state.name = self.js.name
         request.robot_state.joint_state.position = self.js.position
@@ -108,7 +106,7 @@ class PlanAndExecute:
         startpose = Pose()
         t = self.tf_buffer.lookup_transform(
                                             self.master_goal.request.workspace_parameters.header.frame_id,
-                                            'panda_link8',
+                                            'panda_hand_tcp',
                                             rclpy.time.Time())
         startpose.position.x = t.transform.translation.x
         startpose.position.y = t.transform.translation.y
@@ -117,7 +115,7 @@ class PlanAndExecute:
         startpose.orientation.y =  t.transform.rotation.y
         startpose.orientation.z = t.transform.rotation.z
         startpose.orientation.w = t.transform.rotation.w
-        printIKreq(f"START POSITION{startpose}")
+        self.printIKreq(startpose)
         return startpose
 
     async def plan_to_position(self, start_pose, end_pos, execute):
@@ -143,7 +141,7 @@ class PlanAndExecute:
 
     async def plan_to_orientation(self, start_pose, end_orientation, execute):
         """Returns MoveGroup action from a start pose to an end orientation"""
-        print("Plan to orientation")
+        self.node.get_logger().info("\n\n\n\n\nHERE\n\n\n\n\n\n")
         if not start_pose:
             # We start at current location 
             start_pose = self.getStartPose()
@@ -155,6 +153,8 @@ class PlanAndExecute:
             self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
         self.master_goal.planning_options.plan_only = not execute
         request = self.createIKreq(start_pose.position, end_orientation.orientation)
+        print("REQUEST")
+        self.printIKreq(request)
         plan_result = await self.plan(request)
         if execute:
             execute_result = await self.execute(plan_result)
@@ -189,9 +189,9 @@ class PlanAndExecute:
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = IKrequest))
         joint_names = response.solution.joint_state.name
         joint_positions = np.array(response.solution.joint_state.position)
-        print("FILLING WITH RESULT OF IK \n\n\n")
         self.fill_constraints(joint_names, joint_positions)
         self.node._action_client.wait_for_server()
+        self.printIKreq(self.master_goal)
         plan = await self.node._action_client.send_goal_async(self.master_goal)
         plan_result = await plan.get_result_async()
         return plan_result
