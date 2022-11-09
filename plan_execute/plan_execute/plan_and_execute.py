@@ -172,17 +172,22 @@ class PlanAndExecute:
             self.master_goal.request.start_state.joint_state = self.js
         else:
             # compute ik to get joint states of start
+            print("NEW START")
             request_start = self.createIKreq(start_pose.position, start_pose.orientation)
             response_start = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request_start))
             self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
+            print(response_start)
+            print(self.master_goal.request.start_state.joint_state)
         
         self.master_goal.planning_options.plan_only = not execute
         request = self.createIKreq(end_pose.position, end_pose.orientation)
         plan_result = await self.plan(request)
         if execute:
             execute_result = await self.execute(plan_result)
+            print("EXECUTE")
             return execute_result
         else:
+            print("PLAN")
             return plan_result
 
     async def plan(self, IKrequest):
