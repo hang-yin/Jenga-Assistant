@@ -118,7 +118,7 @@ class PlanAndExecute:
         return startpose
 
     async def plan_to_position(self, start_pose, end_pos, execute):
-        """Returns MoveGroup action from a start pose to an end position"""
+        """Return MoveGroup action from a start pose to an end position."""
         self.node.get_logger().info("Plan to position")
         if not start_pose:
             start_pose = self.getStartPose()
@@ -138,7 +138,7 @@ class PlanAndExecute:
             return plan_result
 
     async def plan_to_orientation(self, start_pose, end_orientation, execute):
-        """Returns MoveGroup action from a start pose to an end orientation"""
+        """Return MoveGroup action from a start pose to an end orientation."""
         self.node.get_logger().info("\n\n\n\n\nHERE\n\n\n\n\n\n")
         if not start_pose:
             start_pose = self.getStartPose()
@@ -160,7 +160,7 @@ class PlanAndExecute:
             return plan_result
 
     async def plan_to_pose(self, start_pose, end_pose, execute):
-        """Returns MoveGroup action from a start to end pose (position + orientation)"""
+        """Return MoveGroup action from a start to end pose (position + orientation)."""
         self.node.get_logger().info("Plan to Pose")
         if not start_pose:
             start_pose = self.getStartPose()

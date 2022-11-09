@@ -1,0 +1,84 @@
+[0.000000] (-) TimerEvent: {}
+[0.000209] (plan_execute) JobQueued: {'identifier': 'plan_execute', 'dependencies': OrderedDict([('plan_execute', '/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute')])}
+[0.000738] (plan_execute_interface) JobQueued: {'identifier': 'plan_execute_interface', 'dependencies': OrderedDict([('plan_execute_interface', '/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute_interface')])}
+[0.000770] (plan_execute) JobStarted: {'identifier': 'plan_execute'}
+[0.009480] (plan_execute_interface) JobStarted: {'identifier': 'plan_execute_interface'}
+[0.012536] (plan_execute_interface) JobEnded: {'identifier': 'plan_execute_interface', 'rc': 1}
+[0.099599] (-) TimerEvent: {}
+[0.183936] (plan_execute) Command: {'cmd': ['/usr/bin/python3', '-m', 'pytest'], 'cwd': '/home/yh6917/ME495/src/hw3group-jengabells/plan_execute', 'env': {'LESSOPEN': '| /usr/bin/lesspipe %s', 'LANGUAGE': 'en', 'USER': 'yh6917', 'LC_TIME': 'en_US.UTF-8', 'XDG_SESSION_TYPE': 'wayland', 'SHLVL': '2', 'LD_LIBRARY_PATH': '/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute_interface/lib:/home/yh6917/nuws/install/lib:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib', 'HOME': '/home/yh6917', 'OLDPWD': '/home/yh6917/ME495/src', 'DESKTOP_SESSION': 'ubuntu', 'ROS_PYTHON_VERSION': '3', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'LC_MONETARY': 'en_US.UTF-8', 'SYSTEMD_EXEC_PID': '2279', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'COLORTERM': 'truecolor', 'TERMINATOR_DBUS_NAME': 'net.tenshu.Terminator25ef4b219e3b005583550f2b0f9f990c3', 'IM_CONFIG_PHASE': '1', 'WAYLAND_DISPLAY': 'wayland-0', 'COLCON_PREFIX_PATH': '/home/yh6917/ME495/src/hw3group-jengabells/install:/home/yh6917/ME495/src/homework3-hang-yin/install:/home/yh6917/nuws/install', 'ROS_DISTRO': 'humble', 'LOGNAME': 'yh6917', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'PKG_CONFIG_PATH': '/home/yh6917/nuws/install/lib/x86_64-linux-gnu/pkgconfig:/home/yh6917/nuws/install/lib/pkgconfig', 'XDG_SESSION_CLASS': 'user', 'USERNAME': 'yh6917', 'TERM': 'xterm-256color', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'ROS_LOCALHOST_ONLY': '0', 'PATH': '/home/yh6917/nuws/install/bin:/opt/ros/humble/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin', 'SESSION_MANAGER': 'local/mydifferenthostname:@/tmp/.ICE-unix/1999,unix/mydifferenthostname:/tmp/.ICE-unix/1999', 'PAPERSIZE': 'letter', 'XDG_MENU_PREFIX': 'gnome-', 'LC_ADDRESS': 'en_US.UTF-8', 'GNOME_TERMINAL_SCREEN': '/org/gnome/Terminal/screen/d4007d27_74f9_4134_9001_daa43c2db929', 'GNOME_SETUP_DISPLAY': ':1', 'XDG_RUNTIME_DIR': '/run/user/1000', 'DISPLAY': ':0', 'TERMINATOR_DBUS_PATH': '/net/tenshu/Terminator2', 'LANG': 'en_US.UTF-8', 'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'IBUS_DISABLE_SNOOPER': '1', 'LC_TELEPHONE': 'en_US.UTF-8', 'XMODIFIERS': '@im=ibus', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/.mutter-Xwaylandauth.43XTU1', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:', 'GNOME_TERMINAL_SERVICE': ':1.7386', 'SSH_AGENT_LAUNCHER': 'gnome-keyring', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'AMENT_PREFIX_PATH': '/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute:/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute_interface:/home/yh6917/ME495/src/homework3-hang-yin/install/diff_drive:/home/yh6917/ME495/src/homework3-hang-yin/install/arm_move:/home/yh6917/nuws/install:/opt/ros/humble', 'SHELL': '/bin/bash', 'LC_NAME': 'en_US.UTF-8', 'TERMINATOR_UUID': 'urn:uuid:d3bc6484-dd85-4094-a737-9f9507beef90', 'QT_ACCESSIBILITY': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'CMAKE_MODULE_PATH': '/home/yh6917/nuws/install/share/warehouse_ros_mongo/cmake', 'LC_MEASUREMENT': 'en_US.UTF-8', 'LC_IDENTIFICATION': 'en_US.UTF-8', 'QT_IM_MODULE': 'ibus', 'PWD': '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'PYTHONPATH': '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute:/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages:/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute_interface/local/lib/python3.10/dist-packages:/home/yh6917/ME495/src/homework3-hang-yin/install/diff_drive/lib/python3.10/site-packages:/home/yh6917/ME495/src/homework3-hang-yin/install/arm_move/lib/python3.10/site-packages:/home/yh6917/nuws/install/lib/python3.10/pyrealsense2:/home/yh6917/nuws/install/local/lib/python3.10/dist-packages:/home/yh6917/nuws/install/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages', 'LC_NUMERIC': 'en_US.UTF-8', 'LC_PAPER': 'en_US.UTF-8', 'COLCON': '1', 'VTE_VERSION': '6800', 'CMAKE_PREFIX_PATH': '/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute_interface:/home/yh6917/nuws/install', 'PYTEST_ADDOPTS': '--tb=short --junit-xml=/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/pytest.xml --junit-prefix=plan_execute -o cache_dir=/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/.pytest_cache'}, 'shell': False}
+[0.199766] (-) TimerEvent: {}
+[0.299995] (-) TimerEvent: {}
+[0.359397] (plan_execute) StdoutLine: {'line': b'\x1b[1m============================= test session starts ==============================\x1b[0m\n'}
+[0.359541] (plan_execute) StdoutLine: {'line': b'platform linux -- Python 3.10.6, pytest-6.2.5, py-1.10.0, pluggy-0.13.0\n'}
+[0.362166] (plan_execute) StdoutLine: {'line': b'cachedir: /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/.pytest_cache\n'}
+[0.362283] (plan_execute) StdoutLine: {'line': b'rootdir: /home/yh6917/ME495/src/hw3group-jengabells/plan_execute\n'}
+[0.362364] (plan_execute) StdoutLine: {'line': b'plugins: ament-xmllint-0.12.4, ament-lint-0.12.4, ament-flake8-0.12.4, launch-testing-ros-0.19.3, ament-copyright-0.12.4, ament-pep257-0.12.4, launch-testing-1.0.2, colcon-core-0.10.0, cov-3.0.0\n'}
+[0.400180] (-) TimerEvent: {}
+[0.402537] (plan_execute) StdoutLine: {'line': b'\x1b[1mcollecting ... \x1b[0m\x1b[1m\n'}
+[0.402813] (plan_execute) StdoutLine: {'line': b'collected 3 items                                                              \x1b[0m\n'}
+[0.402945] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.406631] (plan_execute) StdoutLine: {'line': b'test/test_copyright.py \x1b[33ms\x1b[0m\x1b[32m                                                 [ 33%]\x1b[0m\n'}
+[0.500263] (-) TimerEvent: {}
+[0.506679] (plan_execute) StdoutLine: {'line': b'test/test_flake8.py \x1b[31mF\x1b[0m\x1b[31m                                                    [ 66%]\x1b[0m\n'}
+[0.533703] (plan_execute) StdoutLine: {'line': b'test/test_pep257.py \x1b[32m.\x1b[0m\x1b[31m                                                    [100%]\x1b[0m\n'}
+[0.533837] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.533895] (plan_execute) StdoutLine: {'line': b'=================================== FAILURES ===================================\n'}
+[0.533943] (plan_execute) StdoutLine: {'line': b'\x1b[31m\x1b[1m_________________________________ test_flake8 __________________________________\x1b[0m\n'}
+[0.533990] (plan_execute) StdoutLine: {'line': b'\x1b[1m\x1b[31mtest/test_flake8.py\x1b[0m:23: in test_flake8\n'}
+[0.558412] (plan_execute) StdoutLine: {'line': b'    \x1b[94massert\x1b[39;49;00m rc == \x1b[94m0\x1b[39;49;00m, \\\n'}
+[0.558701] (plan_execute) StdoutLine: {'line': b'\x1b[1m\x1b[31mE   AssertionError: Found 3 code style errors / warnings:\x1b[0m\n'}
+[0.558800] (plan_execute) StdoutLine: {'line': b'\x1b[1m\x1b[31mE     ./plan_execute/simple_move.py:67:1: W293 blank line contains whitespace\x1b[0m\n'}
+[0.558877] (plan_execute) StdoutLine: {'line': b'\x1b[1m\x1b[31mE     ./plan_execute/simple_move.py:76:23: E225 missing whitespace around operator\x1b[0m\n'}
+[0.558948] (plan_execute) StdoutLine: {'line': b'\x1b[1m\x1b[31mE     ./plan_execute/simple_move.py:80:37: W291 trailing whitespace\x1b[0m\n'}
+[0.559019] (plan_execute) StdoutLine: {'line': b'\x1b[1m\x1b[31mE   assert 1 == 0\x1b[0m\n'}
+[0.559097] (plan_execute) StdoutLine: {'line': b'----------------------------- Captured stdout call -----------------------------\n'}
+[0.559177] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.559254] (plan_execute) StdoutLine: {'line': b'./plan_execute/simple_move.py:67:1: W293 blank line contains whitespace\n'}
+[0.559331] (plan_execute) StdoutLine: {'line': b'    \n'}
+[0.559408] (plan_execute) StdoutLine: {'line': b'^\n'}
+[0.559485] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.559565] (plan_execute) StdoutLine: {'line': b'./plan_execute/simple_move.py:76:23: E225 missing whitespace around operator\n'}
+[0.559647] (plan_execute) StdoutLine: {'line': b'            if self.ct==100:\n'}
+[0.559731] (plan_execute) StdoutLine: {'line': b'                      ^\n'}
+[0.559816] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.559896] (plan_execute) StdoutLine: {'line': b'./plan_execute/simple_move.py:80:37: W291 trailing whitespace\n'}
+[0.559977] (plan_execute) StdoutLine: {'line': b'        if self.state == State.CALL: \n'}
+[0.560060] (plan_execute) StdoutLine: {'line': b'                                    ^\n'}
+[0.560133] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.560206] (plan_execute) StdoutLine: {'line': b'1     E225 missing whitespace around operator\n'}
+[0.560279] (plan_execute) StdoutLine: {'line': b'1     W291 trailing whitespace\n'}
+[0.560355] (plan_execute) StdoutLine: {'line': b'1     W293 blank line contains whitespace\n'}
+[0.560429] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.560500] (plan_execute) StdoutLine: {'line': b'8 files checked\n'}
+[0.560571] (plan_execute) StdoutLine: {'line': b'3 errors\n'}
+[0.560638] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.560703] (plan_execute) StdoutLine: {'line': b"'E'-type errors: 1\n"}
+[0.560774] (plan_execute) StdoutLine: {'line': b"'W'-type errors: 2\n"}
+[0.560844] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.560915] (plan_execute) StdoutLine: {'line': b'Checked files:\n'}
+[0.560995] (plan_execute) StdoutLine: {'line': b'\n'}
+[0.561065] (plan_execute) StdoutLine: {'line': b'* ./setup.py\n'}
+[0.561128] (plan_execute) StdoutLine: {'line': b'* ./plan_execute/__init__.py\n'}
+[0.561195] (plan_execute) StdoutLine: {'line': b'* ./plan_execute/plan_and_execute.py\n'}
+[0.561274] (plan_execute) StdoutLine: {'line': b'* ./plan_execute/simple_move.py\n'}
+[0.561343] (plan_execute) StdoutLine: {'line': b'* ./launch/simple_move.launch.py\n'}
+[0.561415] (plan_execute) StdoutLine: {'line': b'* ./test/test_copyright.py\n'}
+[0.561487] (plan_execute) StdoutLine: {'line': b'* ./test/test_flake8.py\n'}
+[0.561565] (plan_execute) StdoutLine: {'line': b'* ./test/test_pep257.py\n'}
+[0.561637] (plan_execute) StdoutLine: {'line': b'----------------------------- Captured stderr call -----------------------------\n'}
+[0.561709] (plan_execute) StdoutLine: {'line': b'option --max-complexity: please update from optparse string `type=` to argparse callable `type=` -- this will be an error in the future\n'}
+[0.561785] (plan_execute) StdoutLine: {'line': b'- generated xml file: /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/pytest.xml -\n'}
+[0.561868] (plan_execute) StderrLine: {'line': b'\x1b[33m=============================== warnings summary ===============================\x1b[0m\n'}
+[0.561974] (plan_execute) StderrLine: {'line': b'test/test_flake8.py::test_flake8\n'}
+[0.562051] (plan_execute) StderrLine: {'line': b'test/test_flake8.py::test_flake8\n'}
+[0.562124] (plan_execute) StderrLine: {'line': b'  Warning: SelectableGroups dict interface is deprecated. Use select.\n'}
+[0.562194] (plan_execute) StderrLine: {'line': b'\n'}
+[0.562267] (plan_execute) StderrLine: {'line': b'-- Docs: https://docs.pytest.org/en/stable/warnings.html\n'}
+[0.562341] (plan_execute) StdoutLine: {'line': b'=========================== short test summary info ============================\n'}
+[0.562421] (plan_execute) StdoutLine: {'line': b'FAILED test/test_flake8.py::test_flake8 - AssertionError: Found 3 code style ...\n'}
+[0.562497] (plan_execute) StdoutLine: {'line': b'\x1b[31m============== \x1b[31m\x1b[1m1 failed\x1b[0m, \x1b[32m1 passed\x1b[0m, \x1b[33m1 skipped\x1b[0m, \x1b[33m2 warnings\x1b[0m\x1b[31m in 0.20s\x1b[0m\x1b[31m ==============\x1b[0m\n'}
+[0.600441] (-) TimerEvent: {}
+[0.601704] (plan_execute) CommandEnded: {'returncode': 1}
+[0.602046] (plan_execute) TestFailure: {'identifier': 'plan_execute'}
+[0.602065] (plan_execute) JobEnded: {'identifier': 'plan_execute', 'rc': 0}
+[0.612336] (-) EventReactorShutdown: {}

@@ -13,6 +13,7 @@ class State(Enum):
 
     Determines what the main timer function should be doing on each iteration
     """
+
     START = auto(),
     IDLE = auto(),
     CALL = auto(),
@@ -63,7 +64,7 @@ class Test(Node):
             self.state = State.IDLE
             response.success = False
         return response
-    
+
     def place_callback(self, request, response):
         self.block_pose = request.place
         self.state = State.PLACE
@@ -72,11 +73,11 @@ class Test(Node):
     async def timer_callback(self):
         if self.state == State.START:
             # add a bit of a time buffer so js can be read in
-            if self.ct==100:
+            if self.ct == 100:
                 self.state = State.IDLE
             else:
                 self.ct += 1
-        if self.state == State.CALL: 
+        if self.state == State.CALL:
             self.state = State.IDLE
             self.future = await self.PlanEx.plan_to_pose(self.start_pose,
                                                          self.goal_pose,
