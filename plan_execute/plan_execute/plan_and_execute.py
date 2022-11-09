@@ -199,5 +199,6 @@ class PlanAndExecute:
     async def execute(self, plan_result):
         print("Wait for execute client")
         self.node._execute_client.wait_for_server()
-        execute_result = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=plan_result.result.planned_trajectory))
+        execute_future = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=plan_result.result.planned_trajectory))
+        execute_result = await execute_future.get_result_async()
         return execute_result
