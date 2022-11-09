@@ -205,7 +205,7 @@ class PlanAndExecute:
         return execute_result
 
     async def place_block(self, pos):
-        self.node.get_logger("Place Block")
+        self.node.get_logger().info("Place Block")
         scene_request = PlanningSceneComponents()
         scene_request.components = 0
         temp_scene_request = GetPlanningScene.Request(components=scene_request)
