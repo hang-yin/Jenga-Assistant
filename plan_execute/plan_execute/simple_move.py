@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from enum import Enum, auto
-from plan_execute_interface.srv import GoHere
+from plan_execute_interface.srv import GoHere, Place
 from plan_execute.plan_and_execute import PlanAndExecute
 from moveit_msgs.action import MoveGroup
 from geometry_msgs.msg import Point, Quaternion, Pose
@@ -14,7 +14,8 @@ class State(Enum):
     """
     START = auto(),
     IDLE = auto(),
-    CALL = auto()
+    CALL = auto(),
+    PLACE = auto()
 
 
 class Test(Node):
@@ -33,11 +34,13 @@ class Test(Node):
         self.timer = self.create_timer(1./self.freq, self.timer_callback, callback_group=self.cbgroup)
         self.movegroup = None # Fill this in later lol
         self.go_here = self.create_service(GoHere, 'go_here', self.go_here_callback)
+        self.place = self.create_service(Place, 'place', self.place_callback)
         self.PlanEx = PlanAndExecute(self)
 
         self.state = State.START
         self.ct = 0
         self.goal_pose = Pose()
+        self.block_pose = Pose()
         self.future = None
 
     def go_here_callback(self, request, response):
@@ -61,6 +64,11 @@ class Test(Node):
             self.state = State.IDLE
             response.success = False
         return response
+    
+    def place_callback(self, request, response):
+        self.block_pose = request.place
+        self.state = State.PLACE
+        return response
 
     async def timer_callback(self):
         if self.state == State.START:
@@ -72,10 +80,13 @@ class Test(Node):
         if self.state == State.CALL: 
             self.state = State.IDLE
             start = []
-            self.future = await self.PlanEx.plan_to_orientation(self.start_pose, self.goal_pose, self.execute)
+            self.future = await self.PlanEx.plan_to_pose(self.start_pose, self.goal_pose, self.execute)
             print(type(self.future))
             print("MAIN LOOP:", self.future)
-        # self.get_logger().info("test")
+        if self.state == State.PLACE:
+            self.state = State.IDLE
+            self.future = await self.place_block(self.block_pose)
+            self.get_logger().info("test")
 
 
 def test_entry(args=None):
