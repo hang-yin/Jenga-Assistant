@@ -44,14 +44,22 @@ class Test(Node):
         self.start_pose = request.start_pose
         self.goal_pose = request.goal_pose
         self.execute = request.execute
-        
-        if len(self.start_pose) > 1:
+        print("START POSE")
+        print(self.start_pose)
+        l = len(self.start_pose)
+        if l == 0:
+            self.start_pose = None
+            self.state = State.CALL
+            response.success = True
+        elif l == 1: 
+            self.start_pose = self.start_pose[0]
+            self.state = State.CALL
+            response.success = True
+            self.execute = False
+        else:
             self.get_logger().info('Enter either zero or one initial poses.')
             self.state = State.IDLE
             response.success = False
-        else:
-            self.state = State.CALL
-            response.success = True
         return response
 
     async def timer_callback(self):

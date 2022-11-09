@@ -74,8 +74,6 @@ class PlanAndExecute:
     def js_callback(self, data):
         """Save js (sensor_msgs/JointStates type)."""
         self.js = data
-        #Update start
-        self.master_goal.request.start_state.joint_state = data
 
     def fill_constraints(self, joint_names, joint_positions):
         constraints = []
@@ -124,10 +122,20 @@ class PlanAndExecute:
 
     async def plan_to_position(self, start_pose, end_pos, execute):
         """Returns MoveGroup action from a start pose to an end position"""
-        if len(start_pose)==0:
+        if not start_pose:
+            # We start at current location 
             start_pose = self.getStartPose()
-        request = self.createIKreq(end_pos.position, start_pose.orientation)
+            # Update start
+            self.master_goal.request.start_state.joint_state = self.js
+        else:
+            # compute ik to get joint states of start
+            print("Compute IK on the start")
+            request_start = self.createIKreq(start_pose.position, start_pose.orientation)
+            response_start = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request_start))
+            printIKreq(response_start.solution.joint_state)
+            self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
 
+        request = self.createIKreq(end_pos.position, start_pose.orientation)
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
         # printIKreq(response.solution)
         # printIKreq(response.error_code)
@@ -174,9 +182,21 @@ class PlanAndExecute:
         # return mvg
     async def plan_to_orientation(self, start_pose, end_orientation, execute):
         """Returns MoveGroup action from a start pose to an end orientation"""
-        if len(start_pose)==0:
+        print("Plan to orientation")
+        if not start_pose:
+            # We start at current location 
             start_pose = self.getStartPose()
+            # Update start
+            self.master_goal.request.start_state.joint_state = self.js
+        else:
+            # compute ik to get joint states of start
+            print("Compute IK on the start")
+            request_start = self.createIKreq(start_pose.position, start_pose.orientation)
+            response_start = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request_start))
+            printIKreq(response_start.solution.joint_state)
+            self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
         request = self.createIKreq(start_pose.position, end_orientation.orientation)
+        print("Call request")
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
         printIKreq(response.solution)
         printIKreq(response.error_code)
@@ -214,8 +234,18 @@ class PlanAndExecute:
     
     async def plan_to_pose(self, start_pose, end_pose, execute):
         """Returns MoveGroup action from a start pose to an end pose (position + orientation)"""
-        if len(start_pose)==0:
+        if not start_pose:
+            # We start at current location 
             start_pose = self.getStartPose()
+            # Update start
+            self.master_goal.request.start_state.joint_state = self.js
+        else:
+            # compute ik to get joint states of start
+            print("Compute IK on the start")
+            request_start = self.createIKreq(start_pose.position, start_pose.orientation)
+            response_start = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request_start))
+            printIKreq(response_start.solution.joint_state)
+            self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
         request = self.createIKreq(end_pose.position, end_pose.orientation)
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
         printIKreq(response.solution)
