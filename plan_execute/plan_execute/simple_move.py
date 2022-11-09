@@ -81,7 +81,7 @@ class Test(Node):
         if self.state == State.CALL: 
             self.state = State.IDLE
             start = []
-            self.future = await self.PlanEx.plan_to_pose(self.start_pose, self.goal_pose, self.execute)
+            self.future = await self.PlanEx.plan_to_orientation(self.start_pose, self.goal_pose, self.execute)
             print(type(self.future))
             print("MAIN LOOP:", self.future)
         if self.state == State.PLACE:
