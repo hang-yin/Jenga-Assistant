@@ -122,161 +122,82 @@ class PlanAndExecute:
 
     async def plan_to_position(self, start_pose, end_pos, execute):
         """Returns MoveGroup action from a start pose to an end position"""
+        print("Plan to position")
         if not start_pose:
             # We start at current location 
             start_pose = self.getStartPose()
-            # Update start
             self.master_goal.request.start_state.joint_state = self.js
         else:
             # compute ik to get joint states of start
-            print("Compute IK on the start")
             request_start = self.createIKreq(start_pose.position, start_pose.orientation)
             response_start = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request_start))
-            printIKreq(response_start.solution.joint_state)
             self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
-
+        self.master_goal.planning_options.plan_only = not execute
         request = self.createIKreq(end_pos.position, start_pose.orientation)
-        response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
-        # printIKreq(response.solution)
-        # printIKreq(response.error_code)
-        joint_names = response.solution.joint_state.name
-        joint_positions = np.array(response.solution.joint_state.position)
-        # print(joint_names)
-        # print(np.array(joint_positions))
-        # print("FILLING WITH RESULT OF IK \n\n\n")
-        self.fill_constraints(joint_names, joint_positions)
-        self.master_goal.planning_options.plan_only = True
-        # print("wait for server")
-        self.node._action_client.wait_for_server()
-        # print("return")
-        plan = await self.node._action_client.send_goal_async(self.master_goal)
-        # printIKreq(plan)
-        # print(type(plan))
-        result = await plan.get_result_async()
-        # print("RESULT")
-        # printIKreq(result)
+        plan_result = await self.plan(request)
         if execute:
-            # print("Wait for execute client")
-            self.node._execute_client.wait_for_server()
-            # print("Send thing")
-            # print(type(result))
-            # print("\n\nhere\n\n")
-            # printIKreq(result.result.error_code)
-            # printIKreq(result.result.planned_trajectory)
-            # print("go")
-            plan2 = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=result.result.planned_trajectory))
-            # print("DONE??")
-            # printIKreq(plan2)
-            return plan2
+            execute_result = await self.execute(plan_result)
+            return execute_result
         else:
-            return result
-        
+            return plan_result
 
-        # return response.solution, response.error_code
-        # put into the move group 
-        # 1. Call GetPositionIK.srv to get the joint states of final position 
-        # 2. Wait for service response (await?)
-        # 3. Receive RobotState soln. soln.joint_state gives joint_state type msg
-        # 4. Plug this into mvg.request.goal_constraints.joint_constraints (joint_state type)
-        # 5. Return mvg action
-        # return mvg
     async def plan_to_orientation(self, start_pose, end_orientation, execute):
         """Returns MoveGroup action from a start pose to an end orientation"""
         print("Plan to orientation")
         if not start_pose:
             # We start at current location 
             start_pose = self.getStartPose()
-            # Update start
             self.master_goal.request.start_state.joint_state = self.js
         else:
             # compute ik to get joint states of start
-            print("Compute IK on the start")
             request_start = self.createIKreq(start_pose.position, start_pose.orientation)
             response_start = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request_start))
-            printIKreq(response_start.solution.joint_state)
             self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
+        self.master_goal.planning_options.plan_only = not execute
         request = self.createIKreq(start_pose.position, end_orientation.orientation)
-        print("Call request")
-        response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
-        printIKreq(response.solution)
-        printIKreq(response.error_code)
-        joint_names = response.solution.joint_state.name
-        joint_positions = np.array(response.solution.joint_state.position)
-        print(joint_names)
-        print(np.array(joint_positions))
-        print("FILLING WITH RESULT OF IK \n\n\n")
-        self.fill_constraints(joint_names, joint_positions)
-        self.master_goal.planning_options.plan_only = True
-        print("wait for server")
-        self.node._action_client.wait_for_server()
-        print("return")
-        plan = await self.node._action_client.send_goal_async(self.master_goal)
-        printIKreq(plan)
-        print(type(plan))
-        result = await plan.get_result_async()
-        print("RESULT")
+        plan_result = await self.plan(request)
         if execute:
-            print("Wait for execute client")
-            self.node._execute_client.wait_for_server()
-            print("Send thing")
-            print(type(result))
-            print("\n\nhere\n\n")
-            # printIKreq(result.result.error_code)
-            printIKreq(result.result.planned_trajectory)
-            print("go")
-            plan2 = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=result.result.planned_trajectory))
-            print("DONE??")
-            printIKreq(plan2)
-            return plan2
+            execute_result = await self.execute(plan_result)
+            return execute_result
         else:
-            return result
+            return plan_result
 
     
     async def plan_to_pose(self, start_pose, end_pose, execute):
         """Returns MoveGroup action from a start pose to an end pose (position + orientation)"""
+        print("Plan to Pose")
         if not start_pose:
             # We start at current location 
             start_pose = self.getStartPose()
-            # Update start
             self.master_goal.request.start_state.joint_state = self.js
         else:
             # compute ik to get joint states of start
-            print("Compute IK on the start")
             request_start = self.createIKreq(start_pose.position, start_pose.orientation)
             response_start = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request_start))
-            printIKreq(response_start.solution.joint_state)
             self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
+        
+        self.master_goal.planning_options.plan_only = not execute
         request = self.createIKreq(end_pose.position, end_pose.orientation)
-        response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = request))
-        printIKreq(response.solution)
-        printIKreq(response.error_code)
+        plan_result = await self.plan(request)
+        if execute:
+            execute_result = await self.execute(plan_result)
+            return execute_result
+        else:
+            return plan_result
+
+    async def plan(self, IKrequest):
+        response = await self.node.IK.call_async(GetPositionIK.Request(ik_request = IKrequest))
         joint_names = response.solution.joint_state.name
         joint_positions = np.array(response.solution.joint_state.position)
-        print(joint_names)
-        print(np.array(joint_positions))
         print("FILLING WITH RESULT OF IK \n\n\n")
         self.fill_constraints(joint_names, joint_positions)
-        self.master_goal.planning_options.plan_only = True
-        print("wait for server")
         self.node._action_client.wait_for_server()
-        print("return")
         plan = await self.node._action_client.send_goal_async(self.master_goal)
-        printIKreq(plan)
-        print(type(plan))
-        result = await plan.get_result_async()
-        print("RESULT")
-        if execute:
-            print("Wait for execute client")
-            self.node._execute_client.wait_for_server()
-            print("Send thing")
-            print(type(result))
-            print("\n\nhere\n\n")
-            # printIKreq(result.result.error_code)
-            printIKreq(result.result.planned_trajectory)
-            print("go")
-            plan2 = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=result.result.planned_trajectory))
-            print("DONE??")
-            printIKreq(plan2)
-            return plan2
-        else:
-            return result
+        plan_result = await plan.get_result_async()
+        return plan_result
+
+    async def execute(self, plan_result):
+        print("Wait for execute client")
+        self.node._execute_client.wait_for_server()
+        execute_result = await self.node._execute_client.send_goal_async(ExecuteTrajectory.Goal(trajectory=plan_result.result.planned_trajectory))
+        return execute_result
