@@ -32,7 +32,8 @@ class Test(Node):
         # Start timer
         self.freq = 100.
         self.cbgroup = MutuallyExclusiveCallbackGroup()
-        self.timer = self.create_timer(1./self.freq, self.timer_callback, callback_group=self.cbgroup)
+        period = 1.0 / self.freq
+        self.timer = self.create_timer(period, self.timer_callback, callback_group=self.cbgroup)
         self.movegroup = None
         self.go_here = self.create_service(GoHere, 'go_here', self.go_here_callback)
         self.place = self.create_service(Place, 'place', self.place_callback)
@@ -47,12 +48,12 @@ class Test(Node):
         self.start_pose = request.start_pose
         self.goal_pose = request.goal_pose
         self.execute = request.execute
-        l = len(self.start_pose)
-        if l == 0:
+        pose_len = len(self.start_pose)
+        if pose_len == 0:
             self.start_pose = None
             self.state = State.CALL
             response.success = True
-        elif l == 1: 
+        elif pose_len == 1:
             self.start_pose = self.start_pose[0]
             self.state = State.CALL
             response.success = True
@@ -77,9 +78,15 @@ class Test(Node):
                 self.ct += 1
         if self.state == State.CALL: 
             self.state = State.IDLE
-            self.future = await self.PlanEx.plan_to_pose(self.start_pose, self.goal_pose, self.execute)
-            # self.future = await self.PlanEx.plan_to_position(self.start_pose, self.goal_pose, self.execute)
-            # self.future = await self.PlanEx.plan_to_orientation(self.start_pose, self.goal_pose, self.execute)
+            self.future = await self.PlanEx.plan_to_pose(self.start_pose,
+                                                         self.goal_pose,
+                                                         self.execute)
+            # self.future = await self.PlanEx.plan_to_position(self.start_pose,
+            #                                                  self.goal_pose,
+            #                                                  self.execute)
+            # self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
+            #                                                     self.goal_pose,
+            #                                                     self.execute)
         if self.state == State.PLACE:
             self.state = State.IDLE
             self.PlanEx.place_block(self.block_pose)
