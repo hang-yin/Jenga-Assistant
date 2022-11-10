@@ -17,7 +17,13 @@ class PlanAndExecute:
     """
     Execute functions based off of service calls to return either return or execute a move plan.
 
-
+    CLIENTS:
+        - MoveGroup Action client: 
+        - 
+        -
+    SUBSCRIPTIONS:
+        -
+    
     """
     def __init__(self, node):
         """Initilize varibles and states, fill messages, and create callback groups."""
@@ -211,6 +217,7 @@ class PlanAndExecute:
             return None
 
     async def callIK(self, IKrequest):
+        """Computes joint states using inverse kinematics from a IKrequest message"""
         self.node.get_logger().info("Computing IK!")
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request=IKrequest))
         error_code = response.error_code
@@ -232,6 +239,7 @@ class PlanAndExecute:
         return plan_result
 
     async def execute(self, plan_result):
+        """Executes a planned trajectory on RVIZ"""
         self.node.get_logger().info("Wait for execute client")
         self.node._execute_client.wait_for_server()
         traj_goal = ExecuteTrajectory.Goal(trajectory=plan_result.result.planned_trajectory)
@@ -240,6 +248,7 @@ class PlanAndExecute:
         return execute_result
 
     async def place_block(self, pos):
+        """Places block in RVIZ from pose when service Place is called"""
         self.node.get_logger().info("Place Block")
         scene_request = PlanningSceneComponents()
         scene_request.components = 0
