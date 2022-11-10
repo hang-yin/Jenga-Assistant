@@ -22,13 +22,14 @@ class State(Enum):
 
 class Test(Node):
     """
-    Keep track of enviroment components and do calculations.
+    Control the robot scene.
 
-    This node publishes to the visualization_marker, text_marker, goal_pose, move_robot,
-    and tilt. it also has parammeters for gravity and velocity.
+    Calls the /place and the /go_here services to plan or execute a robot movement path
+    and to place a block in the scene.
     """
 
     def __init__(self):
+        """Create callbacks, initialize variables, start timer."""
         super().__init__('simple_move')
         # Start timer
         self.freq = 100.
@@ -46,6 +47,12 @@ class Test(Node):
         self.future = None
 
     def go_here_callback(self, request, response):
+        """
+        Custom service that takes one Pose of variable length, a regular Pose, and a bool.
+
+        The user can pass a custom start postion to the service and a desired end goal. The boolean
+        indicates whether to plan or execute the path. 
+        """
         self.start_pose = request.start_pose
         self.goal_pose = request.goal_pose
         self.execute = request.execute
@@ -66,11 +73,13 @@ class Test(Node):
         return response
 
     def place_callback(self, request, response):
+        """Call service to pass the desired Pose of a block in the scene"""
         self.block_pose = request.place
         self.state = State.PLACE
         return response
 
     async def timer_callback(self):
+        """State maching that dictates which functions from the class are being called"""
         if self.state == State.START:
             # add a bit of a time buffer so js can be read in
             if self.ct == 100:
