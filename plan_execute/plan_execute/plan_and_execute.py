@@ -17,14 +17,26 @@ class PlanAndExecute:
     """
     Execute functions based off of service calls to return either return or execute a move plan.
 
+    Uses information about the current state of the robot and the goal position to generate
+    a move plan and either return or execute it. Functions occur asynchronously. This will timeout
+    if the necassary services are not availible.
+
     CLIENTS:
-        - MoveGroup Action client: 
-        - 
-        -
+    -------
+    _action_client (type: MoveGroup): Creates a MoveGroup object we fill out
+    _execute_client (type: ExecuteTrajectory): Executes a plan
+    IK (type: PositionIKRequest): Create an IK message based off of goal states
+
+
     SUBSCRIPTIONS:
-        -
-    
+    -------------
+    js_sub (type: sensor_msgs/JoinState.msg) - subs to the joint states
+
+    PUBLISHERS:
+    ----------
+    block_pub (type: PlanningScene): publishes an added block to the scene
     """
+
     def __init__(self, node):
         """Initilize varibles and states, fill messages, and create callback groups."""
         self.node = node
@@ -77,7 +89,7 @@ class PlanAndExecute:
         self.master_goal.request.max_acceleration_scaling_factor = 0.1
 
     def printBlock(self, req):
-        """Make a string of a request or message then log it to the terminal"""
+        """Make a string of a request or message then log it to the terminal."""
         new_str = (str(req)).replace(',', ',\n')
         self.node.get_logger().info(new_str)
 
@@ -86,7 +98,7 @@ class PlanAndExecute:
         self.js = data
 
     def fill_constraints(self, joint_names, joint_positions):
-        """Fill the joint constraints field with information from the joint states message"""
+        """Fill the joint constraints field with information from the joint states message."""
         self.node.get_logger().info("Filling Constraints")
         constraints = []
         for n, i in enumerate(joint_names):
@@ -102,7 +114,7 @@ class PlanAndExecute:
                                                                  joint_constraints=constraints)]
 
     def createIKreq(self, end_pos, end_orientation):
-        """Create an IK message filled with info from the goal pose and orientation"""
+        """Create an IK message filled with info from the goal pose and orientation."""
         request = PositionIKRequest()
         request.group_name = self.master_goal.request.group_name
         request.robot_state.joint_state.name = self.js.name
@@ -117,7 +129,7 @@ class PlanAndExecute:
         return request
 
     def getStartPose(self):
-        """Calculate the postion and orientation of the robot based on the tf frames"""
+        """Calculate the postion and orientation of the robot based on the tf frames."""
         startpose = Pose()
         temp_frame_id = self.master_goal.request.workspace_parameters.header.frame_id
         t = self.tf_buffer.lookup_transform(
@@ -217,7 +229,7 @@ class PlanAndExecute:
             return None
 
     async def callIK(self, IKrequest):
-        """Computes joint states using inverse kinematics from a IKrequest message"""
+        """Compute joint states using inverse kinematics from a IKrequest message."""
         self.node.get_logger().info("Computing IK!")
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request=IKrequest))
         error_code = response.error_code
@@ -229,7 +241,7 @@ class PlanAndExecute:
             return response.solution.joint_state
 
     async def plan(self, joint_state):
-        """Plan to a joint state"""
+        """Plan to a joint state."""
         joint_names = joint_state.name
         joint_positions = np.array(joint_state.position)
         self.fill_constraints(joint_names, joint_positions)
@@ -239,7 +251,7 @@ class PlanAndExecute:
         return plan_result
 
     async def execute(self, plan_result):
-        """Executes a planned trajectory on RVIZ"""
+        """Execute a planned trajectory on RVIZ."""
         self.node.get_logger().info("Wait for execute client")
         self.node._execute_client.wait_for_server()
         traj_goal = ExecuteTrajectory.Goal(trajectory=plan_result.result.planned_trajectory)
@@ -248,7 +260,7 @@ class PlanAndExecute:
         return execute_result
 
     async def place_block(self, pos):
-        """Places block in RVIZ from pose when service Place is called"""
+        """Place block in RVIZ from pose when service Place is called."""
         self.node.get_logger().info("Place Block")
         scene_request = PlanningSceneComponents()
         scene_request.components = 0
