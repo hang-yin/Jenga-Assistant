@@ -48,10 +48,10 @@ class Test(Node):
 
     def go_here_callback(self, request, response):
         """
-        Custom service that takes one Pose of variable length, a regular Pose, and a bool.
+        Call a custom service that takes one Pose of variable length, a regular Pose, and a bool.
 
         The user can pass a custom start postion to the service and a desired end goal. The boolean
-        indicates whether to plan or execute the path. 
+        indicates whether to plan or execute the path.
         """
         self.start_pose = request.start_pose
         self.goal_pose = request.goal_pose
@@ -73,13 +73,13 @@ class Test(Node):
         return response
 
     def place_callback(self, request, response):
-        """Call service to pass the desired Pose of a block in the scene"""
+        """Call service to pass the desired Pose of a block in the scene."""
         self.block_pose = request.place
         self.state = State.PLACE
         return response
 
     async def timer_callback(self):
-        """State maching that dictates which functions from the class are being called"""
+        """State maching that dictates which functions from the class are being called."""
         if self.state == State.START:
             # add a bit of a time buffer so js can be read in
             if self.ct == 100:
