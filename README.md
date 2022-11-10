@@ -15,7 +15,7 @@ then a new block is not made, the current block just moves.
 
 Our node defaults to using our `plan_to_pose` function which takes the user input and moves the 
 robot to the indicated pose. To see the robot move and execute you can run one of the service calls 
-with no start position indicated and execute set to true. To test the other functions you can
+with no start position indicated and execute set to true. To test the other functions (`plan_to_orientation` or `plan_to_position`) you can
 comment out the current call in the node and uncomment one of the other ones.
 
 Sometime our IK service doesn't load up and the node crashes, to fix it relaunch the program.
