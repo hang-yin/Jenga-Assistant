@@ -73,6 +73,7 @@ class PlanAndExecute:
         self.js = data
 
     def fill_constraints(self, joint_names, joint_positions):
+        self.node.get_logger().info("Filling Constraints")
         constraints = []
         for n, i in enumerate(joint_names):
             name = i
@@ -85,6 +86,7 @@ class PlanAndExecute:
             constraints.append(constraint_i)
         self.master_goal.request.goal_constraints = [Constraints(name='',
                                                                  joint_constraints=constraints)]
+        self.node.get_logger().info("Finished Filling")
 
     def createIKreq(self, end_pos, end_orientation):
         request = PositionIKRequest()
@@ -97,7 +99,7 @@ class PlanAndExecute:
         request.pose_stamped.header.frame_id = 'panda_link0'
         request.pose_stamped.pose.position = end_pos
         request.pose_stamped.pose.orientation = end_orientation
-        request.timeout.sec = 20
+        request.timeout.sec = 5
         return request
 
     def getStartPose(self):
@@ -130,12 +132,19 @@ class PlanAndExecute:
             self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
         self.master_goal.planning_options.plan_only = not execute
         request = self.createIKreq(end_pos.position, start_pose.orientation)
-        plan_result = await self.plan(request)
-        if execute:
-            execute_result = await self.execute(plan_result)
-            return execute_result
+        IK_response = await self.callIK(request)
+        if IK_response:
+            # Create a plan off current joint states
+            plan_result = await self.plan(IK_response)
+            if execute:
+                # execute the plan
+                execute_result = await self.execute(plan_result)
+                return execute_result
+            else:
+                return plan_result
         else:
-            return plan_result
+            # IK service has failed
+            return None
 
     async def plan_to_orientation(self, start_pose, end_orientation, execute):
         """Return MoveGroup action from a start pose to an end orientation."""
@@ -150,14 +159,19 @@ class PlanAndExecute:
             self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
         self.master_goal.planning_options.plan_only = not execute
         request = self.createIKreq(start_pose.position, end_orientation.orientation)
-        self.node.get_logger().info("REQUEST")
-        self.printBlock(request)
-        plan_result = await self.plan(request)
-        if execute:
-            execute_result = await self.execute(plan_result)
-            return execute_result
+        IK_response = await self.callIK(request)
+        if IK_response:
+            # Create a plan off current joint states
+            plan_result = await self.plan(IK_response)
+            if execute:
+                # execute the plan
+                execute_result = await self.execute(plan_result)
+                return execute_result
+            else:
+                return plan_result
         else:
-            return plan_result
+            # IK service has failed
+            return None
 
     async def plan_to_pose(self, start_pose, end_pose, execute):
         """Return MoveGroup action from a start to end pose (position + orientation)."""
@@ -176,19 +190,35 @@ class PlanAndExecute:
 
         self.master_goal.planning_options.plan_only = not execute
         request = self.createIKreq(end_pose.position, end_pose.orientation)
-        plan_result = await self.plan(request)
-        if execute:
-            execute_result = await self.execute(plan_result)
-            self.node.get_logger().info("EXECUTE")
-            return execute_result
+        IK_response = await self.callIK(request)
+        if IK_response:
+            # Create a plan off current joint states
+            plan_result = await self.plan(IK_response)
+            if execute:
+                # execute the plan
+                execute_result = await self.execute(plan_result)
+                return execute_result
+            else:
+                return plan_result
         else:
-            self.node.get_logger().info("PLAN")
-            return plan_result
+            # IK service has failed
+            return None
 
-    async def plan(self, IKrequest):
+    async def callIK(self, IKrequest):
+        self.node.get_logger().info("Computing IK!")
         response = await self.node.IK.call_async(GetPositionIK.Request(ik_request=IKrequest))
-        joint_names = response.solution.joint_state.name
-        joint_positions = np.array(response.solution.joint_state.position)
+        error_code = response.error_code
+        if error_code.val == -31:
+            self.node.get_logger().info("IK service Failed :(")
+            return None
+        else:
+            self.node.get_logger().info("IK Succeeded :)")
+            return response.solution.joint_state
+
+    async def plan(self, joint_state):
+        """Plan to a joint state"""
+        joint_names = joint_state.name
+        joint_positions = np.array(joint_state.position)
         self.fill_constraints(joint_names, joint_positions)
         self.node._action_client.wait_for_server()
         self.printBlock(self.master_goal)
