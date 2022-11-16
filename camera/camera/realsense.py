@@ -30,6 +30,7 @@ class Cam(Node):
 
         self.color_frame = None
         self.depth_frame = None
+<<<<<<< HEAD
 
         self.band_start = 100
         self.band_width = 50
@@ -53,6 +54,21 @@ class Cam(Node):
 
     def kernel_trackbar(self, val):
         self.kernel = np.ones((val,val),np.uint8)
+=======
+        
+        self.max_depth = 200
+        self.min_depth = 0
+
+        cv2.namedWindow('mask')
+        cv2.createTrackbar('min depth', 'mask' , self.min_depth, 5000, self.min_depth_trackbar)
+        cv2.createTrackbar('max depth', 'mask' , self.max_depth, 5000, self.max_depth_trackbar)
+
+    def min_depth_trackbar(self, val):
+        self.min_depth = val
+
+    def max_depth_trackbar(self, val):
+        self.max_depth = val
+>>>>>>> a5f2d50 (i did something)
 
     def color_callback(self, data):
         # print("COLOR CALLBACK")
@@ -117,11 +133,32 @@ class Cam(Node):
 
 
         if self.color_frame is not None:
+<<<<<<< HEAD
             drawn_contours = cv2.drawContours(self.color_frame, large_contours, -1, (0,255,0), 3)
             if max_centroid is not None:
                 drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, [0,0,255], 5)
             cv2.imshow("COUNTOURS", drawn_contours)
 
+=======
+            depth_image_3d = np.dstack((current_frame,current_frame,current_frame))
+            print("yikes")
+            # print(depth_image_3d)
+            bg_removed = np.where((depth_image_3d > self.clipping_distance) | (depth_image_3d <= 0), 153, self.color_frame)
+            mask = cv2.inRange(current_frame, self.min_depth,self.max_depth)
+            print(self.min_depth)
+            print(f'max depth: {self.max_depth}')
+            # res = cv2.bitwise_and(bg_removed, bg_removed, mask = mask)
+
+            cv2.imshow('mask', mask)
+            # cv2.imshow('res', res)
+
+            # """contour using mask"""
+            #imgray = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+            #ret, thresh = cv2.threashold(imgray, 127,255,0)
+            # contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            # drawcontours = cv2.drawContours(bg_removed, contours, -1, (0,225,0), 3)
+            # cv2.imshow("AAAAAAAH", bg_removed)
+>>>>>>> a5f2d50 (i did something)
         cv2.waitKey(1)
 
     def timer_callback(self):
