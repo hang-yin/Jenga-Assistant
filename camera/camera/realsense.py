@@ -26,30 +26,28 @@ class Cam(Node):
                                                   "/camera/aligned_depth_to_color/image_raw",
                                                   self.depth_callback,
                                                   10)
-        clipping_dist_meters = 0.25
-        self.clipping_distance = 0.2
         self.br = CvBridge()
 
         self.color_frame = None
         self.depth_frame = None
 
-        self.max_depth = 600
-        self.min_depth = 100
+        self.band_start = 100
+        self.band_width = 50
 
         self.kernel = np.ones((25,25),np.uint8)
 
         cv2.namedWindow('mask')
-        cv2.createTrackbar('min depth', 'mask' , self.min_depth, 5000, self.min_depth_trackbar)
-        cv2.createTrackbar('max depth', 'mask' , self.max_depth, 5000, self.max_depth_trackbar)
+        cv2.createTrackbar('band width', 'mask' , self.band_width, 100, self.band_width_tb)
+        cv2.createTrackbar('band start', 'mask' , self.band_start, 1000, self.band_start_tb)
 
         cv2.namedWindow('Closed for business')
         cv2.createTrackbar('kernel size', 'Closed for business', 5, 100, self.kernel_trackbar)
 
-    def min_depth_trackbar(self, val):
-        self.min_depth = val
+    def band_width_tb(self, val):
+        self.band_width = val
 
-    def max_depth_trackbar(self, val):
-        self.max_depth = val
+    def band_start_tb(self, val):
+        self.band_start = val
 
     def kernel_trackbar(self, val):
         self.kernel = np.ones((val,val),np.uint8)
@@ -82,7 +80,7 @@ class Cam(Node):
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(current_frame, alpha=0.3), cv2.COLORMAP_JET)
         # cv2.imshow("im 13 and this is deep", depth_colormap)
         # Index of largest element
-        mask = cv2.inRange(current_frame, self.min_depth, self.max_depth)
+        mask = cv2.inRange(current_frame, self.band_start, self.band_start+self.band_width)
         cv2.imshow("mask", mask)
 
         closing = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
