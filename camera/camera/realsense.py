@@ -7,7 +7,7 @@ import numpy as np
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import sys
-np.set_printoptions(threshold=sys.maxsize)
+# np.set_printoptions(threshold=sys.maxsize)
 import pyrealsense2 as rs2
 
 class Cam(Node):
@@ -39,15 +39,15 @@ class Cam(Node):
 
         self.intrinsics = None
 
-        self.band_start = 600
+        self.band_start = 570
         self.band_width = 50
 
         kernel_size = 25
 
         self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
 
-        self.sq_orig = [100,100]
-        self.sq_sz = 100
+        self.sq_orig = [650,0]
+        self.sq_sz = 360
 
         self.rect = None
         self.update_rect()
@@ -159,18 +159,21 @@ class Cam(Node):
 
 
         if self.color_frame is not None:
-            drawn_contours = cv2.drawContours(self.color_frame, large_contours, -1, (0,255,0), 3)
+            color_copy = np.array(self.color_frame)
+            drawn_contours = cv2.drawContours(color_copy, large_contours, -1, (0,255,0), 3)
             if max_centroid is not None:
                 drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, [0,0,255], 5)
             cv2.imshow("COUNTOURS", drawn_contours)
         
-        if self.intrinsics is not None:
-            w = self.intrinsics.width
-            h = self.intrinsics.height
-            bounding_mask = np.zeros((h,w), np.int8)
-            res = cv2.fillPoly(bounding_mask, [self.rect], 255)
-            print(self.rect)
-            cv2.imshow("Poly", res)
+            if self.intrinsics is not None:
+                w = self.intrinsics.width
+                h = self.intrinsics.height
+                bounding_mask = np.zeros((h,w), np.int8)
+                square = cv2.fillPoly(bounding_mask, [self.rect], 255)
+                square = cv2.inRange(square, 1, 255)
+                cropped = cv2.bitwise_and(self.color_frame, self.color_frame, mask=square)
+                print(np.any(cropped))
+                cv2.imshow("Poly", cropped)
 
         
         print()
