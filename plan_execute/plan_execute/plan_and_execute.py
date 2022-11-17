@@ -7,7 +7,7 @@ from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, \
                             PlanningScene, PlanningSceneComponents, CollisionObject
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import JointState
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, Point, Quaternion
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from shape_msgs.msg import SolidPrimitive
@@ -259,7 +259,7 @@ class PlanAndExecute:
         execute_result = await execute_future.get_result_async()
         return execute_result
 
-    async def place_block(self, pos):
+    async def place_block(self, pos, dimensions):
         """Place block in RVIZ from pose when service Place is called."""
         self.node.get_logger().info("Place Block")
         scene_request = PlanningSceneComponents()
@@ -271,7 +271,7 @@ class PlanAndExecute:
         primepose = Pose()
         prime = SolidPrimitive()
         prime.type = 1
-        prime.dimensions = [0.2, 0.2, 0.2]
+        prime.dimensions = dimensions
         collision = CollisionObject()
         collision.header = self.js.header
         collision.header.frame_id = 'panda_link0'
