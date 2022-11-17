@@ -9,17 +9,24 @@ import cv2
 import sys
 # np.set_printoptions(threshold=sys.maxsize)
 import pyrealsense2 as rs2
+from enum import Enum, auto
+
+class State(Enum):
+    """The current state of the brick."""
+
+    # Waiting to get frames
+    WAITING = auto(),
+    # Initial scan to determine tower height and table height
+    INIT = auto(),
+    # Scanning to find a piece that's pushed out
+    SCANNING = auto()
 
 class Cam(Node):
     def __init__(self):
         super().__init__('cam')
-        self.freq = 100.
+        self.freq = 60.
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
 
-        # self.color_sub = self.create_subscription(CompressedImage,
-        #                                           "/camera/color/image_raw/compressed",
-        #                                           self.color_callback,
-        #                                           10)
         self.color_sub = self.create_subscription(Image,
                                                   "/camera/color/image_raw",
                                                   self.color_callback,
@@ -52,15 +59,15 @@ class Cam(Node):
         self.rect = None
         self.update_rect()
 
+        self.state = State.WAITING
+
         cv2.namedWindow('Mask')
         cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
         cv2.createTrackbar('band width', 'Mask' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'Mask' , self.band_start, 1000, self.band_start_tb)
-
-        cv2.namedWindow('Poly')
-        cv2.createTrackbar('origin x', 'Poly', self.sq_orig[0], 1000, self.sqx_trackbar)
-        cv2.createTrackbar('origin y', 'Poly' , self.sq_orig[1], 1000, self.sqy_trackbar)
-        cv2.createTrackbar('size', 'Poly' , self.sq_sz, 700, self.sqw_trackbar)
+        cv2.createTrackbar('origin x', 'Mask', self.sq_orig[0], 1000, self.sqx_trackbar)
+        cv2.createTrackbar('origin y', 'Mask' , self.sq_orig[1], 1000, self.sqy_trackbar)
+        cv2.createTrackbar('size', 'Mask' , self.sq_sz, 700, self.sqw_trackbar)
 
     def sqx_trackbar(self, val):
         self.sq_orig[0] = val
@@ -89,9 +96,9 @@ class Cam(Node):
 
     def kernel_trackbar(self, val):
         self.kernel = np.ones((val,val),np.uint8)
-    
+
+    # Camera Info Callback
     def info_callback(self, cameraInfo):
-        # print(f"INTRINSICS: {self.intrinsics}")
         try:
             if self.intrinsics:
                 return
@@ -112,20 +119,38 @@ class Cam(Node):
             return
 
     def color_callback(self, data):
-        current_frame = self.br.imgmsg_to_cv2(data, desired_encoding='bgr8')
-        self.color_frame = current_frame
+        color_frame = self.br.imgmsg_to_cv2(data, desired_encoding='bgr8')
+        self.color_frame = color_frame
 
     def depth_callback(self, data):
         current_frame = self.br.imgmsg_to_cv2(data)
         self.depth_frame = current_frame
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(current_frame, alpha=0.3), cv2.COLORMAP_JET)
+
+        # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(current_frame, alpha=0.3), cv2.COLORMAP_JET)
         # cv2.imshow("im 13 and this is deep", depth_colormap)
 
-        mask = cv2.inRange(current_frame, self.band_start, self.band_start+self.band_width)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
-        cv2.imshow("Mask", mask)
+    def get_mask(self):
+        depth_cpy = np.array(self.depth_frame)
 
-        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        depth_mask = cv2.inRange(depth_cpy, self.band_start, self.band_start+self.band_width)
+        depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, self.kernel)
+
+        bounding_mask = np.zeros((self.intrinsics.height,self.intrinsics.width), np.int8)
+        # Creating a square over the area defined in self.rect
+        square = cv2.fillPoly(bounding_mask, [self.rect], 255)
+        # Blacking out everything that is not within square
+        square = cv2.inRange(square, 1, 255)
+        # Cropping the depth_mask so that only what is within the square remains.
+        depth_mask = cv2.bitwise_and(depth_mask, depth_mask, mask=square)
+
+        start = self.rect[0][0]
+        end = self.rect[0][2]
+        depth_mask_cpy = np.array(depth_mask)
+        rectangle = cv2.rectangle(depth_mask_cpy, start, end, (255,0,0), 2)
+        cv2.imshow("Mask", rectangle)
+
+        # Find the contours of this cropped mask.
+        contours, _ = cv2.findContours(depth_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         centroids = []
         areas = []
         large_contours = []
@@ -149,7 +174,7 @@ class Cam(Node):
             largest_index = np.argmax(areas)
             max_centroid = centroids[largest_index]
             print(f"estimated center: {max_centroid}")
-            centroid_depth = current_frame[max_centroid[1]][max_centroid[0]]
+            centroid_depth = depth_cpy[max_centroid[1]][max_centroid[0]]
             print(f"depth: {centroid_depth}")
             if self.intrinsics:
                 deprojected = rs2.rs2_deproject_pixel_to_point(self.intrinsics,
@@ -158,30 +183,27 @@ class Cam(Node):
                 print(f"DEPROJECTED:{deprojected}")
 
 
-        if self.color_frame is not None:
-            color_copy = np.array(self.color_frame)
-            drawn_contours = cv2.drawContours(color_copy, large_contours, -1, (0,255,0), 3)
-            if max_centroid is not None:
-                drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, [0,0,255], 5)
-            cv2.imshow("COUNTOURS", drawn_contours)
-        
-            if self.intrinsics is not None:
-                w = self.intrinsics.width
-                h = self.intrinsics.height
-                bounding_mask = np.zeros((h,w), np.int8)
-                square = cv2.fillPoly(bounding_mask, [self.rect], 255)
-                square = cv2.inRange(square, 1, 255)
-                cropped = cv2.bitwise_and(self.color_frame, self.color_frame, mask=square)
-                print(np.any(cropped))
-                cv2.imshow("Poly", cropped)
+        color_copy = np.array(self.color_frame)
+        drawn_contours = cv2.drawContours(color_copy, large_contours, -1, (0,255,0), 3)
+        if max_centroid is not None:
+            drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, [0,0,255], 5)
+        cv2.imshow("COUNTOURS", drawn_contours)
 
-        
         print()
 
         cv2.waitKey(1)
 
     def timer_callback(self):
-        pass
+        if self.state == State.WAITING:
+            print("Waiting")
+            wait_for = [self.intrinsics, self.depth_frame, self.color_frame]
+            if all(v is not None for v in wait_for):
+                self.state = State.INIT
+        elif self.state == State.INIT:
+            self.get_mask()
+        elif self.state == State.SCANNING:
+            # Look for piece sticking out in range from top to table
+            pass
 
 
 def main(args=None):
