@@ -34,14 +34,16 @@ class Cam(Node):
         self.band_start = 100
         self.band_width = 50
 
-        self.kernel = np.ones((25,25),np.uint8)
+        kernel_size = 50
+
+        self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
 
         cv2.namedWindow('mask')
         cv2.createTrackbar('band width', 'mask' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'mask' , self.band_start, 1000, self.band_start_tb)
 
         cv2.namedWindow('Closed for business')
-        cv2.createTrackbar('kernel size', 'Closed for business', 5, 100, self.kernel_trackbar)
+        cv2.createTrackbar('kernel size', 'Closed for business', kernel_size, 100, self.kernel_trackbar)
 
     def band_width_tb(self, val):
         self.band_width = val
