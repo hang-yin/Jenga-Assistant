@@ -92,6 +92,7 @@ class Cam(Node):
         centroids = []
         areas = []
         large_contours = []
+        max_centroid = None
         print(f"Number of countours: {len(contours)}")
         for c in contours: 
             M = cv2.moments(c)
@@ -117,6 +118,8 @@ class Cam(Node):
 
         if self.color_frame is not None:
             drawn_contours = cv2.drawContours(self.color_frame, large_contours, -1, (0,255,0), 3)
+            if max_centroid is not None:
+                drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, [0,0,255], 5)
             cv2.imshow("COUNTOURS", drawn_contours)
 
         cv2.waitKey(1)
