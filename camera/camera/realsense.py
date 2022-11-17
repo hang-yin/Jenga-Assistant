@@ -32,7 +32,19 @@ class Cam(Node):
 
         self.color_frame = None
         self.depth_frame = None
-        
+
+        self.max_depth = 200
+        self.min_depth = 0
+
+        cv2.namedWindow('mask')
+        cv2.createTrackbar('min depth', 'mask' , self.min_depth, 5000, self.min_depth_trackbar)
+        cv2.createTrackbar('max depth', 'mask' , self.max_depth, 5000, self.max_depth_trackbar)
+
+    def min_depth_trackbar(self, val):
+        self.min_depth = val
+
+    def max_depth_trackbar(self, val):
+        self.max_depth = val
 
     def color_callback(self, data):
         # print("COLOR CALLBACK")
@@ -62,15 +74,10 @@ class Cam(Node):
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(current_frame, alpha=0.3), cv2.COLORMAP_JET)
         cv2.imshow("im 13 and this is deep", depth_colormap)
         # Index of largest element
-        index = current_frame.argmax()
-        indices = np.unravel_index(index, current_frame.shape)
-        print(current_frame[indices[0]][indices[1]])
-        # Largest element in current frame is usually 65535
-        # Min element usually 0
-        print(current_frame.shape)
-        clip = np.where(current_frame<1000, current_frame, 0)
-        print(clip.shape)
-        cv2.imshow("Clippy", clip)
+        min_depth = 100
+        max_depth = 500
+        mask = cv2.inRange(current_frame, min_depth, max_depth)
+        cv2.imshow("mask", mask)
 
         # blur = cv2.blur(current_frame,(5,5))
         # blur_colormap = cv2.applyColorMap(cv2.convertScaleAbs(blur, alpha=0.3), cv2.COLORMAP_JET)
