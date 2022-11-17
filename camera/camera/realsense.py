@@ -23,7 +23,7 @@ class Cam(Node):
                                                   self.color_callback,
                                                   10)
         self.depth_sub = self.create_subscription(Image,
-                                                  "/camera/depth/image_rect_raw",
+                                                  "/camera/aligned_depth_to_color/image_raw",
                                                   self.depth_callback,
                                                   10)
         clipping_dist_meters = 0.25
@@ -33,18 +33,26 @@ class Cam(Node):
         self.color_frame = None
         self.depth_frame = None
 
-        self.max_depth = 200
-        self.min_depth = 0
+        self.max_depth = 600
+        self.min_depth = 100
+
+        self.kernel = np.ones((25,25),np.uint8)
 
         cv2.namedWindow('mask')
         cv2.createTrackbar('min depth', 'mask' , self.min_depth, 5000, self.min_depth_trackbar)
         cv2.createTrackbar('max depth', 'mask' , self.max_depth, 5000, self.max_depth_trackbar)
+
+        cv2.namedWindow('Closed for business')
+        cv2.createTrackbar('kernel size', 'Closed for business', 5, 100, self.kernel_trackbar)
 
     def min_depth_trackbar(self, val):
         self.min_depth = val
 
     def max_depth_trackbar(self, val):
         self.max_depth = val
+
+    def kernel_trackbar(self, val):
+        self.kernel = np.ones((val,val),np.uint8)
 
     def color_callback(self, data):
         # print("COLOR CALLBACK")
@@ -56,8 +64,8 @@ class Cam(Node):
         # Len of data.data array is 2764800
         current_frame = self.br.imgmsg_to_cv2(data, desired_encoding='bgr8')
         self.color_frame = current_frame
-        cv2.imshow("why am I blue", current_frame)
-        cv2.waitKey(1)
+        # cv2.imshow("why am I blue", current_frame)
+        # cv2.waitKey(1)
 
     def depth_callback(self, data):
         # print("DEPTH CALLBACK")
@@ -72,16 +80,45 @@ class Cam(Node):
         current_frame = self.br.imgmsg_to_cv2(data)
         self.depth_frame = current_frame
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(current_frame, alpha=0.3), cv2.COLORMAP_JET)
-        cv2.imshow("im 13 and this is deep", depth_colormap)
+        # cv2.imshow("im 13 and this is deep", depth_colormap)
         # Index of largest element
-        min_depth = 100
-        max_depth = 500
-        mask = cv2.inRange(current_frame, min_depth, max_depth)
+        mask = cv2.inRange(current_frame, self.min_depth, self.max_depth)
         cv2.imshow("mask", mask)
 
-        # blur = cv2.blur(current_frame,(5,5))
-        # blur_colormap = cv2.applyColorMap(cv2.convertScaleAbs(blur, alpha=0.3), cv2.COLORMAP_JET)
-        # cv2.imshow("blurry", blur_colormap)
+        closing = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
+        cv2.imshow("Closed for business", closing)
+
+        contours, _ = cv2.findContours(closing, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        centroids = []
+        areas = []
+        large_contours = []
+        print(f"Number of countours: {len(contours)}")
+        for c in contours: 
+            M = cv2.moments(c)
+            area = cv2.contourArea(c)
+            try: 
+                cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
+                centroid = (cx,cy)
+                if area > 100:
+                    centroids.append(centroid)
+                    areas.append(area)
+                    large_contours.append(c)
+            except: 
+                pass
+        print(areas)
+        if len(areas) != 0: 
+            largest_index = np.argmax(areas)
+            max_centroid = centroids[largest_index]
+            print(f"estimated center: {max_centroid}")
+            centroid_depth = current_frame[max_centroid[1]][max_centroid[0]]
+            print(f"depth: {centroid_depth}\n")
+
+
+        if self.color_frame is not None:
+            drawn_contours = cv2.drawContours(self.color_frame, large_contours, -1, (0,255,0), 3)
+            cv2.imshow("COUNTOURS", drawn_contours)
+
         cv2.waitKey(1)
 
     def timer_callback(self):
