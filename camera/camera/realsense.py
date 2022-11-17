@@ -61,11 +61,20 @@ class Cam(Node):
         self.depth_frame = current_frame
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(current_frame, alpha=0.3), cv2.COLORMAP_JET)
         cv2.imshow("im 13 and this is deep", depth_colormap)
-        if self.color_frame is not None:
-            depth_image_3d = np.dstack((current_frame,current_frame,current_frame))
-            # print(depth_image_3d)
-            bg_removed = np.where((depth_image_3d > self.clipping_distance) | (depth_image_3d <= 0), 153, self.color_frame)
-            cv2.imshow("AAAAAAAH", bg_removed)
+        # Index of largest element
+        index = current_frame.argmax()
+        indices = np.unravel_index(index, current_frame.shape)
+        print(current_frame[indices[0]][indices[1]])
+        # Largest element in current frame is usually 65535
+        # Min element usually 0
+        print(current_frame.shape)
+        clip = np.where(current_frame<1000, current_frame, 0)
+        print(clip.shape)
+        cv2.imshow("Clippy", clip)
+
+        # blur = cv2.blur(current_frame,(5,5))
+        # blur_colormap = cv2.applyColorMap(cv2.convertScaleAbs(blur, alpha=0.3), cv2.COLORMAP_JET)
+        # cv2.imshow("blurry", blur_colormap)
         cv2.waitKey(1)
 
     def timer_callback(self):
