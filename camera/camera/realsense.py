@@ -187,6 +187,7 @@ class Cam(Node):
                 pass
         # self.get_logger().info(f"Areas: {areas}")
         largest_area = None
+        deprojected = None
         if len(areas) != 0: 
             largest_index = np.argmax(areas)
             largest_area = areas[largest_index]
@@ -207,7 +208,7 @@ class Cam(Node):
         cv2.imshow("Depth Contours on Color Image", drawn_contours)
 
         cv2.waitKey(1)
-        return largest_area
+        return largest_area, deprojected
 
     def timer_callback(self):
         if self.state == State.WAITING:
@@ -228,7 +229,7 @@ class Cam(Node):
                 self.get_logger().info("WTFFFFFFF")
                 self.state = State.SCANNING
 
-            largest_area = self.get_mask()
+            largest_area, _ = self.get_mask()
             if largest_area:
                 if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
@@ -256,7 +257,7 @@ class Cam(Node):
                 self.get_logger().info("WTFFFFFFF")
                 self.state = State.SCANNING
 
-            largest_area = self.get_mask()
+            largest_area, _ = self.get_mask()
             if largest_area:
                 if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
@@ -276,11 +277,12 @@ class Cam(Node):
                 self.scan_index = self.tower_top +1.5*self.band_width
                 self.get_logger().info("Reset scan")
             # Look for piece sticking out in range from top to table
-            largest_area = self.get_mask()
+            largest_area, deprojected = self.get_mask()
             if largest_area:
                 if largest_area > self.piece_area_threshold:
                     self.get_logger().info("I think there is a piece sticking out here")
                     self.get_logger().info(f"Index: {self.band_start}, area: {largest_area}")
+                    self.get_logger().info(f"Coords in camera frame: {deprojected}")
 
 
 
