@@ -11,7 +11,3 @@ repositories:
     type: git
     url: git@github.com:christianrauch/apriltag_ros.git
     version: master
-  vision_opencv:
-    type: git
-    url: https://github.com/ros-perception/vision_opencv.git
-    version: humble
