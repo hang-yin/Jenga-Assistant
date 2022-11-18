@@ -19,6 +19,7 @@ class State(Enum):
     CALL = auto(),
     PLACE = auto(),
     PLACEPLANE = auto(),
+    CARTESIAN = auto(),
 
 
 class Test(Node):
@@ -103,6 +104,17 @@ class Test(Node):
             await self.place_plane()
             await self.PlanEx.grab()
         if self.state == State.CALL:
+            # self.future = await self.PlanEx.plan_to_position(self.start_pose,
+            #                                                  self.goal_pose,
+            #                                                  self.execute)
+            self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
+                                                                self.goal_pose,
+                                                                self.execute)
+            # self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+            #                                                     self.goal_pose,
+            #                                                     self.execute)
+            self.state = State.CARTESIAN
+        if self.state == State.CARTESIAN:
             self.state = State.IDLE
             # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
             #                                              self.goal_pose,
@@ -113,9 +125,9 @@ class Test(Node):
             # self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
             #                                                     self.goal_pose,
             #                                                     self.execute)
-            # self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-            #                                                     self.goal_pose,
-            #                                                     self.execute)
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                self.goal_pose,
+                                                                self.execute)
         if self.state == State.PLACE:
             self.state = State.IDLE
             # place block

@@ -95,7 +95,7 @@ class PlanAndExecute:
         self.master_goal.request.workspace_parameters.max_corner.x = 1.0
         self.master_goal.request.workspace_parameters.max_corner.y = 1.0
         self.master_goal.request.workspace_parameters.max_corner.z = 1.0
-        self.master_goal.request.group_name = 'panda_arm'
+        self.master_goal.request.group_name = 'panda_manipulator' # need to updated folder?
         self.master_goal.request.num_planning_attempts = 10
         self.master_goal.request.allowed_planning_time = 5.0
         self.master_goal.request.planner_id = ''
@@ -134,7 +134,12 @@ class PlanAndExecute:
         t3 = +2.0 * (w * z + x * y)
         t4 = +1.0 - 2.0 * (y * y + z * z)
         yaw_z = math.atan2(t3, t4)
-     
+        if roll_x < 0:
+            roll_x = roll_x + 2*math.pi
+        if pitch_y < 0:
+            pitch_y = pitch_y + 2*math.pi
+        if yaw_z < 0:
+            yaw_z = yaw_z + 2*math.pi
         return roll_x, pitch_y, yaw_z # in radians
 
     def get_quaternion_from_euler(self, roll, pitch, yaw):
@@ -203,41 +208,40 @@ class PlanAndExecute:
         xf = end_pose.position.x
         yf = end_pose.position.y
         zf = end_pose.position.z
-        xoi, yoi, zoi = self.euler_from_quaternion(start_pose.orientation.x,
-                                                   start_pose.orientation.y, 
-                                                   start_pose.orientation.z,
-                                                   start_pose.orientation.w)
-        xof, yof, zof = self.euler_from_quaternion(end_pose.orientation.x,
-                                                   end_pose.orientation.y, 
-                                                   end_pose.orientation.z,
-                                                   end_pose.orientation.w)
+        # xoi, yoi, zoi = self.euler_from_quaternion(start_pose.orientation.x,
+        #                                            start_pose.orientation.y, 
+        #                                            start_pose.orientation.z,
+        #                                            start_pose.orientation.w)
+        # xof, yof, zof = self.euler_from_quaternion(end_pose.orientation.x,
+        #                                            end_pose.orientation.y, 
+        #                                            end_pose.orientation.z,
+        #                                            end_pose.orientation.w)
         self.node.get_logger().info("initial and final angles")
-        #self.printBlock([xoi,yoi,zoi,xof,yof,zof])
         d = math.sqrt((xf-xi)**2 + (yf-yi)**2 + (zf-zi)**2)
-        sp = math.ceil(d / max_step)
+        sp = math.ceil(d / max_step)+1
         sx = (xf-xi)/sp
         sy = (yf-yi)/sp
         sz = (zf-zi)/sp
-        sox = (xof-xoi)/sp
-        soy = (yof-yoi)/sp
-        soz = (zof-zoi)/sp
+        # sox = (xof-xoi)/sp
+        # soy = (yof-yoi)/sp
+        # soz = (zof-zoi)/sp
         self.node.get_logger().info("delta angles")
-        #self.printBlock([sox, soy, soz])
         for i in range(sp):
-            npose = Pose()
+            npose = points[i]
             npose.position.x = points[i].position.x + sx
             npose.position.y = points[i].position.y + sy
             npose.position.z = points[i].position.z + sz
-            nx, ny, nz = xof, yof, zof = self.euler_from_quaternion(points[i].orientation.x,
-                                                                    points[i].orientation.y, 
-                                                                    points[i].orientation.z,
-                                                                    points[i].orientation.w)
-            #self.printBlock([nx,ny,nz])
-            nx = nx + sox
-            ny = ny + soy
-            nz = nz + soz
-            [npose.orientation.x, npose.orientation.y,
-             npose.orientation.z, npose.orientation.w] = self.get_quaternion_from_euler(nx, ny, nz)
+            # nx, ny, nz = xof, yof, zof = self.euler_from_quaternion(points[i].orientation.x,
+            #                                                         points[i].orientation.y, 
+            #                                                         points[i].orientation.z,
+            #                                                         points[i].orientation.w)
+            # nx = nx + sox
+            # ny = ny + soy
+            # nz = nz + soz
+            # self.printBlock([nx, ny, nz])
+            # [npose.orientation.x, npose.orientation.y,
+            #  npose.orientation.z, npose.orientation.w] = self.get_quaternion_from_euler(nx, ny, nz)
+            self.printBlock(npose)
             points.append(npose)
         points.append(end_pose)
         #self.printBlock(len(points))
@@ -247,7 +251,7 @@ class PlanAndExecute:
 
     def createCartreq(self, start_pose, end_pose):
         """Create an Cartisian message filled with info from the goal pose and orientation."""
-        max_step = 0.10
+        max_step = 0.01
         points = self.createWaypoints(start_pose, end_pose, max_step)
         self.node.get_logger().info("creating cartisian message")
         constraint = Constraints()
