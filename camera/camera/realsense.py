@@ -5,11 +5,6 @@ from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 import numpy as np
 from cv_bridge import CvBridge, CvBridgeError
-import pyrealsense2 as rs2
-import cv2
-from tf2_ros import TransformException
-from tf2_ros.transform_listener import TransformListener
-from tf2_ros.buffer import Buffer
 import cv2
 import sys
 # np.set_printoptions(threshold=sys.maxsize)
@@ -46,13 +41,6 @@ class Cam(Node):
                                                   "/camera/aligned_depth_to_color/image_raw",
                                                   self.depth_callback,
                                                   10)
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
-        self.frame_camera = "camera_color_optical_frame"
-        self.frame_tag = "tag36h11:0"
-
-        clipping_dist_meters = 0.25
-        self.clipping_distance = 0.2
         self.info_sub = self.create_subscription(CameraInfo,
                                                  "/camera/aligned_depth_to_color/camera_info",
                                                  self.info_callback,
@@ -185,9 +173,6 @@ class Cam(Node):
 
         # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(current_frame, alpha=0.3), cv2.COLORMAP_JET)
         # cv2.imshow("im 13 and this is deep", depth_colormap)
-        # Index of largest element
-        mask = cv2.inRange(current_frame, self.band_start, self.band_start+self.band_width)
-        cv2.imshow("mask", mask)
 
     def get_mask(self):
         # Do this in case the subscriber somehow updates in the middle of the function?
@@ -259,19 +244,6 @@ class Cam(Node):
         return largest_area, deprojected
 
     def timer_callback(self):
-        # Create a listener that gets the transform of the apriltag relative to the camera
-        try:
-            t = self.tf_buffer.lookup_transform(
-                self.frame_camera,
-                self.frame_tag,
-                rclpy.time.Time())
-            self.base_z = t.transform.translation.z
-            self.base_x = t.transform.translation.x
-            self.base_y = t.transform.translation.y
-            # print(f"x,y,z: {self.base_x},{self.base_y},{self.base_z}")
-        except TransformException:
-            return
-
         if self.state == State.WAITING:
             self.get_logger().info("Waiting for frames...")
             wait_for = [self.intrinsics, self.depth_frame, self.color_frame]
@@ -335,7 +307,7 @@ class Cam(Node):
             # Keep scanning downwards
             self.band_start = self.scan_index
             self.scan_index += self.scan_step
-            # Reset scan if too big
+            # Reset scan if too big.
             if self.scan_index+1.5*self.band_width > self.table:
                 self.scan_index = self.tower_top +1.5*self.band_width
                 self.get_logger().info("Reset scan")
