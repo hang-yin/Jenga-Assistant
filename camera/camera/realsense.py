@@ -48,7 +48,7 @@ class Cam(Node):
         self.intrinsics = None
 
         self.band_start = 570
-        self.band_width = 50
+        self.band_width = 20
 
         kernel_size = 25
         self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
@@ -68,8 +68,9 @@ class Cam(Node):
         self.max_scan = 800
         self.scan_step = 0.5
 
-        # How large a contour is to consider it as an object
-        self.area_threshold = 10000 #2500
+        # How large a contour is to consider it as relevant
+        self.object_area_threshold = 10000
+        self.piece_area_threshold = 2500
 
         self.piece_depth = 35 #33.782 #1.3 in
 
@@ -214,6 +215,7 @@ class Cam(Node):
             wait_for = [self.intrinsics, self.depth_frame, self.color_frame]
             if all(w is not None for w in wait_for):
                 self.state = State.FINDTOP
+                self.get_logger().info("Searching for tower top")
 
         elif self.state == State.FINDTOP:
             # Begin scanning downwards.
@@ -228,7 +230,7 @@ class Cam(Node):
 
             largest_area = self.get_mask()
             if largest_area:
-                if largest_area > self.area_threshold:
+                if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
                     self.get_logger().info("FOUND TOWER TOP!!!!!!")
                     self.get_logger().info(f"depth: {self.band_start},"+
@@ -240,6 +242,7 @@ class Cam(Node):
                     self.band_start += 1.5*self.band_width
                     # Go and find the table
                     self.state = State.FINDTABLE
+                    self.get_logger().info("Searching for table")
 
         elif self.state == State.FINDTABLE:
             # Basically same logic as findtop.
@@ -255,27 +258,29 @@ class Cam(Node):
 
             largest_area = self.get_mask()
             if largest_area:
-                if largest_area > self.area_threshold:
+                if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
                     self.get_logger().info("FOUND TABLE!!!!!!")
                     self.get_logger().info(f"depth: {self.band_start},"+
                                            f"area: {largest_area}\n")
                     self.table = self.band_start
-                    self.scan_index = self.tower_top*1.5
-                    self.band_start = self.tower_top*1.5
+                    self.scan_index = self.tower_top+1.5*self.band_width
+                    self.band_start = self.tower_top+1.5*self.band_width
                     self.state = State.SCANNING
         elif self.state == State.SCANNING:
             # Keep scanning downwards
             self.band_start = self.scan_index
             self.scan_index += self.scan_step
             # Reset scan if too big.
-            if self.scan_index > self.table:
-                # This should not happen. But if it doesn't find anything large in the band:
-                self.scan_index = self.tower_top
-                self.get_logger().info("Reset")
+            if self.scan_index+1.5*self.band_width > self.table:
+                self.scan_index = self.tower_top +1.5*self.band_width
+                self.get_logger().info("Reset scan")
             # Look for piece sticking out in range from top to table
             largest_area = self.get_mask()
-            self.get_logger().info(f"Largest area: {largest_area}")
+            if largest_area:
+                if largest_area > self.piece_area_threshold:
+                    self.get_logger().info("I think there is a piece sticking out here")
+                    self.get_logger().info(f"Index: {self.band_start}, area: {largest_area}")
 
 
 
