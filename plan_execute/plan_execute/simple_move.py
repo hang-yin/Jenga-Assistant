@@ -17,7 +17,8 @@ class State(Enum):
     START = auto(),
     IDLE = auto(),
     CALL = auto(),
-    PLACE = auto()
+    PLACE = auto(),
+    PLACEPLANE = auto(),
 
 
 class Test(Node):
@@ -77,15 +78,29 @@ class Test(Node):
         self.block_pose = request.place
         self.state = State.PLACE
         return response
+    
+    async def place_plane(self):
+        plane_pose = Pose()
+        plane_pose.position.x = 0.0
+        plane_pose.position.y = 0.0
+        plane_pose.position.z = -0.14
+        plane_pose.orientation.x = 0.0
+        plane_pose.orientation.y = 0.0
+        plane_pose.orientation.z = 0.0
+        plane_pose.orientation.w = 1.0
+        await self.PlanEx.place_block(plane_pose, [10.0, 10.0, 0.1], 'plane')
 
     async def timer_callback(self):
         """State maching that dictates which functions from the class are being called."""
         if self.state == State.START:
             # add a bit of a time buffer so js can be read in
             if self.ct == 100:
-                self.state = State.IDLE
+                self.state = State.PLACEPLANE
             else:
                 self.ct += 1
+        if self.state == State.PLACEPLANE:
+            self.state = State.IDLE
+            await self.place_plane()
         if self.state == State.CALL:
             self.state = State.IDLE
             # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
@@ -102,7 +117,8 @@ class Test(Node):
                                                                 self.execute)
         if self.state == State.PLACE:
             self.state = State.IDLE
-            await self.PlanEx.place_block(self.block_pose, [10.0, 10.0, 0.1])
+            # place block
+            await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.03], 'block')
 
 
 def test_entry(args=None):

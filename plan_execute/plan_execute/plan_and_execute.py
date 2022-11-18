@@ -96,6 +96,7 @@ class PlanAndExecute:
         self.master_goal.request.pipeline_id = 'move_group'
         self.master_goal.request.max_velocity_scaling_factor = 1.0
         self.master_goal.request.max_acceleration_scaling_factor = 0.1
+        self.collision_list = []
 
     def printBlock(self, req):
         """Make a string of a request or message then log it to the terminal."""
@@ -473,7 +474,7 @@ class PlanAndExecute:
         execute_result = await execute_future.get_result_async()
         return execute_result
 
-    async def place_block(self, pos, dimensions):
+    async def place_block(self, pos, dimensions, name):
         """Place block in RVIZ from pose when service Place is called."""
         self.node.get_logger().info("Place Block")
         scene_request = PlanningSceneComponents()
@@ -490,10 +491,11 @@ class PlanAndExecute:
         collision.header = self.js.header
         collision.header.frame_id = 'panda_link0'
         collision.pose = pos
-        collision.id = 'box1'
+        collision.id = name
         collision.primitives = [prime]
         collision.primitive_poses = [primepose]
-        scene.world.collision_objects = [collision]
+        self.collision_list.append(collision)
+        scene.world.collision_objects = self.collision_list
         self.node.block_pub.publish(scene)
     
     async def grab(self):
