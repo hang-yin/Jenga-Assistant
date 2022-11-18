@@ -154,7 +154,6 @@ class Cam(Node):
         # cv2.imshow("im 13 and this is deep", depth_colormap)
         # Index of largest element
         mask = cv2.inRange(current_frame, self.band_start, self.band_start+self.band_width)
-        print('HERE')
         cv2.imshow("mask", mask)
 
     def get_mask(self):
@@ -239,6 +238,7 @@ class Cam(Node):
             print(f"x,y,z: {self.base_x},{self.base_y},{self.base_z}")
         except TransformException:
             return
+
         if self.state == State.WAITING:
             self.get_logger().info("Waiting for frames...")
             wait_for = [self.intrinsics, self.depth_frame, self.color_frame]
@@ -300,7 +300,7 @@ class Cam(Node):
             # Keep scanning downwards
             self.band_start = self.scan_index
             self.scan_index += self.scan_step
-            # Reset scan if too big.
+            # Reset scan if too big
             if self.scan_index+1.5*self.band_width > self.table:
                 self.scan_index = self.tower_top +1.5*self.band_width
                 self.get_logger().info("Reset scan")
