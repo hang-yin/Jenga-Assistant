@@ -136,7 +136,7 @@ class Cam(Node):
         cv2.waitKey(1)
 
     def timer_callback(self):
-        # Create a listener that gets the transform of the bases relative to odom
+        # Create a listener that gets the transform of the apriltag relative to the camera
         try:
             t = self.tf_buffer.lookup_transform(
                 self.frame_camera,
