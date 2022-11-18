@@ -2,10 +2,11 @@ import numpy as np
 import rclpy
 from moveit_msgs.action import MoveGroup, ExecuteTrajectory
 from rclpy.action import ActionClient
-from moveit_msgs.srv import GetPositionIK, GetPlanningScene, GetCartesianPath
+from moveit_msgs.srv import GetPositionIK, GetPlanningScene, GetCartesianPath, GraspPlanning
 from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, \
                             PlanningScene, PlanningSceneComponents, CollisionObject, \
                             Constraints, RobotState
+from franka_msgs.action import Grasp
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Pose, Point, Quaternion
@@ -51,6 +52,10 @@ class PlanAndExecute:
         self.node._execute_client = ActionClient(self.node,
                                                  ExecuteTrajectory,
                                                  '/execute_trajectory')
+        # create an action client for gripper
+        self.node._gripper_client = ActionClient(self.node,
+                                                 Grasp,
+                                                 '/panda_gripper/grasp')
         self.node.IK = self.node.create_client(GetPositionIK,
                                                "/compute_ik",
                                                callback_group=self.node.cbgroup)
@@ -66,6 +71,13 @@ class PlanAndExecute:
                                                callback_group=self.node.cbgroup)
         if not self.node.cartisian.wait_for_service(timeout_sec=5.0):
             raise RuntimeError('Timeout waiting for "cartisian" service to become available')
+        """
+        self.node.grasp = self.node.create_client(GraspPlanning,
+                                               "/compute_cartesian_path",
+                                               callback_group=self.node.cbgroup)
+        if not self.node.cartisian.wait_for_service(timeout_sec=5.0):
+            raise RuntimeError('Timeout waiting for "cartisian" service to become available')
+        """
         self.move_group = self.node.movegroup
         self.node.js_sub = self.node.create_subscription(JointState,
                                                          "/joint_states",
@@ -205,7 +217,6 @@ class PlanAndExecute:
         #                                            end_pose.orientation.z,
         #                                            end_pose.orientation.w)
         self.node.get_logger().info("initial and final angles")
-        # self.printBlock([xoi,yoi,zoi,xof,yof,zof])
         d = math.sqrt((xf-xi)**2 + (yf-yi)**2 + (zf-zi)**2)
         sp = math.ceil(d / max_step)+1
         sx = (xf-xi)/sp
@@ -215,7 +226,6 @@ class PlanAndExecute:
         # soy = (yof-yoi)/sp
         # soz = (zof-zoi)/sp
         self.node.get_logger().info("delta angles")
-        # self.printBlock([sox, soy, soz])
         for i in range(sp):
             npose = points[i]
             npose.position.x = points[i].position.x + sx
@@ -234,9 +244,9 @@ class PlanAndExecute:
             self.printBlock(npose)
             points.append(npose)
         points.append(end_pose)
-        self.printBlock(len(points))
+        #self.printBlock(len(points))
         self.node.get_logger().info("POINTS")
-        self.printBlock(points)
+        #self.printBlock(points)
         return points
 
     def createCartreq(self, start_pose, end_pose):
@@ -412,7 +422,7 @@ class PlanAndExecute:
                        Cartprismatic_jump_threshold, Cartrevolute_jump_threshold,
                        Cartavoid_collisions, Cartpath_constraints):
         """Compute joint states using inverse kinematics from a IKrequest message."""
-        self.node.get_logger().info("Computing Cartisian!")
+        #self.node.get_logger().info("Computing Cartisian!")
         response = await self.node.cartisian.call_async(GetCartesianPath.Request(header=Cartheader, 
                                                         start_state=Cartstart_state,
                                                         group_name=Cartgroup_name,
@@ -429,11 +439,11 @@ class PlanAndExecute:
             self.node.get_logger().info("Cartisian service Failed :(")
             return None
         else:
-            self.node.get_logger().info("Cartisian Succeeded :)")
-            self.node.get_logger().info("start_state:")
-            self.printBlock(response.start_state)
-            self.node.get_logger().info("robot traj:")
-            self.printBlock(response.solution)
+            #self.node.get_logger().info("Cartisian Succeeded :)")
+            #self.node.get_logger().info("start_state:")
+            #self.printBlock(response.start_state)
+            #self.node.get_logger().info("robot traj:")
+            #self.printBlock(response.solution)
             # sol = JointState()
             # sol.header = response.solution.joint_trajectory.header
             # self.node.get_logger().info("joint names:")
@@ -505,6 +515,21 @@ class PlanAndExecute:
         self.node.block_pub.publish(scene)
     
     async def grab(self):
-        self.node.get_logger().info("grabbing path")
-        grab = await self.node.planscene.call_async()
-        pass
+        # self.node.get_logger().info("grabbing path")
+        # grasp_request = GraspPlanning.Request()
+        # grasp_request.group_name = 'panda_arm'
+        # grasp_request.robot_state = self.js
+        # grasp_request.allowed_touch_objects = ['block']
+        # grasp_request.support_surface_name = 'plane'
+        # grasp_response = await self.node.grasp.call_async(grasp_request)
+        #grab = await self.node.planscene.call_async()
+        #pass
+        self.node.get_logger().info("grabbing")
+        self.node._gripper_client.wait_for_server()
+        self.node.get_logger().info("gripper client connected")
+        grasp_goal = Grasp.Goal()
+        grasp_goal.width = 0.05
+        grasp_goal.speed = 0.03
+        grasp_goal.force = 50.0
+        await self.node._gripper_client.send_goal_async(grasp_goal)
+        self.node.get_logger().info("grabbed")
