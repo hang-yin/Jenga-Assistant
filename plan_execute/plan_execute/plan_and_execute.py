@@ -106,7 +106,7 @@ class PlanAndExecute:
         self.master_goal.request.start_state.attached_collision_objects = []
         self.master_goal.request.start_state.is_diff = False
         self.master_goal.request.pipeline_id = 'move_group'
-        self.master_goal.request.max_velocity_scaling_factor = 1.0
+        self.master_goal.request.max_velocity_scaling_factor = 0.1
         self.master_goal.request.max_acceleration_scaling_factor = 0.1
         self.collision_list = []
 
