@@ -7,8 +7,9 @@ import numpy as np
 from cv_bridge import CvBridge, CvBridgeError
 import pyrealsense2 as rs2
 import cv2
-import sys
-np.set_printoptions(threshold=sys.maxsize)
+from tf2_ros import TransformException
+from tf2_ros.transform_listener import TransformListener
+from tf2_ros.buffer import Buffer
 
 class Cam(Node):
     def __init__(self):
@@ -28,6 +29,11 @@ class Cam(Node):
                                                   "/camera/aligned_depth_to_color/image_raw",
                                                   self.depth_callback,
                                                   10)
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.frame_camera = "camera_color_optical_frame"
+        self.frame_tag = "tag36h11:0"
+
         clipping_dist_meters = 0.25
         self.clipping_distance = 0.2
         self.br = CvBridge()
@@ -87,6 +93,7 @@ class Cam(Node):
         # cv2.imshow("im 13 and this is deep", depth_colormap)
         # Index of largest element
         mask = cv2.inRange(current_frame, self.band_start, self.band_start+self.band_width)
+        print('HERE')
         cv2.imshow("mask", mask)
 
         closing = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
@@ -129,7 +136,18 @@ class Cam(Node):
         cv2.waitKey(1)
 
     def timer_callback(self):
-        pass
+        # Create a listener that gets the transform of the bases relative to odom
+        try:
+            t = self.tf_buffer.lookup_transform(
+                self.frame_camera,
+                self.frame_tag,
+                rclpy.time.Time())
+            self.base_z = t.transform.translation.z
+            self.base_x = t.transform.translation.x
+            self.base_y = t.transform.translation.y
+            print(f"x,y,z: {self.base_x},{self.base_y},{self.base_z}")
+        except TransformException:
+            return
 
 
 def main(args=None):
