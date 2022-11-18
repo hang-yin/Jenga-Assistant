@@ -15,6 +15,8 @@ import sys
 # np.set_printoptions(threshold=sys.maxsize)
 import pyrealsense2 as rs2
 from enum import Enum, auto
+from std_srvs.srv import Empty
+from geometry_msgs.msg import Point
 
 class State(Enum):
     """The current state of the brick."""
@@ -26,7 +28,9 @@ class State(Enum):
     # Initial scan to find the bottom of the tower
     FINDTABLE = auto(),
     # Scanning to find a piece that's pushed out
-    SCANNING = auto()
+    SCANNING = auto(),
+    # Don't scan but still show the screen
+    PAUSED = auto()
 
 class Cam(Node):
     def __init__(self):
@@ -53,6 +57,11 @@ class Cam(Node):
                                                  "/camera/aligned_depth_to_color/camera_info",
                                                  self.info_callback,
                                                  10)
+
+        self.piece_pub = self.create_publisher(Point, 'jenga_piece', 10)
+        self.scan = self.create_service(Empty, "scan", self.scan_service_callback)
+        self.stop = self.create_service(Empty, "stop", self.stop_service_callback)
+        self.calib = self.create_service(Empty, "calib", self.calib_service_callback)
         self.br = CvBridge()
 
         self.color_frame = None
@@ -121,6 +130,30 @@ class Cam(Node):
 
     def kernel_trackbar(self, val):
         self.kernel = np.ones((val,val),np.uint8)
+
+    def scan_service_callback(self, _, response):
+        """ Make the camera scan for pieces sticking out """
+        # Only valid if the tower and table have a height
+        if self.tower_top and self.table:
+            self.scan_index = self.tower_top +1.5*self.band_width
+            self.state = State.SCANNING
+            self.get_logger().info("Begin Scanning for pieces")
+        else:
+            self.get_logger().info("You have to call /calib first before scanning!!!")
+        return response
+
+    def stop_service_callback(self, _, response):
+        """ Stop conitnously scanning """
+        self.state = State.PAUSED
+        self.get_logger().info("Pause Scanning")
+        return response
+
+    def calib_service_callback(self, _, response):
+        """ Re caluclate the height of the tower """
+        self.state = State.FINDTOP
+        self.scan_index = self.scan_start
+        self.get_logger().info("Searching for tower top")
+        return response
 
     def info_callback(self, cameraInfo):
         try:
@@ -243,8 +276,10 @@ class Cam(Node):
             self.get_logger().info("Waiting for frames...")
             wait_for = [self.intrinsics, self.depth_frame, self.color_frame]
             if all(w is not None for w in wait_for):
-                self.state = State.FINDTOP
-                self.get_logger().info("Searching for tower top")
+                self.state = State.PAUSED
+
+        elif self.state == State.PAUSED:
+            largest_area, _ = self.get_mask()
 
         elif self.state == State.FINDTOP:
             # Begin scanning downwards.
@@ -262,13 +297,13 @@ class Cam(Node):
                 if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
                     self.get_logger().info("FOUND TOWER TOP!!!!!!")
-                    self.get_logger().info(f"depth: {self.band_start},"+
+                    self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
                                            f"area: {largest_area}\n")
-                    self.tower_top = self.band_start
+                    self.tower_top = self.band_start+self.band_width
                     # Go down past the top pieces, or else this will also be detected as table.
                     # (Need to increase by a bit more than 1x bandwidth. I do 1.5 to be safe.)
-                    self.scan_index += 1.5*self.band_width
-                    self.band_start += 1.5*self.band_width
+                    self.scan_index = self.tower_top + self.band_width
+                    self.band_start = self.tower_top + self.band_width
                     # Go and find the table
                     self.state = State.FINDTABLE
                     self.get_logger().info("Searching for table")
@@ -290,11 +325,11 @@ class Cam(Node):
                 if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
                     self.get_logger().info("FOUND TABLE!!!!!!")
-                    self.get_logger().info(f"depth: {self.band_start},"+
+                    self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
                                            f"area: {largest_area}\n")
                     self.table = self.band_start
-                    self.scan_index = self.tower_top+1.5*self.band_width
-                    self.band_start = self.tower_top+1.5*self.band_width
+                    self.scan_index = self.tower_top + self.band_width
+                    self.band_start = self.tower_top + self.band_width
                     self.state = State.SCANNING
         elif self.state == State.SCANNING:
             # Keep scanning downwards
@@ -311,6 +346,13 @@ class Cam(Node):
                     self.get_logger().info("I think there is a piece sticking out here")
                     self.get_logger().info(f"Index: {self.band_start}, area: {largest_area}")
                     self.get_logger().info(f"Coords in camera frame: {deprojected}")
+                    jenga_piece = Point()
+                    jenga_piece.x = deprojected[0]
+                    jenga_piece.y = deprojected[1]
+                    jenga_piece.z = deprojected[2]
+                    self.piece_pub.publish(jenga_piece)
+                    self.state = State.PAUSED
+
 
 
 
