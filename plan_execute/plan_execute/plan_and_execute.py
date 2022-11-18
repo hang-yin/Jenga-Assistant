@@ -2,15 +2,19 @@ import numpy as np
 import rclpy
 from moveit_msgs.action import MoveGroup, ExecuteTrajectory
 from rclpy.action import ActionClient
-from moveit_msgs.srv import GetPositionIK, GetPlanningScene
+from moveit_msgs.srv import GetPositionIK, GetPlanningScene, GetCartesianPath
 from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, \
-                            PlanningScene, PlanningSceneComponents, CollisionObject
+                            PlanningScene, PlanningSceneComponents, CollisionObject, \
+                            Constraints, RobotState
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Pose
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from shape_msgs.msg import SolidPrimitive
+# from plan_execute_interface.msg import CartesianRequest # check if this is right
+from std_msgs.msg import Header
+import math
 
 
 class PlanAndExecute:
@@ -48,15 +52,20 @@ class PlanAndExecute:
                                                  ExecuteTrajectory,
                                                  '/execute_trajectory')
         self.node.IK = self.node.create_client(GetPositionIK,
-                                               "compute_ik",
+                                               "/compute_ik",
                                                callback_group=self.node.cbgroup)
         if not self.node.IK.wait_for_service(timeout_sec=5.0):
             raise RuntimeError('Timeout waiting for "IK" service to become available')
         self.node.planscene = self.node.create_client(GetPlanningScene,
-                                                      "get_planning_scene",
+                                                      "/get_planning_scene",
                                                       callback_group=self.node.cbgroup)
         if not self.node.planscene.wait_for_service(timeout_sec=5.0):
             raise RuntimeError('Timeout waiting for "planscene" service to become available')
+        self.node.cartisian = self.node.create_client(GetCartesianPath,
+                                               "/compute_cartesian_path",
+                                               callback_group=self.node.cbgroup)
+        if not self.node.cartisian.wait_for_service(timeout_sec=5.0):
+            raise RuntimeError('Timeout waiting for "cartisian" service to become available')
         self.move_group = self.node.movegroup
         self.node.js_sub = self.node.create_subscription(JointState,
                                                          "/joint_states",
@@ -93,6 +102,51 @@ class PlanAndExecute:
         new_str = (str(req)).replace(',', ',\n')
         self.node.get_logger().info(new_str)
 
+    def euler_from_quaternion(self, x, y, z, w):
+        """
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+        """
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+     
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+     
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+     
+        return roll_x, pitch_y, yaw_z # in radians
+
+    def get_quaternion_from_euler(self, roll, pitch, yaw):
+        """
+        Convert an Euler angle to a quaternion.
+        
+        Input
+            :param roll: The roll (rotation around x-axis) angle in radians.
+            :param pitch: The pitch (rotation around y-axis) angle in radians.
+            :param yaw: The yaw (rotation around z-axis) angle in radians.
+        
+        Output
+            :return qx, qy, qz, qw: The orientation in quaternion [x,y,z,w] format
+        """
+        qx = (math.sin(roll/2) * math.cos(pitch/2) * math.cos(yaw/2) -
+              math.cos(roll/2) * math.sin(pitch/2) * math.sin(yaw/2))
+        qy = (math.cos(roll/2) * math.sin(pitch/2) * math.cos(yaw/2) +
+              math.sin(roll/2) * math.cos(pitch/2) * math.sin(yaw/2))
+        qz = (math.cos(roll/2) * math.cos(pitch/2) * math.sin(yaw/2) -
+              math.sin(roll/2) * math.sin(pitch/2) * math.cos(yaw/2))
+        qw = (math.cos(roll/2) * math.cos(pitch/2) * math.cos(yaw/2) +
+              math.sin(roll/2) * math.sin(pitch/2) * math.sin(yaw/2))
+ 
+        return [qx, qy, qz, qw]
+
     def js_callback(self, data):
         """Save js with the joint state data (sensor_msgs/JointStates type)."""
         self.js = data
@@ -127,6 +181,82 @@ class PlanAndExecute:
         request.pose_stamped.pose.orientation = end_orientation
         request.timeout.sec = 5
         return request
+
+    def createWaypoints(self, start_pose, end_pose, max_step):
+        points = [start_pose]
+        xi = start_pose.position.x
+        yi = start_pose.position.y
+        zi = start_pose.position.z
+        xf = end_pose.position.x
+        yf = end_pose.position.y
+        zf = end_pose.position.z
+        xoi, yoi, zoi = self.euler_from_quaternion(start_pose.orientation.x,
+                                                   start_pose.orientation.y, 
+                                                   start_pose.orientation.z,
+                                                   start_pose.orientation.w)
+        xof, yof, zof = self.euler_from_quaternion(end_pose.orientation.x,
+                                                   end_pose.orientation.y, 
+                                                   end_pose.orientation.z,
+                                                   end_pose.orientation.w)
+        self.node.get_logger().info("initial and final angles")
+        self.printBlock([xoi,yoi,zoi,xof,yof,zof])
+        d = math.sqrt((xf-xi)**2 + (yf-yi)**2 + (zf-zi)**2)
+        sp = math.ceil(d / max_step)
+        sx = (xf-xi)/sp
+        sy = (yf-yi)/sp
+        sz = (zf-zi)/sp
+        sox = (xof-xoi)/sp
+        soy = (yof-yoi)/sp
+        soz = (zof-zoi)/sp
+        self.node.get_logger().info("delta angles")
+        self.printBlock([sox, soy, soz])
+        for i in range(sp):
+            npose = Pose()
+            npose.position.x = points[i].position.x + sx
+            npose.position.y = points[i].position.y + sy
+            npose.position.z = points[i].position.z + sz
+            nx, ny, nz = xof, yof, zof = self.euler_from_quaternion(points[i].orientation.x,
+                                                                    points[i].orientation.y, 
+                                                                    points[i].orientation.z,
+                                                                    points[i].orientation.w)
+            self.printBlock([nx,ny,nz])
+            nx = nx + sox
+            ny = ny + soy
+            nz = nz + soz
+            [npose.orientation.x, npose.orientation.y,
+             npose.orientation.z, npose.orientation.w] = self.get_quaternion_from_euler(nx, ny, nz)
+            points.append(npose)
+        points.append(end_pose)
+        self.printBlock(len(points))
+        self.node.get_logger().info("POINTS")
+        self.printBlock(points)
+        return points
+
+    def createCartreq(self, start_pose, end_pose):
+        """Create an Cartisian message filled with info from the goal pose and orientation."""
+        max_step = 0.10
+        points = self.createWaypoints(start_pose, end_pose, max_step)
+        self.node.get_logger().info("creating cartisian message")
+        constraint = Constraints()
+        group_name = self.master_goal.request.group_name
+        header = Header()
+        link_name = 'panda_hand_tcp'
+        start_state = RobotState()
+        start_state.joint_state.name = self.js.name
+        start_state.joint_state.position = self.js.position
+        start_state.joint_state.header.stamp = self.node.get_clock().now().to_msg()
+        start_state.multi_dof_joint_state.header.frame_id = 'panda_link0'
+        header.stamp = self.node.get_clock().now().to_msg()
+        header.frame_id = 'panda_link0'
+        waypoints = points
+        jump_threshold = 10.0
+        prismatic_jump_threshold = 10.0
+        revolute_jump_threshold = 10.0
+        avoid_collisions = True
+        path_constraints = constraint
+        return header, start_state, group_name, link_name, waypoints, max_step, jump_threshold,\
+               prismatic_jump_threshold, revolute_jump_threshold, avoid_collisions,\
+               path_constraints
 
     def getStartPose(self):
         """Calculate the postion and orientation of the robot based on the tf frames."""
@@ -178,7 +308,7 @@ class PlanAndExecute:
             start_pose = self.getStartPose()
             self.master_goal.request.start_state.joint_state = self.js
         else:
-            request_start = self.createIKreq(start_pose.position, start_pose.orientation)
+            request_start = self.createCartreq(start_pose.position, start_pose.orientation)
             request_temp = GetPositionIK.Request(ik_request=request_start)
             response_start = await self.node.IK.call_async(request_temp)
             self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
@@ -228,6 +358,88 @@ class PlanAndExecute:
             # IK service has failed
             return None
 
+    async def plan_to_cartisian_pose(self, start_pose, end_pose, execute):
+        """Return MoveGroup action from a start to end pose (position + orientation)."""
+        self.node.get_logger().info("Plan to Pose")
+        if not start_pose:
+            start_pose = self.getStartPose()
+            self.master_goal.request.start_state.joint_state = self.js
+        else:
+            request_start = self.createIKreq(start_pose.position, start_pose.orientation)
+            request_temp = GetCartesianPath.Request(ik_request=request_start)
+            response_start = await self.node.IK.call_async(request_temp)
+            self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
+            self.node.get_logger().info(response_start)
+            self.node.get_logger().info(self.master_goal.request.start_state.joint_state)
+
+        self.master_goal.planning_options.plan_only = not execute
+        self.node.get_logger().info("requesting cartisian message")
+        header, start_state, group_name, link_name, waypoints, max_step, jump_threshold,\
+        prismatic_jump_threshold, revolute_jump_threshold, avoid_collisions,\
+        path_constraints= self.createCartreq(start_pose, end_pose)
+        self.node.get_logger().info("recieved cartesian message")
+        self.node.get_logger().info("calling cartisian service")
+        Cart_response = await self.callCart(header, start_state, group_name, link_name, waypoints,
+                                            max_step, jump_threshold, prismatic_jump_threshold, 
+                                            revolute_jump_threshold, avoid_collisions,
+                                            path_constraints)
+        self.node.get_logger().info("finished cartstian service")
+        # if Cart_response:
+            # Create a plan off current joint states
+            # plan_result = await self.plan(Cart_response)
+        if execute:
+            # execute the plan
+            traj_goal = ExecuteTrajectory.Goal(trajectory=Cart_response)
+            execute_future = await self.node._execute_client.send_goal_async(traj_goal)
+            execute_result = await execute_future.get_result_async()
+            self.node.get_logger().info("finished executing cartstian service")
+            return execute_result
+        #     else:
+        #         # return plan_result
+        # else:
+        #     # IK service has failed
+        #     return None
+
+    async def callCart(self, Cartheader, Cartstart_state, Cartgroup_name, Cartlink_name,
+                       Cartwaypoints, Cartmax_step, Cartjump_threshold,
+                       Cartprismatic_jump_threshold, Cartrevolute_jump_threshold,
+                       Cartavoid_collisions, Cartpath_constraints):
+        """Compute joint states using inverse kinematics from a IKrequest message."""
+        self.node.get_logger().info("Computing Cartisian!")
+        response = await self.node.cartisian.call_async(GetCartesianPath.Request(header=Cartheader, 
+                                                        start_state=Cartstart_state,
+                                                        group_name=Cartgroup_name,
+                                                        link_name = Cartlink_name,
+                                                        waypoints = Cartwaypoints,
+                                                        max_step = Cartmax_step,
+                                                        jump_threshold = Cartjump_threshold, 
+                                                        prismatic_jump_threshold = Cartprismatic_jump_threshold, 
+                                                        revolute_jump_threshold = Cartrevolute_jump_threshold,
+                                                        avoid_collisions = Cartavoid_collisions,
+                                                        path_constraints = Cartpath_constraints))
+        error_code = response.error_code
+        if error_code.val == -31:
+            self.node.get_logger().info("Cartisian service Failed :(")
+            return None
+        else:
+            self.node.get_logger().info("Cartisian Succeeded :)")
+            self.node.get_logger().info("start_state:")
+            self.printBlock(response.start_state)
+            self.node.get_logger().info("robot traj:")
+            self.printBlock(response.solution)
+            # sol = JointState()
+            # sol.header = response.solution.joint_trajectory.header
+            # self.node.get_logger().info("joint names:")
+            # self.printBlock(response.solution.joint_trajectory.joint_names)
+            # sol.name = response.solution.joint_trajectory.joint_names+['panda_finger_joint1', 
+            #                                                            'panda_finger_joint2']
+            # # there can be multiple positions in the robot trajectory
+            # self.node.get_logger().info("joint positions:")
+            # self.printBlock(list(response.solution.joint_trajectory.points[0].positions))
+            # sol.position = list(response.solution.joint_trajectory.points[0].positions)+[0.035, 0.035]
+            self.printBlock(type(response.solution))
+            return response.solution
+
     async def callIK(self, IKrequest):
         """Compute joint states using inverse kinematics from a IKrequest message."""
         self.node.get_logger().info("Computing IK!")
@@ -255,6 +467,7 @@ class PlanAndExecute:
         self.node.get_logger().info("Wait for execute client")
         self.node._execute_client.wait_for_server()
         traj_goal = ExecuteTrajectory.Goal(trajectory=plan_result.result.planned_trajectory)
+
         execute_future = await self.node._execute_client.send_goal_async(traj_goal)
         execute_result = await execute_future.get_result_async()
         return execute_result
@@ -281,3 +494,8 @@ class PlanAndExecute:
         collision.primitive_poses = [primepose]
         scene.world.collision_objects = [collision]
         self.node.block_pub.publish(scene)
+    
+    async def grab(self):
+        self.node.get_logger().info("grabbing path")
+        grab = await self.node.planscene.call_async()
+        pass

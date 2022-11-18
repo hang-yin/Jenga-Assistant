@@ -88,15 +88,18 @@ class Test(Node):
                 self.ct += 1
         if self.state == State.CALL:
             self.state = State.IDLE
-            self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-                                                         self.goal_pose,
-                                                         self.execute)
+            # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
+            #                                              self.goal_pose,
+            #                                              self.execute)
             # self.future = await self.PlanEx.plan_to_position(self.start_pose,
             #                                                  self.goal_pose,
             #                                                  self.execute)
             # self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
             #                                                     self.goal_pose,
             #                                                     self.execute)
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                self.goal_pose,
+                                                                self.execute)
         if self.state == State.PLACE:
             self.state = State.IDLE
             await self.PlanEx.place_block(self.block_pose)
