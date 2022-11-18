@@ -16,8 +16,10 @@ class State(Enum):
 
     # Waiting to get frames
     WAITING = auto(),
-    # Initial scan to determine tower height and table height
-    INIT = auto(),
+    # Initial scan to find the top of the tower
+    FINDTOP = auto(),
+    # Initial scan to find the bottom of the tower
+    FINDTABLE = auto(),
     # Scanning to find a piece that's pushed out
     SCANNING = auto()
 
@@ -43,23 +45,33 @@ class Cam(Node):
 
         self.color_frame = None
         self.depth_frame = None
-
         self.intrinsics = None
 
         self.band_start = 570
         self.band_width = 50
 
         kernel_size = 25
-
         self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
 
-        self.sq_orig = [650,0]
-        self.sq_sz = 360
+        self.sq_orig = [523,0]
+        self.sq_sz = 375
 
         self.rect = None
         self.update_rect()
 
         self.state = State.WAITING
+
+        self.tower_top = None
+        self.table = None
+        self.scan_start = 100
+        self.scan_index = self.scan_start
+        self.max_scan = 800
+        self.scan_step = 0.5
+
+        # How large a contour is to consider it as an object
+        self.area_threshold = 10000 #2500
+
+        self.piece_depth = 35 #33.782 #1.3 in
 
         cv2.namedWindow('Mask')
         cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
@@ -97,7 +109,6 @@ class Cam(Node):
     def kernel_trackbar(self, val):
         self.kernel = np.ones((val,val),np.uint8)
 
-    # Camera Info Callback
     def info_callback(self, cameraInfo):
         try:
             if self.intrinsics:
@@ -115,7 +126,7 @@ class Cam(Node):
                 self.intrinsics.model = rs2.distortion.kannala_brandt4
             self.intrinsics.coeffs = [i for i in cameraInfo.d]
         except CvBridgeError as e:
-            print(e)
+            self.get_logger().info("Getting intrinsics failed?")
             return
 
     def color_callback(self, data):
@@ -130,11 +141,16 @@ class Cam(Node):
         # cv2.imshow("im 13 and this is deep", depth_colormap)
 
     def get_mask(self):
+        # Do this in case the subscriber somehow updates in the middle of the function?
         depth_cpy = np.array(self.depth_frame)
 
+        # Only keep stuff that's within the appropriate depth band.
         depth_mask = cv2.inRange(depth_cpy, self.band_start, self.band_start+self.band_width)
+        # This operation helps to remove "dots" on the depth image.
+        # Kernel higher dimensional = smoother. It's also less important if camera is farther away.
         depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, self.kernel)
 
+        # All 0s, useful for following bitwise operations.
         bounding_mask = np.zeros((self.intrinsics.height,self.intrinsics.width), np.int8)
         # Creating a square over the area defined in self.rect
         square = cv2.fillPoly(bounding_mask, [self.rect], 255)
@@ -142,20 +158,19 @@ class Cam(Node):
         square = cv2.inRange(square, 1, 255)
         # Cropping the depth_mask so that only what is within the square remains.
         depth_mask = cv2.bitwise_and(depth_mask, depth_mask, mask=square)
-
-        start = self.rect[0][0]
-        end = self.rect[0][2]
-        depth_mask_cpy = np.array(depth_mask)
-        rectangle = cv2.rectangle(depth_mask_cpy, start, end, (255,0,0), 2)
+        # Draw a rectangle on a copy of the depth_mask to visualize where it is.
+        rectangle = cv2.rectangle(np.array(depth_mask),
+                                  self.rect[0][0], self.rect[0][2],
+                                  (255,0,0), 2)
         cv2.imshow("Mask", rectangle)
 
-        # Find the contours of this cropped mask.
+        # Find the contours of this cropped mask to help locate tower.
         contours, _ = cv2.findContours(depth_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         centroids = []
         areas = []
         large_contours = []
         max_centroid = None
-        print(f"Number of countours: {len(contours)}")
+        # self.get_logger().info(f"Number of countours: {len(contours)}")
         for c in contours: 
             M = cv2.moments(c)
             area = cv2.contourArea(c)
@@ -169,41 +184,99 @@ class Cam(Node):
                     large_contours.append(c)
             except: 
                 pass
-        print(areas)
+        # self.get_logger().info(f"Areas: {areas}")
+        largest_area = None
         if len(areas) != 0: 
             largest_index = np.argmax(areas)
+            largest_area = areas[largest_index]
             max_centroid = centroids[largest_index]
-            print(f"estimated center: {max_centroid}")
+            # self.get_logger().info(f"estimated center: {max_centroid}")
             centroid_depth = depth_cpy[max_centroid[1]][max_centroid[0]]
-            print(f"depth: {centroid_depth}")
-            if self.intrinsics:
-                deprojected = rs2.rs2_deproject_pixel_to_point(self.intrinsics,
-                                                               [max_centroid[0], max_centroid[1]],
-                                                               centroid_depth)
-                print(f"DEPROJECTED:{deprojected}")
+            # self.get_logger().info(f"Centroid depth: {centroid_depth}")
+            deprojected = rs2.rs2_deproject_pixel_to_point(self.intrinsics,
+                                                            [max_centroid[0], max_centroid[1]],
+                                                            centroid_depth)
+            # self.get_logger().info(f"DEPROJECTED Centroid depth:{deprojected}\n")
 
 
         color_copy = np.array(self.color_frame)
         drawn_contours = cv2.drawContours(color_copy, large_contours, -1, (0,255,0), 3)
         if max_centroid is not None:
             drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, [0,0,255], 5)
-        cv2.imshow("COUNTOURS", drawn_contours)
-
-        print()
+        cv2.imshow("Depth Contours on Color Image", drawn_contours)
 
         cv2.waitKey(1)
+        return largest_area
 
     def timer_callback(self):
         if self.state == State.WAITING:
-            print("Waiting")
+            self.get_logger().info("Waiting for frames...")
             wait_for = [self.intrinsics, self.depth_frame, self.color_frame]
-            if all(v is not None for v in wait_for):
-                self.state = State.INIT
-        elif self.state == State.INIT:
-            self.get_mask()
+            if all(w is not None for w in wait_for):
+                self.state = State.FINDTOP
+
+        elif self.state == State.FINDTOP:
+            # Begin scanning downwards.
+            self.band_start = self.scan_index
+            self.scan_index += self.scan_step
+            # Reset scan if too big
+            if self.scan_index > self.max_scan:
+                # This should not happen. But if it doesn't find anything large in the band:
+                self.scan_index = self.scan_start
+                self.get_logger().info("WTFFFFFFF")
+                self.state = State.SCANNING
+
+            largest_area = self.get_mask()
+            if largest_area:
+                if largest_area > self.area_threshold:
+                    # We believe there is an object at this depth
+                    self.get_logger().info("FOUND TOWER TOP!!!!!!")
+                    self.get_logger().info(f"depth: {self.band_start},"+
+                                           f"area: {largest_area}\n")
+                    self.tower_top = self.band_start
+                    # Go down past the top pieces, or else this will also be detected as table.
+                    # (Need to increase by a bit more than 1x bandwidth. I do 1.5 to be safe.)
+                    self.scan_index += 1.5*self.band_width
+                    self.band_start += 1.5*self.band_width
+                    # Go and find the table
+                    self.state = State.FINDTABLE
+
+        elif self.state == State.FINDTABLE:
+            # Basically same logic as findtop.
+            # Keep scanning downwards
+            self.band_start = self.scan_index
+            self.scan_index += self.scan_step
+            # Reset scan if too big.
+            if self.scan_index > self.max_scan:
+                # This should not happen. But if it doesn't find anything large in the band:
+                self.scan_index = self.scan_start
+                self.get_logger().info("WTFFFFFFF")
+                self.state = State.SCANNING
+
+            largest_area = self.get_mask()
+            if largest_area:
+                if largest_area > self.area_threshold:
+                    # We believe there is an object at this depth
+                    self.get_logger().info("FOUND TABLE!!!!!!")
+                    self.get_logger().info(f"depth: {self.band_start},"+
+                                           f"area: {largest_area}\n")
+                    self.table = self.band_start
+                    self.scan_index = self.tower_top*1.5
+                    self.band_start = self.tower_top*1.5
+                    self.state = State.SCANNING
         elif self.state == State.SCANNING:
+            # Keep scanning downwards
+            self.band_start = self.scan_index
+            self.scan_index += self.scan_step
+            # Reset scan if too big.
+            if self.scan_index > self.table:
+                # This should not happen. But if it doesn't find anything large in the band:
+                self.scan_index = self.tower_top
+                self.get_logger().info("Reset")
             # Look for piece sticking out in range from top to table
-            pass
+            largest_area = self.get_mask()
+            self.get_logger().info(f"Largest area: {largest_area}")
+
 
 
 def main(args=None):
