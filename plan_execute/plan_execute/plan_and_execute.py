@@ -248,6 +248,8 @@ class PlanAndExecute:
         self.node._action_client.wait_for_server()
         plan = await self.node._action_client.send_goal_async(self.master_goal)
         plan_result = await plan.get_result_async()
+        self.node.get_logger().info("***************************")
+        self.printBlock(type(plan_result))
         return plan_result
 
     async def execute(self, plan_result):
@@ -255,6 +257,7 @@ class PlanAndExecute:
         self.node.get_logger().info("Wait for execute client")
         self.node._execute_client.wait_for_server()
         traj_goal = ExecuteTrajectory.Goal(trajectory=plan_result.result.planned_trajectory)
+        self.printBlock(type(traj_goal))
         execute_future = await self.node._execute_client.send_goal_async(traj_goal)
         execute_result = await execute_future.get_result_async()
         return execute_result
