@@ -268,7 +268,7 @@ class Cam(Node):
             self.base_z = t.transform.translation.z
             self.base_x = t.transform.translation.x
             self.base_y = t.transform.translation.y
-            print(f"x,y,z: {self.base_x},{self.base_y},{self.base_z}")
+            # print(f"x,y,z: {self.base_x},{self.base_y},{self.base_z}")
         except TransformException:
             return
 
