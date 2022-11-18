@@ -102,7 +102,7 @@ class Test(Node):
                                                                 self.execute)
         if self.state == State.PLACE:
             self.state = State.IDLE
-            await self.PlanEx.place_block(self.block_pose)
+            await self.PlanEx.place_block(self.block_pose, [10.0, 10.0, 0.1])
 
 
 def test_entry(args=None):
