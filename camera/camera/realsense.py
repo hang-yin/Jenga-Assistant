@@ -123,7 +123,7 @@ class Cam(Node):
         """ Make the camera scan for pieces sticking out """
         # Only valid if the tower and table have a height
         if self.tower_top and self.table:
-            self.scan_index = self.tower_top +1.5*self.band_width
+            self.scan_index = self.tower_top +1.2*self.band_width
             self.state = State.SCANNING
             self.get_logger().info("Begin Scanning for pieces")
         else:
@@ -243,6 +243,9 @@ class Cam(Node):
         cv2.waitKey(1)
         return largest_area, deprojected
 
+    def apriltag_tf(self):
+        pass
+
     def timer_callback(self):
         if self.state == State.WAITING:
             self.get_logger().info("Waiting for frames...")
@@ -273,7 +276,7 @@ class Cam(Node):
                                            f"area: {largest_area}\n")
                     self.tower_top = self.band_start+self.band_width
                     # Go down past the top pieces, or else this will also be detected as table.
-                    # (Need to increase by a bit more than 1x bandwidth. I do 1.5 to be safe.)
+                    # (Need to increase by a bit more than 1x bandwidth. I do 1.2 to be safe.)
                     self.scan_index = self.tower_top + self.band_width
                     self.band_start = self.tower_top + self.band_width
                     # Go and find the table
@@ -308,15 +311,15 @@ class Cam(Node):
             self.band_start = self.scan_index
             self.scan_index += self.scan_step
             # Reset scan if too big.
-            if self.scan_index+1.5*self.band_width > self.table:
-                self.scan_index = self.tower_top +1.5*self.band_width
+            if self.scan_index+1.2*self.band_width > self.table:
+                self.scan_index = self.tower_top +1.2*self.band_width
                 self.get_logger().info("Reset scan")
             # Look for piece sticking out in range from top to table
             largest_area, deprojected = self.get_mask()
             if largest_area:
                 if largest_area > self.piece_area_threshold:
-                    self.get_logger().info("I think there is a piece sticking out here")
-                    self.get_logger().info(f"Index: {self.band_start}, area: {largest_area}")
+                    self.get_logger().info("Piece (?) detected")
+                    self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
                     self.get_logger().info(f"Coords in camera frame: {deprojected}")
                     jenga_piece = Point()
                     jenga_piece.x = deprojected[0]
