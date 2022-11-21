@@ -16,6 +16,7 @@ from shape_msgs.msg import SolidPrimitive
 # from plan_execute_interface.msg import CartesianRequest # check if this is right
 from std_msgs.msg import Header
 import math
+import copy
 
 
 class PlanAndExecute:
@@ -95,7 +96,7 @@ class PlanAndExecute:
         self.master_goal.request.workspace_parameters.max_corner.x = 1.0
         self.master_goal.request.workspace_parameters.max_corner.y = 1.0
         self.master_goal.request.workspace_parameters.max_corner.z = 1.0
-        self.master_goal.request.group_name = 'panda_manipulator' # need to updated folder?
+        self.master_goal.request.group_name = 'panda_manipulatior' # need to updated folder?
         self.master_goal.request.num_planning_attempts = 10
         self.master_goal.request.allowed_planning_time = 5.0
         self.master_goal.request.planner_id = ''
@@ -208,7 +209,8 @@ class PlanAndExecute:
         xf = end_pose.position.x
         yf = end_pose.position.y
         zf = end_pose.position.z
-        end_pose.orientation = start_pose.orientation
+        last_point = copy.copy(end_pose)
+        last_point.orientation = start_pose.orientation 
         # xoi, yoi, zoi = self.euler_from_quaternion(start_pose.orientation.x,
         #                                            start_pose.orientation.y, 
         #                                            start_pose.orientation.z,
@@ -244,7 +246,7 @@ class PlanAndExecute:
             #  npose.orientation.z, npose.orientation.w] = self.get_quaternion_from_euler(nx, ny, nz)
             self.printBlock(npose)
             points.append(npose)
-        points.append(end_pose)
+        points.append(last_point)
         #self.printBlock(len(points))
         self.node.get_logger().info("POINTS")
         #self.printBlock(points)
