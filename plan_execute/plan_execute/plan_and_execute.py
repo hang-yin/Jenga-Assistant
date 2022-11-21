@@ -208,6 +208,7 @@ class PlanAndExecute:
         xf = end_pose.position.x
         yf = end_pose.position.y
         zf = end_pose.position.z
+        end_pose.orientation = start_pose.orientation
         # xoi, yoi, zoi = self.euler_from_quaternion(start_pose.orientation.x,
         #                                            start_pose.orientation.y, 
         #                                            start_pose.orientation.z,
@@ -337,7 +338,9 @@ class PlanAndExecute:
             plan_result = await self.plan(IK_response)
             if execute:
                 # execute the plan
+                self.node.get_logger().info("Executing plan")
                 execute_result = await self.execute(plan_result)
+                self.node.get_logger().info("Plan executed")
                 return execute_result
             else:
                 return plan_result
@@ -485,9 +488,12 @@ class PlanAndExecute:
         """Execute a planned trajectory on RVIZ."""
         self.node.get_logger().info("Wait for execute client")
         self.node._execute_client.wait_for_server()
+        self.node.get_logger().info("check1")
         traj_goal = ExecuteTrajectory.Goal(trajectory=plan_result.result.planned_trajectory)
         execute_future = await self.node._execute_client.send_goal_async(traj_goal)
+        self.node.get_logger().info("check2")
         execute_result = await execute_future.get_result_async()
+        self.node.get_logger().info("check3")
         return execute_result
 
     async def place_block(self, pos, dimensions, name):

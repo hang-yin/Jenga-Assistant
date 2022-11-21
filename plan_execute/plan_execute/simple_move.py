@@ -6,6 +6,7 @@ from plan_execute.plan_and_execute import PlanAndExecute
 from geometry_msgs.msg import Pose
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 import math
+import copy
 
 
 class State(Enum):
@@ -21,6 +22,8 @@ class State(Enum):
     PLACEBLOCK = auto(),
     PLACEPLANE = auto(),
     CARTESIAN = auto(),
+    ORIENT = auto(),
+    PREGRAB = auto(),
     GRAB = auto(),
     PULL = auto(),
     SET = auto(),
@@ -109,23 +112,11 @@ class Test(Node):
         The user can pass a custom start postion to the service and a desired end goal. The boolean
         indicates whether to plan or execute the path.
         """
-        self.start_pose = request.start_pose
         self.goal_pose = request.goal_pose
-        self.execute = request.execute
-        pose_len = len(self.start_pose)
-        if pose_len == 0:
-            self.start_pose = None
-            self.state = State.GRAB
-            response.success = True
-        elif pose_len == 1:
-            self.start_pose = self.start_pose[0]
-            self.state = State.GRAB
-            response.success = True
-            self.execute = False
-        else:
-            self.get_logger().info('Enter either zero or one initial poses.')
-            self.state = State.IDLE
-            response.success = False
+        self.execute = True
+        self.start_pose = None
+        self.state = State.ORIENT
+        response.success = True
         return response
 
     def place_callback(self, request, response):
@@ -164,52 +155,57 @@ class Test(Node):
                 self.state = State.PLACEPLANE
             else:
                 self.ct += 1
-        if self.state == State.PLACEPLANE:
+        elif self.state == State.PLACEPLANE:
             self.state = State.IDLE
             await self.place_plane()
             await self.place_tower()
             # await self.PlanEx.grab()
-        if self.state == State.CALL:
+        elif self.state == State.CALL:
             self.state = State.IDLE
-            self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
+            self.future = await self.PlanEx.plan_to_pose(self.start_pose,
                                                                 self.goal_pose,
                                                                 self.execute)
-        if self.state == State.CARTESIAN:
-            self.state = State.IDLE
-            # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-            #                                              self.goal_pose,
-            #                                              self.execute)
-            # self.future = await self.PlanEx.plan_to_position(self.start_pose,
-            #                                                  self.goal_pose,
-            #                                                  self.execute)
-            # self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
-            #                                                     self.goal_pose,
-            #                                                     self.execute)
-            offset = math.sin(math.pi/2) * 0.1
-            pre_grasp = self.goal_pose
-            pre_grasp.position.x = self.goal_pose.position.x - offset
-            if self.goal_pose.position.y > 0:
-                pre_grasp.position.y  = self.goal_pose.position.y + offset
-            else:
-                pre_grasp.position.y = self.goal_pose.position.y - offset
-            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pre_grasp,
-                                                                   self.execute)
-            # await self.PlanEx.grab()
-        if self.state == State.GRAB:
+        # elif self.state == State.CARTESIAN:
+        #     self.state = State.IDLE
+        #     # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
+        #     #                                              self.goal_pose,
+        #     #                                              self.execute)
+        #     # self.future = await self.PlanEx.plan_to_position(self.start_pose,
+        #     #                                                  self.goal_pose,
+        #     #                                                  self.execute)
+        #     # self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
+        #     #                                                     self.goal_pose,
+        #     #                                                     self.execute)
+        #     offset = math.sin(math.pi/2) * 0.1
+        #     pre_grasp = self.goal_pose
+        #     pre_grasp.position.x = self.goal_pose.position.x - offset
+        #     if self.goal_pose.position.y > 0:
+        #         pre_grasp.position.y  = self.goal_pose.position.y + offset
+        #     else:
+        #         pre_grasp.position.y = self.goal_pose.position.y - offset
+        #     self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+        #                                                            pre_grasp,
+        #                                                            self.execute)
+        #     # await self.PlanEx.grab()
+        elif self.state == State.ORIENT:
             # TODO: if y > 0, do something, else do something else
-            orientation_pose = self.goal_pose
+            orientation_pose = copy.copy(self.goal_pose)
             orientation_pose.orientation.x = 0.9238795
             if self.goal_pose.position.y > 0:
                 orientation_pose.orientation.y = -0.3826834
             else:
                 orientation_pose.orientation.y = 0.3826834
+            orientation_pose.orientation.z = 0.0
+            orientation_pose.orientation.w = 0.0
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
-                                                                self.goal_pose,
+                                                                orientation_pose,
                                                                 self.execute)
+            self.state = State.IDLE #PREGRAB
+        
+        elif self.state == State.PREGRAB:
             # go to pre-grab pose
             offset = math.sin(math.pi/2) * 0.1
-            pre_grasp = self.goal_pose
+            pre_grasp = copy.copy(self.goal_pose)
             pre_grasp.position.x = self.goal_pose.position.x - offset
             if self.goal_pose.position.y > 0:
                 pre_grasp.position.y  = self.goal_pose.position.y + offset
@@ -218,6 +214,9 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    pre_grasp,
                                                                    self.execute)
+            self.state = State.GRAB
+
+        elif self.state == State.GRAB:
             # # go to grab pose
             # self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
             #                                                        grab_pose,
@@ -226,13 +225,13 @@ class Test(Node):
             # await self.PlanEx.grab()
             # go to pull pose
             self.state = State.PULL
-        if self.state == State.PULL:
+        elif self.state == State.PULL:
             # TODO: pull block out straight
             self.state = State.READY
-        if self.state == State.READY:
+        elif self.state == State.READY:
             # TODO: go to ready pose
             self.state = State.IDLE
-        if self.state == State.PLACEBLOCK:
+        elif self.state == State.PLACEBLOCK:
             self.state = State.IDLE
             # place block
             await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.03], 'block')
