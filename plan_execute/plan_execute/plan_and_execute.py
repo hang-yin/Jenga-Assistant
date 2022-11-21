@@ -378,16 +378,16 @@ class PlanAndExecute:
     async def plan_to_cartisian_pose(self, start_pose, end_pose, execute):
         """Return MoveGroup action from a start to end pose (position + orientation)."""
         self.node.get_logger().info("Plan to Pose")
-        if not start_pose:
-            start_pose = self.getStartPose()
-            self.master_goal.request.start_state.joint_state = self.js
-        else:
-            request_start = self.createIKreq(start_pose.position, start_pose.orientation)
-            request_temp = GetCartesianPath.Request(ik_request=request_start)
-            response_start = await self.node.IK.call_async(request_temp)
-            self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
-            self.node.get_logger().info(response_start)
-            self.node.get_logger().info(self.master_goal.request.start_state.joint_state)
+        # if not start_pose:
+        start_pose = self.getStartPose()
+        self.master_goal.request.start_state.joint_state = self.js
+        # else:
+        #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
+        #     request_temp = GetCartesianPath.Request(ik_request=request_start)
+        #     response_start = await self.node.IK.call_async(request_temp)
+        #     self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
+        #     self.node.get_logger().info(response_start)
+        #     self.node.get_logger().info(self.master_goal.request.start_state.joint_state)
 
         self.master_goal.planning_options.plan_only = not execute
         self.node.get_logger().info("requesting cartisian message")
