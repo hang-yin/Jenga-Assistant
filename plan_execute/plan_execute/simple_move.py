@@ -90,6 +90,17 @@ class Test(Node):
         plane_pose.orientation.z = 0.0
         plane_pose.orientation.w = 1.0
         await self.PlanEx.place_block(plane_pose, [10.0, 10.0, 0.1], 'plane')
+    
+    async def place_tower(self):
+        tower_pose = Pose()
+        tower_pose.position.x = 0.6
+        tower_pose.position.y = 0.0
+        tower_pose.position.z = 0.09
+        tower_pose.orientation.x = 0.9226898
+        tower_pose.orientation.y = 0.3855431
+        tower_pose.orientation.z = 0.0
+        tower_pose.orientation.w = 0.0
+        await self.PlanEx.place_block(tower_pose, [0.15, 0.15, 0.18], 'tower')
 
     async def timer_callback(self):
         """State maching that dictates which functions from the class are being called."""
@@ -102,6 +113,7 @@ class Test(Node):
         if self.state == State.PLACEPLANE:
             self.state = State.IDLE
             await self.place_plane()
+            await self.place_tower()
             # await self.PlanEx.grab()
         if self.state == State.CALL:
             # self.future = await self.PlanEx.plan_to_position(self.start_pose,
