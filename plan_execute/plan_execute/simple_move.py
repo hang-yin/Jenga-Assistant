@@ -20,7 +20,29 @@ class State(Enum):
     PLACE = auto(),
     PLACEPLANE = auto(),
     CARTESIAN = auto(),
-
+    # ready 
+        # sends pose back to ready default position of robot after any movement or motion
+    # calibrate
+        # send calibrate position to plane pose function make sure it goes from ready position to the 
+        # calibrate position
+    # grab 
+        # orients the gripper to the correct orientation 
+            # if end y position < 0 then rotate y = 0.3826834
+            # if end y position > 0 then rotate y = -0.3826834 
+            # or if vision is really good get the gripper the orientation from the block
+        # then sends the pre gripping position
+            # 0.08 distance from the edge of the brick
+            # if vision for orientation, find the x y coords using the the angle of the block in euler and use sin cos)
+            # if hard code we expect 45 deg: abs(x) = abs(y) for coords
+        # then cartesian path to gripping position 
+            # then cartesian path into the grab spot of the block 
+        # grasp the block
+    # pull
+        # use cartesian to pull the block in a straght line back following the orientation of the tower
+        # if hard code we expect 45 deg
+        # if vision for orientation, find the x y coords using the the angle of the block in euler and use sin cos)
+        # then return to ready
+    #place
 
 class Test(Node):
     """
@@ -73,6 +95,32 @@ class Test(Node):
             self.state = State.IDLE
             response.success = False
         return response
+    
+    def cart_callback(self, request, response):
+        """
+        Call a custom service that takes one Pose of variable length, a regular Pose, and a bool.
+
+        The user can pass a custom start postion to the service and a desired end goal. The boolean
+        indicates whether to plan or execute the path.
+        """
+        self.start_pose = request.start_pose
+        self.goal_pose = request.goal_pose
+        self.execute = request.execute
+        pose_len = len(self.start_pose)
+        if pose_len == 0:
+            self.start_pose = None
+            self.state = State.CARTESIAN
+            response.success = True
+        elif pose_len == 1:
+            self.start_pose = self.start_pose[0]
+            self.state = State.CARTESIAN
+            response.success = True
+            self.execute = False
+        else:
+            self.get_logger().info('Enter either zero or one initial poses.')
+            self.state = State.IDLE
+            response.success = False
+        return response
 
     def place_callback(self, request, response):
         """Call service to pass the desired Pose of a block in the scene."""
@@ -116,16 +164,10 @@ class Test(Node):
             await self.place_tower()
             # await self.PlanEx.grab()
         if self.state == State.CALL:
-            # self.future = await self.PlanEx.plan_to_position(self.start_pose,
-            #                                                  self.goal_pose,
-            #                                                  self.execute)
+            self.state = State.IDLE
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 self.goal_pose,
                                                                 self.execute)
-            # self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-            #                                                     self.goal_pose,
-            #                                                     self.execute)
-            self.state = State.CARTESIAN
         if self.state == State.CARTESIAN:
             self.state = State.IDLE
             # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
@@ -140,9 +182,9 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    self.goal_pose,
                                                                    self.execute)
-            await self.PlanEx.grab()
-            
-        if self.state == State.PLACE:
+            # await self.PlanEx.grab()
+
+        if self.state == State.PLACE_BLOCK:
             self.state = State.IDLE
             # place block
             await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.03], 'block')
