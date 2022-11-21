@@ -66,9 +66,9 @@ class Test(Node):
         period = 1.0 / self.freq
         self.timer = self.create_timer(period, self.timer_callback, callback_group=self.cbgroup)
         self.movegroup = None
-        self.go_here = self.create_service(GoHere, 'go_here', self.go_here_callback)
-        self.cart_go_here = self.create_service(GoHere, 'cartesian_here', self.cart_callback)
-        self.place = self.create_service(Place, 'place', self.place_callback)
+        self.go_here = self.create_service(GoHere, '/go_here', self.go_here_callback)
+        self.cart_go_here = self.create_service(GoHere, '/cartesian_here', self.cart_callback)
+        self.place = self.create_service(Place, '/place', self.place_callback)
         self.PlanEx = PlanAndExecute(self)
         self.state = State.START
         self.ct = 0
@@ -109,11 +109,23 @@ class Test(Node):
         The user can pass a custom start postion to the service and a desired end goal. The boolean
         indicates whether to plan or execute the path.
         """
+        self.start_pose = request.start_pose
         self.goal_pose = request.goal_pose
-        self.start_pose = None
-        self.execute = True
-        self.state = State.GRAB
-        response.success = True
+        self.execute = request.execute
+        pose_len = len(self.start_pose)
+        if pose_len == 0:
+            self.start_pose = None
+            self.state = State.GRAB
+            response.success = True
+        elif pose_len == 1:
+            self.start_pose = self.start_pose[0]
+            self.state = State.GRAB
+            response.success = True
+            self.execute = False
+        else:
+            self.get_logger().info('Enter either zero or one initial poses.')
+            self.state = State.IDLE
+            response.success = False
         return response
 
     def place_callback(self, request, response):
@@ -173,29 +185,38 @@ class Test(Node):
             # self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
             #                                                     self.goal_pose,
             #                                                     self.execute)
+            offset = math.sin(math.pi/2) * 0.1
+            pre_grasp = self.goal_pose
+            pre_grasp.position.x = self.goal_pose.position.x - offset
+            if self.goal_pose.position.y > 0:
+                pre_grasp.position.y  = self.goal_pose.position.y + offset
+            else:
+                pre_grasp.position.y = self.goal_pose.position.y - offset
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   self.goal_pose,
+                                                                   pre_grasp,
                                                                    self.execute)
             # await self.PlanEx.grab()
         if self.state == State.GRAB:
             # TODO: if y > 0, do something, else do something else
+            orientation_pose = self.goal_pose
+            orientation_pose.orientation.x = 0.9238795
             if self.goal_pose.position.y > 0:
-                orientation_pose = self.create_pose(0.0, 0.0, 0.0, 0.9238795, -0.3826834, 0.0, 0.0)
+                orientation_pose.orientation.y = -0.3826834
             else:
-                orientation_pose = self.create_pose(0.0, 0.0, 0.0, 0.9238795, 0.3826834, 0.0, 0.0)
+                orientation_pose.orientation.y = 0.3826834
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
-                                                                orientation_pose,
+                                                                self.goal_pose,
                                                                 self.execute)
-            # # go to pre-grab pose
+            # go to pre-grab pose
             offset = math.sin(math.pi/2) * 0.1
-            pre_x = self.goal_pose.position.x - offset
+            pre_grasp = self.goal_pose
+            pre_grasp.position.x = self.goal_pose.position.x - offset
             if self.goal_pose.position.y > 0:
-                pre_y = self.goal_pose.position.y + offset
+                pre_grasp.position.y  = self.goal_pose.position.y + offset
             else:
-                pre_y = self.goal_pose.position.y - offset
-            pre_grab_pose = self.create_pose(pre_x, pre_y, self.goal_pose.position.z, 0.0, 0.0, 0.0, 1.0)
+                pre_grasp.position.y = self.goal_pose.position.y - offset
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pre_grab_pose,
+                                                                   pre_grasp,
                                                                    self.execute)
             # # go to grab pose
             # self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
@@ -215,18 +236,6 @@ class Test(Node):
             self.state = State.IDLE
             # place block
             await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.03], 'block')
-
-    def create_pose(self, x, y, z, angle_x, angle_y, angle_z, w):
-        """Create a Pose object from a list of values."""
-        pose = Pose()
-        pose.position.x = x
-        pose.position.y = y
-        pose.position.z = z
-        pose.orientation.x = angle_x
-        pose.orientation.y = angle_y
-        pose.orientation.z = angle_z
-        pose.orientation.w = w
-        return pose
 
 def test_entry(args=None):
     rclpy.init(args=args)
