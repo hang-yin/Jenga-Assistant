@@ -96,7 +96,7 @@ class PlanAndExecute:
         self.master_goal.request.workspace_parameters.max_corner.x = 1.0
         self.master_goal.request.workspace_parameters.max_corner.y = 1.0
         self.master_goal.request.workspace_parameters.max_corner.z = 1.0
-        self.master_goal.request.group_name = 'panda_manipulatior' # need to updated folder?
+        self.master_goal.request.group_name = 'panda_manipulator' # need to updated folder?
         self.master_goal.request.num_planning_attempts = 10
         self.master_goal.request.allowed_planning_time = 5.0
         self.master_goal.request.planner_id = ''
@@ -179,8 +179,8 @@ class PlanAndExecute:
             pos = joint_positions[n]
             constraint_i = JointConstraint(joint_name=name,
                                            position=float(pos),
-                                           tolerance_above=0.0001,
-                                           tolerance_below=0.0001,
+                                           tolerance_above=0.001,
+                                           tolerance_below=0.001,
                                            weight=1.0)
             constraints.append(constraint_i)
         self.master_goal.request.goal_constraints = [Constraints(name='',

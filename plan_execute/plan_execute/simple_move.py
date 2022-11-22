@@ -200,7 +200,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 orientation_pose,
                                                                 self.execute)
-            self.state = State.IDLE #PREGRAB
+            self.state = State.PREGRAB
         
         elif self.state == State.PREGRAB:
             # go to pre-grab pose

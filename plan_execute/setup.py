@@ -22,8 +22,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'simple_move=plan_execute.simple_move:test_entry',
-            'test=plan_execute.test:test1_entry'
+            'simple_move=plan_execute.simple_move:test_entry'
         ],
     },
 )
