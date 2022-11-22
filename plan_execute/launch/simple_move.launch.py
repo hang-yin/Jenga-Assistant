@@ -10,7 +10,7 @@ def generate_launch_description():
 
     test_node = Node(
         package='plan_execute',
-        executable='test',
+        executable='simple_move',
         output='screen'
     )
 
