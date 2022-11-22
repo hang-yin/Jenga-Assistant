@@ -9,6 +9,7 @@ from std_srvs.srv import Empty
 # from pynput import keyboard
 import math
 import copy
+import time
 
 
 class State(Enum):
@@ -25,12 +26,14 @@ class State(Enum):
     PLACEPLANE = auto(),
     CARTESIAN = auto(),
     ORIENT = auto(),
+    ORIENT2 = auto(),
     PREGRAB = auto(),
     GRAB = auto(),
     PULL = auto(),
     SET = auto(),
     READY = auto(),
     CALIBRATE = auto(),
+    RELEASE = auto(),
     # ready 
         # sends pose back to ready default position of robot after any movement or motion
     # calibrate
@@ -90,6 +93,7 @@ class Test(Node):
         self.goal_pose = Pose()
         self.block_pose = Pose()
         self.future = None
+        self.pregrasp_pose = None
 
     def go_here_callback(self, request, response):
         """
@@ -165,7 +169,7 @@ class Test(Node):
     
     async def place_tower(self):
         tower_pose = Pose()
-        tower_pose.position.x = 0.6
+        tower_pose.position.x = 0.46
         tower_pose.position.y = 0.0
         tower_pose.position.z = 0.2
         tower_pose.orientation.x = 0.9226898
@@ -232,7 +236,7 @@ class Test(Node):
         #     # await self.PlanEx.grab()
         elif self.state == State.ORIENT:
             # TODO: if y > 0, do something, else do something else
-            orientation_pose = copy.copy(self.goal_pose)
+            orientation_pose = copy.deepcopy(self.goal_pose)
             orientation_pose.orientation.x = 0.9238795
             if self.goal_pose.position.y > 0:
                 orientation_pose.orientation.y = -0.3826834
@@ -248,35 +252,81 @@ class Test(Node):
         elif self.state == State.PREGRAB:
             # go to pre-grab pose
             offset = math.sin(math.pi/2) * 0.1
-            pre_grasp = copy.copy(self.goal_pose)
+            pre_grasp = copy.deepcopy(self.goal_pose)
             pre_grasp.position.x = self.goal_pose.position.x - offset
             if self.goal_pose.position.y > 0:
                 pre_grasp.position.y  = self.goal_pose.position.y + offset
             else:
                 pre_grasp.position.y = self.goal_pose.position.y - offset
+            self.pregrasp_pose = pre_grasp
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    pre_grasp,
                                                                    self.execute)
             self.state = State.GRAB
 
         elif self.state == State.GRAB:
-            # go to grab pose
-            # self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-            #                                                        grab_pose,
-            #                                                        self.execute)
+
+            # # go to grab pose
+            self.get_logger().info('grabbing')
+            self.get_logger().info(str(self.goal_pose))
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                   self.goal_pose,
+                                                                   self.execute)
             # grab
-            await self.PlanEx.grab()
+            self.future = await self.PlanEx.grab()
+            time.sleep(4)
+
             # go to pull pose
             self.state = State.PULL
         elif self.state == State.PULL:
+            self.get_logger().info('pulling')
             # TODO: pull block out straight
+            pull_pose = copy.deepcopy(self.pregrasp_pose)
+            self.get_logger().info(str(pull_pose))
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                   pull_pose,
+                                                                   self.execute)
             self.state = State.READY
         elif self.state == State.READY:
             # TODO: go to ready pose
-            self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-                                                         self.ready_pose,
-                                                         self.execute)
+
+            ready_pose = copy.deepcopy(self.goal_pose)
+            ready_pose.position.x = 0.3
+            ready_pose.position.y = 0.0
+            ready_pose.position.z = 0.48
+            ready_pose.orientation.x = 1.0
+            ready_pose.orientation.y = 0.0
+            ready_pose.orientation.z = 0.0
+            ready_pose.orientation.w = 0.0
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                    ready_pose,
+                                                                    self.execute)
+            # time.sleep(4)
+            self.state = State.ORIENT2
+        elif self.state == State.ORIENT2:
+            set_pose = copy.deepcopy(self.goal_pose)
+            set_pose.orientation.x = 0.9238795
+            set_pose.orientation.y = 0.3826834
+            set_pose.orientation.z = 0.0
+            set_pose.orientation.w = 0.0
+            self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
+                                                                set_pose,
+                                                                self.execute)
+            self.state = State.SET
+        elif self.state == State.SET:
+            set_pose = copy.deepcopy(self.goal_pose)
+            set_pose.position.x = 0.474
+            set_pose.position.y = -0.069
+            set_pose.position.z = 0.205
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                   set_pose,
+                                                                   self.execute)
+            
+            self.state = State.RELEASE
+        elif self.state == State.RELEASE:
+            self.future = await self.PlanEx.release()
             self.state = State.IDLE
+        
         elif self.state == State.PLACEBLOCK:
             self.state = State.IDLE
             # place block

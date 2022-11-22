@@ -179,8 +179,8 @@ class PlanAndExecute:
             pos = joint_positions[n]
             constraint_i = JointConstraint(joint_name=name,
                                            position=float(pos),
-                                           tolerance_above=0.001,
-                                           tolerance_below=0.001,
+                                           tolerance_above=0.02,
+                                           tolerance_below=0.02,
                                            weight=1.0)
             constraints.append(constraint_i)
         self.master_goal.request.goal_constraints = [Constraints(name='',
@@ -541,3 +541,14 @@ class PlanAndExecute:
         grasp_goal.force = 50.0
         await self.node._gripper_client.send_goal_async(grasp_goal)
         self.node.get_logger().info("grabbed")
+    
+    async def release(self):
+        self.node.get_logger().info("releasing")
+        self.node._gripper_client.wait_for_server()
+        self.node.get_logger().info("gripper client connected")
+        grasp_goal = Grasp.Goal()
+        grasp_goal.width = 0.1
+        grasp_goal.speed = 0.03
+        grasp_goal.force = 50.0
+        await self.node._gripper_client.send_goal_async(grasp_goal)
+        self.node.get_logger().info("released")
