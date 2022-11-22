@@ -31,6 +31,24 @@ def generate_launch_description():
         output='screen'
     )
 
+    cali_node = Node(
+        package='camera',
+        executable='cali',
+        output='screen'
+    )
+
+
+    launch_franka = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+                PathJoinSubstitution([
+                    FindPackageShare('franka_moveit_config'),
+                    'launch/moveit.launch.py'
+                ])
+            ]),
+        launch_arguments=[('robot_ip', 'dont-care'), ('use_fake_hardware', 'true')]
+    )
+
+
     launch_realsense = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
                 PathJoinSubstitution([
@@ -64,8 +82,10 @@ def generate_launch_description():
     return LaunchDescription([
         launch_realsense,
         cv_node,
+        cali_node,
         rviz_config_arg,
         rviz_launch_arg,
         rviz_node,
-        april_node
+        april_node,
+        launch_franka
     ])

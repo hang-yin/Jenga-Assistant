@@ -22,7 +22,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'cam = camera.realsense:main'
+            'cam = camera.realsense:main',
+            'cali = camera.calibrate:main'
         ],
     },
 )
