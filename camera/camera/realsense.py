@@ -77,6 +77,9 @@ class Cam(Node):
         self.max_scan = 800
         self.scan_step = 0.5
 
+        self.corner_threshold = 0.01
+        self.corner_scale = 100
+
         # How large a contour is to consider it as relevant
         self.object_area_threshold = 10000
         self.piece_area_threshold = 2500
@@ -90,6 +93,11 @@ class Cam(Node):
         cv2.createTrackbar('origin x', 'Mask', self.sq_orig[0], 1000, self.sqx_trackbar)
         cv2.createTrackbar('origin y', 'Mask' , self.sq_orig[1], 1000, self.sqy_trackbar)
         cv2.createTrackbar('size', 'Mask' , self.sq_sz, 700, self.sqw_trackbar)
+
+        # cv2.namedWindow('Corners')
+        # cv2.createTrackbar('corner threshold*100', 'Corners',
+        #                    int(self.corner_threshold*self.corner_scale),
+        #                    self.corner_scale, self.corner_trackbar)
 
     def sqx_trackbar(self, val):
         self.sq_orig[0] = val
@@ -118,6 +126,9 @@ class Cam(Node):
 
     def kernel_trackbar(self, val):
         self.kernel = np.ones((val,val),np.uint8)
+
+    def corner_trackbar(self, val):
+        self.corner_threshold = val/self.corner_scale
 
     def scan_service_callback(self, _, response):
         """ Make the camera scan for pieces sticking out """
@@ -203,7 +214,6 @@ class Cam(Node):
         centroids = []
         areas = []
         large_contours = []
-        max_centroid = None
         # self.get_logger().info(f"Number of countours: {len(contours)}")
         for c in contours: 
             M = cv2.moments(c)
@@ -219,12 +229,15 @@ class Cam(Node):
             except: 
                 pass
         # self.get_logger().info(f"Areas: {areas}")
+        max_centroid = None
         largest_area = None
         deprojected = None
+        box = None
         if len(areas) != 0: 
             largest_index = np.argmax(areas)
             largest_area = areas[largest_index]
             max_centroid = centroids[largest_index]
+            max_contour = large_contours[largest_index]
             # self.get_logger().info(f"estimated center: {max_centroid}")
             centroid_depth = depth_cpy[max_centroid[1]][max_centroid[0]]
             # self.get_logger().info(f"Centroid depth: {centroid_depth}")
@@ -232,12 +245,33 @@ class Cam(Node):
                                                             [max_centroid[0], max_centroid[1]],
                                                             centroid_depth)
             # self.get_logger().info(f"DEPROJECTED Centroid depth:{deprojected}\n")
+            # Try finding the corners of the object
+            # gray = np.array(depth_mask,dtype=np.float32)
+            # dst = cv2.cornerHarris(gray,2,3,0.04)
+            # dst = cv2.dilate(dst,None)
+            # corner_img = np.array(self.color_frame)
+            # # Might need to vary the threshold
+            # corner_img[dst>self.corner_threshold*dst.max()]=[0,0,255]
+            # cv2.imshow("Corners", corner_img)
+            # Trying to get the corners
+            # x,y,w,h = cv2.boundingRect(max_contour)
+            # please = cv2.rectangle(np.array(self.color_frame),(x,y),(x+w,y+h),(255,0,0),3)
+            # cv2.imshow("please", please)
+            min_rect = cv2.minAreaRect(max_contour)
+            box = cv2.boxPoints(min_rect)
+            box = np.intp(box)
+            self.get_logger().info(f"Box coords: {box}")
+            # atan2(dy, dx)
+            dy = box[1][1]-box[0][1]
+            dx = box[1][0]-box[0][0]
+            self.get_logger().info(f"dy: {dy}, dx: {dx}")
+            angle = np.arctan2(dy,dx)
+            self.get_logger().info(f"Angle: {angle}")
 
-
-        color_copy = np.array(self.color_frame)
-        drawn_contours = cv2.drawContours(color_copy, large_contours, -1, (0,255,0), 3)
+        drawn_contours = cv2.drawContours(np.array(self.color_frame), large_contours, -1, (0,255,0), 3)
         if max_centroid is not None:
-            drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, [0,0,255], 5)
+            drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0,0,255), 5)
+            drawn_contours = cv2.drawContours(drawn_contours, [box], 0, (255,0,0), 3)
         cv2.imshow("Depth Contours on Color Image", drawn_contours)
 
         cv2.waitKey(1)
@@ -265,7 +299,7 @@ class Cam(Node):
                 # This should not happen. But if it doesn't find anything large in the band:
                 self.scan_index = self.scan_start
                 self.get_logger().info("WTFFFFFFF")
-                self.state = State.SCANNING
+                self.state = State.PAUSED
 
             largest_area, _ = self.get_mask()
             if largest_area:
@@ -275,13 +309,17 @@ class Cam(Node):
                     self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
                                            f"area: {largest_area}\n")
                     self.tower_top = self.band_start+self.band_width
+                    # For testing purposes I commented the rest out
+                    self.scan_index += self.band_width
+                    self.band_start += self.band_width
+                    self.state = State.PAUSED
                     # Go down past the top pieces, or else this will also be detected as table.
                     # (Need to increase by a bit more than 1x bandwidth. I do 1.2 to be safe.)
-                    self.scan_index = self.tower_top + self.band_width
-                    self.band_start = self.tower_top + self.band_width
+                    # self.scan_index = self.tower_top + self.band_width
+                    # self.band_start = self.tower_top + self.band_width
                     # Go and find the table
-                    self.state = State.FINDTABLE
-                    self.get_logger().info("Searching for table")
+                    # self.state = State.FINDTOP
+                    # self.get_logger().info("Searching for table")
 
         elif self.state == State.FINDTABLE:
             # Basically same logic as findtop.
@@ -293,7 +331,7 @@ class Cam(Node):
                 # This should not happen. But if it doesn't find anything large in the band:
                 self.scan_index = self.scan_start
                 self.get_logger().info("WTFFFFFFF")
-                self.state = State.SCANNING
+                self.state = State.PAUSED
 
             largest_area, _ = self.get_mask()
             if largest_area:

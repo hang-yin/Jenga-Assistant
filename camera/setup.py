@@ -11,6 +11,8 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml',
                                    'launch/jenga_vision.launch.py',
+                                   'launch/cv.launch.py',
+                                   'config/april.rviz',
                                    'config/april.yaml']),
     ],
     install_requires=['setuptools'],
