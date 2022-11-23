@@ -170,7 +170,7 @@ class PlanAndExecute:
         """Save js with the joint state data (sensor_msgs/JointStates type)."""
         self.js = data
 
-    def fill_constraints(self, joint_names, joint_positions):
+    def fill_constraints(self, joint_names, joint_positions, tol):
         """Fill the joint constraints field with information from the joint states message."""
         self.node.get_logger().info("Filling Constraints")
         constraints = []
@@ -179,8 +179,8 @@ class PlanAndExecute:
             pos = joint_positions[n]
             constraint_i = JointConstraint(joint_name=name,
                                            position=float(pos),
-                                           tolerance_above=0.02,
-                                           tolerance_below=0.02,
+                                           tolerance_above=tol,
+                                           tolerance_below=tol,
                                            weight=1.0)
             constraints.append(constraint_i)
         self.master_goal.request.goal_constraints = [Constraints(name='',
@@ -254,7 +254,7 @@ class PlanAndExecute:
 
     def createCartreq(self, start_pose, end_pose):
         """Create an Cartisian message filled with info from the goal pose and orientation."""
-        max_step = 0.01
+        max_step = 0.001
         points = self.createWaypoints(start_pose, end_pose, max_step)
         self.node.get_logger().info("creating cartisian message")
         constraint = Constraints()
@@ -295,7 +295,7 @@ class PlanAndExecute:
         startpose.orientation.w = t.transform.rotation.w
         return startpose
 
-    async def plan_to_position(self, start_pose, end_pos, execute):
+    async def plan_to_position(self, start_pose, end_pos, tol, execute):
         """Return MoveGroup action from a start pose to an end position."""
         self.node.get_logger().info("Plan to position")
         if not start_pose:
@@ -311,7 +311,7 @@ class PlanAndExecute:
         IK_response = await self.callIK(request)
         if IK_response:
             # Create a plan off current joint states
-            plan_result = await self.plan(IK_response)
+            plan_result = await self.plan(IK_response, tol)
             if execute:
                 # execute the plan
                 execute_result = await self.execute(plan_result)
@@ -322,7 +322,7 @@ class PlanAndExecute:
             # IK service has failed
             return None
 
-    async def plan_to_orientation(self, start_pose, end_orientation, execute):
+    async def plan_to_orientation(self, start_pose, end_orientation, tol, execute):
         """Return MoveGroup action from a start pose to an end orientation."""
         if not start_pose:
             start_pose = self.getStartPose()
@@ -337,7 +337,7 @@ class PlanAndExecute:
         IK_response = await self.callIK(request)
         if IK_response:
             # Create a plan off current joint states
-            plan_result = await self.plan(IK_response)
+            plan_result = await self.plan(IK_response, tol)
             if execute:
                 # execute the plan
                 self.node.get_logger().info("Executing plan")
@@ -350,7 +350,7 @@ class PlanAndExecute:
             # IK service has failed
             return None
 
-    async def plan_to_pose(self, start_pose, end_pose, execute):
+    async def plan_to_pose(self, start_pose, end_pose, tol, execute):
         """Return MoveGroup action from a start to end pose (position + orientation)."""
         self.node.get_logger().info("Plan to Pose")
         if not start_pose:
@@ -369,7 +369,7 @@ class PlanAndExecute:
         IK_response = await self.callIK(request)
         if IK_response:
             # Create a plan off current joint states
-            plan_result = await self.plan(IK_response)
+            plan_result = await self.plan(IK_response, tol)
             if execute:
                 # execute the plan
                 execute_result = await self.execute(plan_result)
@@ -386,6 +386,7 @@ class PlanAndExecute:
         # if not start_pose:
         start_pose = self.getStartPose()
         self.master_goal.request.start_state.joint_state = self.js
+        self.fill_constraints(self.js.name, self.js.position, 0.001)
         # else:
         #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
         #     request_temp = GetCartesianPath.Request(ik_request=request_start)
@@ -474,11 +475,11 @@ class PlanAndExecute:
             self.node.get_logger().info("IK Succeeded :)")
             return response.solution.joint_state
 
-    async def plan(self, joint_state):
+    async def plan(self, joint_state, tol):
         """Plan to a joint state."""
         joint_names = joint_state.name
         joint_positions = np.array(joint_state.position)
-        self.fill_constraints(joint_names, joint_positions)
+        self.fill_constraints(joint_names, joint_positions, tol)
         self.node._action_client.wait_for_server()
         plan = await self.node._action_client.send_goal_async(self.master_goal)
         plan_result = await plan.get_result_async()

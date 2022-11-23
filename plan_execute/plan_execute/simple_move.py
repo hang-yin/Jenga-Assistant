@@ -12,6 +12,10 @@ import copy
 import time
 
 
+class Ready_State(Enum):
+    PREPLACE = auto()
+
+
 class State(Enum):
     """
     Current state of the system.
@@ -80,16 +84,17 @@ class Test(Node):
         self.cal = self.create_service(Empty, '/calibrate', self.calibrate_callback)
         self.place = self.create_service(Place, '/place', self.place_callback)
         self.PlanEx = PlanAndExecute(self)
+        self.prev_state = State.START
         self.state = State.START
         self.ct = 0
-        self.ready_pose = Pose()
-        self.ready_pose.position.x = 0.3060891
-        self.ready_pose.position.y = 0.0
-        self.ready_pose.position.z = 0.486882
-        self.ready_pose.orientation.x = 1.0
-        self.ready_pose.orientation.y = 0.0
-        self.ready_pose.orientation.z = 0.0
-        self.ready_pose.orientation.w = 0.0
+        # self.ready_pose = Pose()
+        # self.ready_pose.position.x = 0.3060891
+        # self.ready_pose.position.y = 0.0
+        # self.ready_pose.position.z = 0.486882
+        # self.ready_pose.orientation.x = 1.0
+        # self.ready_pose.orientation.y = 0.0
+        # self.ready_pose.orientation.z = 0.0
+        # self.ready_pose.orientation.w = 0.0
         self.goal_pose = Pose()
         self.block_pose = Pose()
         self.future = None
@@ -183,6 +188,7 @@ class Test(Node):
         if self.state == State.START:
             # add a bit of a time buffer so js can be read in
             if self.ct == 100:
+                self.prev_state = State.START
                 self.state = State.PLACEPLANE
                 self.ct = 0
             else:
@@ -191,23 +197,26 @@ class Test(Node):
             self.state = State.IDLE
             await self.place_plane()
             await self.place_tower()
+            self.prev_state = State.PLACEPLANE
             # await self.PlanEx.grab()
         elif self.state == State.CALL:
             self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-                                                                self.goal_pose,
+                                                                self.goal_pose, 0.001,
                                                                 self.execute)
+            self.prev_state = State.CALL
         elif self.state == State.CALIBRATE:
             # self.state = State.IDLE
             if self.ct == 0:
                 self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-                                                         self.goal_pose,
+                                                         self.goal_pose, 0.001,
                                                          self.execute)
-            if self.ct > 5000:
+            if self.ct > 1000:
             #     self.get_logger().info("Press enter to exit calibration")
             # key = keyboard.read_key()
             # if key == "enter":
             #     self.get_logger().info("Exiting Calibration")
                 self.get_logger().info("\n\n\n\n\nReady State")
+                self.prev_state = State.CALIBRATE
                 self.state = State.READY
                 self.ct = 0
             else:
@@ -245,8 +254,9 @@ class Test(Node):
             orientation_pose.orientation.z = 0.0
             orientation_pose.orientation.w = 0.0
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
-                                                                orientation_pose,
+                                                                orientation_pose, 0.02,
                                                                 self.execute)
+            self.prev_state = State.ORIENT
             self.state = State.PREGRAB
         
         elif self.state == State.PREGRAB:
@@ -262,10 +272,10 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    pre_grasp,
                                                                    self.execute)
+            self.prev_state = State.PREGRAB
             self.state = State.GRAB
 
         elif self.state == State.GRAB:
-
             # # go to grab pose
             self.get_logger().info('grabbing')
             self.get_logger().info(str(self.goal_pose))
@@ -273,12 +283,14 @@ class Test(Node):
                                                                    self.goal_pose,
                                                                    self.execute)
             # grab
-            self.future = await self.PlanEx.grab()
-            time.sleep(4)
+            # self.future = await self.PlanEx.grab()
+            time.sleep(4) # maybe change to a counter rather than sleep 
 
             # go to pull pose
+            self.prev_state = State.GRAB
             self.state = State.PULL
         elif self.state == State.PULL:
+            self.prev_state = State.PLACEPLANE
             self.get_logger().info('pulling')
             # TODO: pull block out straight
             pull_pose = copy.deepcopy(self.pregrasp_pose)
@@ -286,32 +298,49 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    pull_pose,
                                                                    self.execute)
+            self.prev_state = State.PULL
+            self.get_logger().info(str(self.prev_state))
             self.state = State.READY
         elif self.state == State.READY:
             # TODO: go to ready pose
-
-            ready_pose = copy.deepcopy(self.goal_pose)
-            ready_pose.position.x = 0.3
+        
+            ready_pose = Pose()
+            ready_pose.position.x = 0.3060891
             ready_pose.position.y = 0.0
-            ready_pose.position.z = 0.48
+            ready_pose.position.z = 0.486882
             ready_pose.orientation.x = 1.0
             ready_pose.orientation.y = 0.0
             ready_pose.orientation.z = 0.0
             ready_pose.orientation.w = 0.0
-            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+            # time.sleep(4)
+            self.get_logger().info('\n\n\nReady')
+            self.get_logger().info(str(self.prev_state))
+            if self.prev_state == State.PULL:
+                self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                     ready_pose,
                                                                     self.execute)
-            # time.sleep(4)
-            self.state = State.ORIENT2
+                self.get_logger().info('ORIENTING')
+                self.prev_state = State.READY
+                self.state = State.ORIENT2
+            else:
+                self.future = await self.PlanEx.plan_to_pose(self.start_pose,
+                                                                    ready_pose, 0.001,
+                                                                    self.execute)
+                self.get_logger().info('IDLE')
+                self.prev_state = State.READY
+                self.state = State.IDLE
+
         elif self.state == State.ORIENT2:
+            self.get_logger().info('ORIENT sencond')
             set_pose = copy.deepcopy(self.goal_pose)
             set_pose.orientation.x = 0.9238795
             set_pose.orientation.y = 0.3826834
             set_pose.orientation.z = 0.0
             set_pose.orientation.w = 0.0
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
-                                                                set_pose,
+                                                                set_pose, 0.02,
                                                                 self.execute)
+            self.prev_state = State.ORIENT2
             self.state = State.SET
         elif self.state == State.SET:
             set_pose = copy.deepcopy(self.goal_pose)
@@ -321,13 +350,16 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    set_pose,
                                                                    self.execute)
-            
+            self.prev_state = State.SET            
             self.state = State.RELEASE
         elif self.state == State.RELEASE:
-            self.future = await self.PlanEx.release()
-            self.state = State.IDLE
+            # self.future = await self.PlanEx.release()
+            time.sleep(1)
+            self.prev_state = State.RELEASE
+            self.state = State.READY
         
         elif self.state == State.PLACEBLOCK:
+            self.prev_state = State.PLACEBLOCK
             self.state = State.IDLE
             # place block
             await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.03], 'block')
