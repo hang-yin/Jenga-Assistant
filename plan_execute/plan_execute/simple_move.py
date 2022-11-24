@@ -82,6 +82,7 @@ class Test(Node):
         self.go_here = self.create_service(GoHere, '/go_here', self.go_here_callback)
         self.cart_go_here = self.create_service(GoHere, '/cartesian_here', self.cart_callback)
         self.cal = self.create_service(Empty, '/calibrate', self.calibrate_callback)
+        self.cal = self.create_service(Empty, '/ready', self.ready_callback)
         self.place = self.create_service(Place, '/place', self.place_callback)
         self.PlanEx = PlanAndExecute(self)
         self.prev_state = State.START
@@ -154,7 +155,12 @@ class Test(Node):
         self.state = State.CALIBRATE
         return response
 
-
+    def ready_callback(self, request, response):
+        self.start_pose = None
+        self.execute = True
+        self.state = State.READY
+        return response
+    
     def place_callback(self, request, response):
         """Call service to pass the desired Pose of a block in the scene."""
         self.block_pose = request.place
@@ -181,7 +187,7 @@ class Test(Node):
         tower_pose.orientation.y = 0.3855431
         tower_pose.orientation.z = 0.0
         tower_pose.orientation.w = 0.0
-        await self.PlanEx.place_block(tower_pose, [0.15, 0.15, 0.4], 'tower')
+        await self.PlanEx.place_block(tower_pose, [0.15, 0.15, 0.18], 'tower')
 
     async def timer_callback(self):
         """State maching that dictates which functions from the class are being called."""
@@ -200,27 +206,33 @@ class Test(Node):
             self.prev_state = State.PLACEPLANE
             # await self.PlanEx.grab()
         elif self.state == State.CALL:
-            self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-                                                                self.goal_pose, 0.001,
-                                                                self.execute)
+            self.future = await self.PlanEx.plan_to_pose(self.start_pose, self.goal_pose, 
+                                                                0.001, None, self.execute)
             self.prev_state = State.CALL
         elif self.state == State.CALIBRATE:
             # self.state = State.IDLE
+            joint_position = [1.2330863957058005, -1.0102056537740298, -1.0964429184557338, 
+                              -2.4467336392631585, -2.661665911210206, 2.505597946846172,
+                              2.6301953196046246]
             if self.ct == 0:
                 self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-                                                         self.goal_pose, 0.001,
+                                                         self.goal_pose, joint_position, 0.001,
                                                          self.execute)
-            if self.ct > 1000:
-            #     self.get_logger().info("Press enter to exit calibration")
-            # key = keyboard.read_key()
-            # if key == "enter":
-            #     self.get_logger().info("Exiting Calibration")
-                self.get_logger().info("\n\n\n\n\nReady State")
-                self.prev_state = State.CALIBRATE
-                self.state = State.READY
-                self.ct = 0
-            else:
-                self.ct += 1
+            self.prev_state = State.CALIBRATE
+            self.state = State.IDLE
+            # ***figure out how to have the calibrate state go for as long as you choose**** 
+            # if self.ct > 1000:
+            # #     self.get_logger().info("Press enter to exit calibration")
+            # # key = keyboard.read_key()
+            # # if key == "enter":
+            # #     self.get_logger().info("Exiting Calibration")
+            #     self.get_logger().info("\n\n\n\n\nReady State")
+            #     self.prev_state = State.CALIBRATE
+            #     self.state = State.READY
+            #     self.ct = 0
+            # else:
+            #     self.ct += 1
+
         # elif self.state == State.CARTESIAN:
         #     self.state = State.IDLE
         #     # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
@@ -312,6 +324,9 @@ class Test(Node):
             ready_pose.orientation.y = 0.0
             ready_pose.orientation.z = 0.0
             ready_pose.orientation.w = 0.0
+            joint_position = [0.0, -0.7853981633974483, 0.0, 
+                              -2.356194490192345, 0.0, 1.5707963267948966,
+                              0.7853981633974483]
             # time.sleep(4)
             self.get_logger().info('\n\n\nReady')
             self.get_logger().info(str(self.prev_state))
@@ -324,8 +339,8 @@ class Test(Node):
                 self.state = State.ORIENT2
             else:
                 self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-                                                                    ready_pose, 0.001,
-                                                                    self.execute)
+                                                                    ready_pose, joint_position,
+                                                                    0.001, self.execute)
                 self.get_logger().info('IDLE')
                 self.prev_state = State.READY
                 self.state = State.IDLE
@@ -362,7 +377,7 @@ class Test(Node):
             self.prev_state = State.PLACEBLOCK
             self.state = State.IDLE
             # place block
-            await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.03], 'block')
+            await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.3], 'block')
 
 def test_entry(args=None):
     rclpy.init(args=args)
