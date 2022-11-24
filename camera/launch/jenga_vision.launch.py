@@ -38,15 +38,15 @@ def generate_launch_description():
     )
 
 
-    launch_franka = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-                PathJoinSubstitution([
-                    FindPackageShare('franka_moveit_config'),
-                    'launch/moveit.launch.py'
-                ])
-            ]),
-        launch_arguments=[('robot_ip', 'dont-care'), ('use_fake_hardware', 'true')]
-    )
+    # launch_franka = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource([
+    #             PathJoinSubstitution([
+    #                 FindPackageShare('franka_moveit_config'),
+    #                 'launch/moveit.launch.py'
+    #             ])
+    #         ]),
+    #     launch_arguments=[('robot_ip', 'dont-care'), ('use_fake_hardware', 'true')]
+    # )
 
 
     launch_realsense = IncludeLaunchDescription(
@@ -87,5 +87,5 @@ def generate_launch_description():
         rviz_launch_arg,
         rviz_node,
         april_node,
-        launch_franka
+        # launch_franka
     ])

@@ -1,6 +1,7 @@
 import rclpy
 import math
 from rclpy.node import Node
+from geometry_msgs.msg import Quaternion
 import numpy as np
 from tf2_ros import TransformBroadcaster
 # np.set_printoptions(threshold=sys.maxsize)
@@ -32,6 +33,42 @@ def quaternion_from_euler(ai, aj, ak):
 
     return q
 
+def quaternion_multiply(Q0,Q1): # I STOLE THIS FROM AUTOMATIC ADDISON
+    """
+    Multiplies two quaternions.
+ 
+    Input
+    :param Q0: A 4 element array containing the first quaternion (q01,q11,q21,q31) 
+    :param Q1: A 4 element array containing the second quaternion (q02,q12,q22,q32) 
+ 
+    Output
+    :return: A 4 element array containing the final quaternion (q03,q13,q23,q33) 
+ 
+    """
+    # Extract the values from Q0
+    w0 = Q0[0]
+    x0 = Q0[1]
+    y0 = Q0[2]
+    z0 = Q0[3]
+     
+    # Extract the values from Q1
+    w1 = Q1[0]
+    x1 = Q1[1]
+    y1 = Q1[2]
+    z1 = Q1[3]
+     
+    # Computer the product of the two quaternions, term by term
+    Q0Q1_w = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1
+    Q0Q1_x = w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1
+    Q0Q1_y = w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1
+    Q0Q1_z = w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1
+     
+    # Create a 4 element array containing the final quaternion
+    final_quaternion = np.array([Q0Q1_w, Q0Q1_x, Q0Q1_y, Q0Q1_z])
+     
+    # Return a 4 element array containing the final quaternion (q02,q12,q22,q32) 
+    return final_quaternion
+
 class Calibrate(Node):
     def __init__(self):
         super().__init__('cali')
@@ -49,59 +86,116 @@ class Calibrate(Node):
         self.frame_world = "world"
         self.frame_camera = "camera_color_optical_frame"
         self.frame_tag = "tag36h11:0"
+        self.frame_rotate = "rotate"
         self.frame_ee = "panda_hand_tcp"
         self.frame_base = "panda_link0"
 
-        s = TransformStamped()
+        self.rot = TransformStamped()
+        self.t = TransformStamped()
+        self.rot_base = TransformStamped()
 
     def timer_callback(self):
-        # try:
-        #     r = self.tf_buffer.lookup_transform(
-        #         self.frame_camera,
-        #         self.frame_tag,
-        #         rclpy.time.Time())
-        # except:
-        #     self.get_logger().info(
-        #         f'Could not transform {self.frame_camera} to {self.frame_tag}')
-        #     return
-        # self.get_logger().info(f"t: {r}")
+        try:
+            r = self.tf_buffer.lookup_transform(
+                self.frame_camera,
+                self.frame_tag,
+                rclpy.time.Time())
+        except:
+            self.get_logger().info(
+                f'Could not transform {self.frame_camera} to {self.frame_tag}')
+            return
+        self.get_logger().info(f"t: {r}")
 
         try:
             s = self.tf_buffer.lookup_transform(
                 self.frame_ee,
                 self.frame_base,
                 rclpy.time.Time())
+            
+            
         except:
             self.get_logger().info(
                 f'Could not transform {self.frame_ee} to {self.frame_base}')
             return
         self.get_logger().info(f"s: {s}")
         
-        
-        t = s
-        # self.tf_buffer = Buffer()
-        t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = self.frame_tag
-        t.child_frame_id = self.frame_base
-
-        self.tf_broadcaster.sendTransform(t)
+        self.t = r
+        self.t.header.stamp = self.get_clock().now().to_msg()
+        self.t.header.frame_id = self.frame_camera
+        self.t.child_frame_id = self.frame_tag
+        # 
+        # 
+        # self.t.transform.translation.x = -s.transform.rotation.x
+        # self.t.transform.rotation.x = -s.transform.rotation.y
+        # self.t.transform.rotation.y = s.transform.rotation.z
+        # self.t.transform.rotation.z = -s.transform.rotation.x
+        # self.t.transform.rotation.w = s.transform.rotation.w
+        # self.t.transform.rotation.x = .5
+        # self.t.transform.rotation.y = .5
+        # self.t.transform.rotation.z = .5
+        # self.t.transform.rotation.w = .5
+        og_q = np.array([self.t.transform.rotation.x, self.t.transform.rotation.y, self.t.transform.rotation.z, self.t.transform.rotation.w])
+        self.tf_broadcaster.sendTransform(self.t)
         # self.get_logger().info(f"hey its here {t}")
 
+        # self.rot = self.t
+        # self.tf_buffer = Buffer()
+        self.rot.header.stamp = self.get_clock().now().to_msg()
+        self.rot.header.frame_id = self.frame_tag
+        self.rot.child_frame_id = self.frame_rotate
+        self.rot.transform.translation.x = 0.0
+        self.rot.transform.translation.y = 0.0
+        self.rot.transform.translation.z = 0.0
+        # self.rot.transform.translation.x = -self.t.transform.rotation.x
+        # self.rot.transform.rotation.y = self.t.transform.rotation.z
+        # self.rot.transform.rotation.z = -self.t.transform.rotation.x
+        # self.rot.transform.rotation.w = self.t.transform.rotation.w
+        
+        z_rot = quaternion_from_euler(0.0, 0.0, 1.5708)
+        qz_rot = quaternion_multiply(og_q, z_rot)
+        y_rot = quaternion_from_euler(-1.5708, 0.0, 0.0)
+        q_new = quaternion_multiply(qz_rot, y_rot)
+        # self.t.transform.translation.x = q_new[0]
+        self.rot.transform.rotation.x = q_new[0]
+        self.rot.transform.rotation.y = q_new[1]
+        self.rot.transform.rotation.z = q_new[2]
+        self.rot.transform.rotation.w = q_new[3]
+        self.tf_broadcaster.sendTransform(self.rot)
+
+
+        self.rot_base = s
+        self.rot_base.header.stamp = self.get_clock().now().to_msg()
+        self.rot_base.header.frame_id = self.frame_rotate
+        self.rot_base.child_frame_id = self.frame_base
+        self.tf_broadcaster.sendTransform(self.rot_base)
+        # 
+        # 
+        # self.t.transform.translation.x = -s.transform.rotation.x
+        # self.t.transform.rotation.x = -s.transform.rotation.y
+        # self.t.transform.rotation.y = s.transform.rotation.z
+        # self.t.transform.rotation.z = -s.transform.rotation.x
+        # self.t.transform.rotation.w = s.transform.rotation.w
+        # self.t.transform.rotation.x = .5
+        # self.t.transform.rotation.y = .5
+        # self.t.transform.rotation.z = .5
+        # self.t.transform.rotation.w = .5
+        # og_q = np.array([self.t.transform.rotation.x, self.t.transform.rotation.y, self.t.transform.rotation.z, self.t.transform.rotation.w])
+        
         # if s and r:
         #     t = TransformStamped()
         #     self.tf_buffer = Buffer()
         #     t.header.stamp = self.get_clock().now().to_msg()
         #     t.header.frame_id = self.frame_tag
-        #     t.child_frame_id = self.frame_base
+        #     t.child_frame_id = self.frame_rotate
 
-        #     t.transform.translation.x = s.transform.translation.x
-        #     t.transform.translation.y = s.transform.translation.y
-        #     t.transform.translation.z = s.transform.translation.z
-        #     q = quaternion_from_euler(s.transform.rotation.x, s.transform.rotation.y, s.transform.rotation.z)
-        #     t.transform.rotation.x = q[0]
-        #     t.transform.rotation.y = q[1]
-        #     t.transform.rotation.z = q[2]
-        #     t.transform.rotation.w = q[3]
+        # #     t.transform.translation.x = s.transform.translation.x
+        # #     t.transform.translation.y = s.transform.translation.y
+        # #     t.transform.translation.z = s.transform.translation.z
+        # #     q = quaternion_from_euler(s.transform.rotation.x, s.transform.rotation.y, s.transform.rotation.z)
+        # #     t.transform.rotation.x = q[0]
+        # #     t.transform.rotation.y = q[1]
+        # #     t.transform.rotation.z = q[2]
+        # #     t.transform.rotation.w = q[3]
 
         #     self.tf_broadcaster.sendTransform(t)
         #     self.get_logger().info(f"hey its here {t}")
