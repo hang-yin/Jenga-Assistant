@@ -1,7 +1,9 @@
 import rclpy
 import math
+import yaml
 from rclpy.node import Node
 from geometry_msgs.msg import Quaternion
+from ament_index_python.packages import get_package_share_path
 import numpy as np
 from tf2_ros import TransformBroadcaster
 # np.set_printoptions(threshold=sys.maxsize)
@@ -98,6 +100,9 @@ class Calibrate(Node):
         self.t = TransformStamped()
         self.rot_base = TransformStamped()
 
+        camera_path = get_package_share_path('camera')
+        self.tf_path  = camera_path / 'tf.rviz'
+
     def timer_callback(self):
         #listener for the camera to tag
         try:
@@ -107,7 +112,7 @@ class Calibrate(Node):
                 rclpy.time.Time())
             og_q = np.array([r.transform.rotation.x, r.transform.rotation.y,
                              r.transform.rotation.z, r.transform.rotation.w])
-            self.get_logger().info(f"t: {r}")
+            # self.get_logger().info(f"t: {r}")
         except:
             self.get_logger().info(
                 f'Could not transform {self.frame_camera} to {self.frame_tag}')
@@ -120,7 +125,7 @@ class Calibrate(Node):
                 self.frame_ee,
                 self.frame_base,
                 rclpy.time.Time())
-            self.get_logger().info(f"s: {s}")
+            # self.get_logger().info(f"s: {s}")
         except:
             self.get_logger().info(
                 f'Could not transform {self.frame_ee} to {self.frame_base}')
@@ -152,6 +157,28 @@ class Calibrate(Node):
         self.rot_base.child_frame_id = self.frame_base
         self.tf_broadcaster.sendTransform(self.rot_base)
 
+        # listener for the camera to base
+        try:
+            cam_base = self.tf_buffer.lookup_transform(
+                self.frame_camera,
+                self.frame_base,
+                rclpy.time.Time())
+            self.get_logger().info(f"cam_base: {cam_base}")
+            dump = {'ros_parameters': {'x_trans': cam_base.transform.translation.x,
+                                       'y_trans': cam_base.transform.translation.y,
+                                       'z_trans': cam_base.transform.translation.z,
+                                       'x_rot': cam_base.transform.rotation.x,
+                                       'y_rot': cam_base.transform.rotation.y,
+                                       'z_rot': cam_base.transform.rotation.z,
+                                       'w_rot': cam_base.transform.rotation.w}}
+        except:
+            self.get_logger().info(
+                f'Could not transform {self.frame_camera} to {self.frame_base}')
+            return
+        # self.get_logger().info(self.tf_path)
+        with open('tf.yaml', 'w') as file: 
+                yaml.dump(dump, file)
+        
 
 def main(args=None):
     """Start and spin the node."""
