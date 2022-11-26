@@ -24,7 +24,8 @@ setup(
     entry_points={
         'console_scripts': [
             'cam = camera.realsense:main',
-            'cali = camera.calibrate:main'
+            'cali = camera.calibrate:main',
+            'broadcast = camera.broadcast_transform:main'
         ],
     },
 )
