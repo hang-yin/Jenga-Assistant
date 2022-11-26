@@ -97,20 +97,26 @@ class Test(Node):
         self.pregrasp_pose = None
 
         self.piece_sub = self.create_subscription(Pose, 'jenga_piece', self.piece_cb, 10)
-
+        self.piece_pose = None
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
+        # added these so it won't rely on service calls to run
+        self.start_pose = None
+        self.execute = True
     
     def piece_cb(self, data):
-        self.get_logger().info(f'Piece location: {data}')
+        self.get_logger().info(f'Piece location in camera frame: {data}')
         try:
-            t = self.tf_buffer.lookup_transform('camera_link', 'panda_link0', rclpy.time.Time())
+            t = self.tf_buffer.lookup_transform('panda_link0', 'brick', rclpy.time.Time())
             # I round the z coordinate to 4 sig figs since sometimes there are small flickers
             # For example sometimes it flickers between
             # 2.95 and 2.949999999999
-            self.get_logger().info(f't is: {t}')
+            self.get_logger().info(f'transform bw base and brick: {t}')
+            self.get_logger().info('Go to orient')
+            self.piece_pose = t.transform
+            self.state = State.ORIENT
         except TransformException:
-            print("couldn't do camera_link->panda_link0 transform")
+            print("couldn't do panda_link0->brick transform")
 
     def go_here_callback(self, request, response):
         """
@@ -231,56 +237,25 @@ class Test(Node):
                                                          self.execute)
             self.prev_state = State.CALIBRATE
             self.state = State.IDLE
-            # ***figure out how to have the calibrate state go for as long as you choose**** 
-            # if self.ct > 1000:
-            # #     self.get_logger().info("Press enter to exit calibration")
-            # # key = keyboard.read_key()
-            # # if key == "enter":
-            # #     self.get_logger().info("Exiting Calibration")
-            #     self.get_logger().info("\n\n\n\n\nReady State")
-            #     self.prev_state = State.CALIBRATE
-            #     self.state = State.READY
-            #     self.ct = 0
-            # else:
-            #     self.ct += 1
-
-        # elif self.state == State.CARTESIAN:
-        #     self.state = State.IDLE
-        #     # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-        #     #                                              self.goal_pose,
-        #     #                                              self.execute)
-        #     # self.future = await self.PlanEx.plan_to_position(self.start_pose,
-        #     #                                                  self.goal_pose,
-        #     #                                                  self.execute)
-        #     # self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
-        #     #                                                     self.goal_pose,
-        #     #                                                     self.execute)
-        #     offset = math.sin(math.pi/2) * 0.1
-        #     pre_grasp = self.goal_pose
-        #     pre_grasp.position.x = self.goal_pose.position.x - offset
-        #     if self.goal_pose.position.y > 0:
-        #         pre_grasp.position.y  = self.goal_pose.position.y + offset
-        #     else:
-        #         pre_grasp.position.y = self.goal_pose.position.y - offset
-        #     self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-        #                                                            pre_grasp,
-        #                                                            self.execute)
-        #     # await self.PlanEx.grab()
         elif self.state == State.ORIENT:
+            self.get_logger().info('ORIENT STATE')
             # TODO: if y > 0, do something, else do something else
             orientation_pose = copy.deepcopy(self.goal_pose)
-            orientation_pose.orientation.x = 0.9238795
-            if self.goal_pose.position.y > 0:
-                orientation_pose.orientation.y = -0.3826834
-            else:
-                orientation_pose.orientation.y = 0.3826834
-            orientation_pose.orientation.z = 0.0
-            orientation_pose.orientation.w = 0.0
+            orientation_pose.orientation.x = self.piece_pose.rotation.x
+            # if self.goal_pose.position.y > 0:
+            #     orientation_pose.orientation.y = -0.3826834
+            # else:
+            #     orientation_pose.orientation.y = 0.3826834
+            orientation_pose.orientation.y = self.piece_pose.rotation.y
+            orientation_pose.orientation.z = self.piece_pose.rotation.z
+            orientation_pose.orientation.w = self.piece_pose.rotation.w
+            self.get_logger().info('PLAN')
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 orientation_pose, 0.02,
                                                                 self.execute)
+            self.get_logger().info('DONE')
             self.prev_state = State.ORIENT
-            self.state = State.PREGRAB
+            self.state = State.IDLE
         
         elif self.state == State.PREGRAB:
             # go to pre-grab pose
