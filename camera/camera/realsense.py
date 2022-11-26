@@ -84,8 +84,8 @@ class Cam(Node):
         kernel_size = 25
         self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
 
-        self.sq_orig = [425,0]
-        self.sq_sz = 575
+        self.sq_orig = [434,0]
+        self.sq_sz = 366
 
         self.rect = None
         self.update_rect()
@@ -96,7 +96,7 @@ class Cam(Node):
         self.table = None
         self.scan_start = 100
         self.scan_index = self.scan_start
-        self.max_scan = 800
+        self.max_scan = 1000
         self.scan_step = 0.5
 
         self.corner_threshold = 0.01
@@ -283,7 +283,7 @@ class Cam(Node):
             dx = box[1][0]-box[0][0]
             # self.get_logger().info(f"dy: {dy}, dx: {dx}")
             angle = np.arctan2(dy,dx)
-            self.get_logger().info(f"Angle: {angle}")
+            # self.get_logger().info(f"Angle: {angle}")
             centroid_pose.orientation = angle_axis_to_quaternion(angle, [0, 0, 1])
             corner_array = PoseArray()
             corner_array.header.stamp = self.get_clock().now().to_msg()
@@ -390,6 +390,8 @@ class Cam(Node):
                     self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
                     self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
                     self.piece_pub.publish(centroid_pose)
+                    self.scan_index += self.band_width
+                    self.band_start += self.band_width
                     self.state = State.PAUSED
 
 
