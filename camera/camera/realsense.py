@@ -13,6 +13,9 @@ from enum import Enum, auto
 from std_srvs.srv import Empty
 from geometry_msgs.msg import PoseArray, Pose, Quaternion
 from math import sqrt, sin, cos
+from tf2_ros import TransformBroadcaster
+from geometry_msgs.msg import TransformStamped
+from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 
 
 def angle_axis_to_quaternion(theta, axis):
@@ -74,6 +77,13 @@ class Cam(Node):
         self.calib = self.create_service(Empty, "calib", self.calib_service_callback)
         self.br = CvBridge()
 
+        # Initialize the transform broadcaster
+        # Static bc block only gets published once!
+        self.tf_broadcaster = StaticTransformBroadcaster(self)
+        self.brick = TransformStamped()
+        self.frame_brick = "brick"
+        self.frame_camera ='camera_link'
+
         self.color_frame = None
         self.depth_frame = None
         self.intrinsics = None
@@ -94,7 +104,7 @@ class Cam(Node):
 
         self.tower_top = None
         self.table = None
-        self.scan_start = 100
+        self.scan_start = 700
         self.scan_index = self.scan_start
         self.max_scan = 1000
         self.scan_step = 0.5
@@ -270,9 +280,9 @@ class Cam(Node):
                                                                      max_centroid[1]],
                                                                     centroid_depth)
             centroid_pose = Pose()
-            centroid_pose.position.x = centroid_deprojected[0]
-            centroid_pose.position.y = centroid_deprojected[1]
-            centroid_pose.position.z = centroid_deprojected[2]
+            centroid_pose.position.x = -centroid_deprojected[1]/1000.
+            centroid_pose.position.y = -centroid_deprojected[2]/1000.
+            centroid_pose.position.z = centroid_deprojected[0]/1000.
             # self.get_logger().info(f"DEPROJECTED Centroid depth:{deprojected}\n")
             # Try finding the corners of the object
             min_rect = cv2.minAreaRect(max_contour)
@@ -296,9 +306,10 @@ class Cam(Node):
                                                                       corner_depth)
                 # self.get_logger().info(f"DEPROJECTED Corner:{corner_deprojected}")
                 cornerPose = Pose()
-                cornerPose.position.x = corner_deprojected[0]
-                cornerPose.position.y = corner_deprojected[1]
-                cornerPose.position.z = corner_deprojected[2]
+                # TODO fix this later
+                cornerPose.position.x = corner_deprojected[2]/1000.
+                cornerPose.position.y = -corner_deprojected[0]/1000.
+                cornerPose.position.z = -corner_deprojected[1]/1000.
                 corner_array.poses.append(cornerPose)
             # self.get_logger().info(f"CORNER ARRAY: {corner_array}")
 
@@ -391,6 +402,19 @@ class Cam(Node):
                     self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
                     self.piece_pub.publish(centroid_pose)
                     # TODO: Add tf. Camera -> piece.
+                    #create tf between the tag and the rotated frame
+                    self.brick.header.stamp = self.get_clock().now().to_msg()
+                    self.brick.header.frame_id = self.frame_camera
+                    self.brick.child_frame_id = self.frame_brick
+                    self.brick.transform.translation.x = centroid_pose.position.x
+                    self.brick.transform.translation.y = centroid_pose.position.y
+                    self.brick.transform.translation.z = centroid_pose.position.z
+                    # calculate the rotations with quaternians
+                    # self.brick.transform.rotation.x = centroid_pose.orientation.x
+                    # self.brick.transform.rotation.y = centroid_pose.orientation.y
+                    # self.brick.transform.rotation.z = centroid_pose.orientation.z
+                    # self.brick.transform.rotation.w = centroid_pose.orientation.w
+                    self.tf_broadcaster.sendTransform(self.brick)
                     self.scan_index += self.band_width
                     self.band_start += self.band_width
                     self.state = State.PAUSED
