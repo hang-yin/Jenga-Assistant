@@ -176,13 +176,12 @@ class Calibrate(Node):
             self.get_logger().info(
                 f'Could not transform {self.frame_camera} to {self.frame_base}')
             return
-        
-        self.get_logger().info("LOL IT LAUNCHED")
+
         # Write the transform information to the tf.yaml in the share directory
         # Must be done each time the robot is being reset
         camera_path = get_package_share_path('camera')
         tf_path = str(camera_path)+'/tf.yaml'
-        with open(str(tf_path), 'w') as outfile: 
+        with open(str(tf_path), 'w') as outfile:
                 outfile.write(yaml.dump(dump, default_flow_style=False))
         
 
