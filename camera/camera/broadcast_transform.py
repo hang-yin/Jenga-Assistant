@@ -42,7 +42,7 @@ class Broadcast(Node):
         
 
         # Define frames
-        self.frame_camera = "camera_color_optical_frame"
+        self.frame_camera = "camera_link"
         self.frame_base = "panda_link0"
 
         self.cam_to_base = TransformStamped()
