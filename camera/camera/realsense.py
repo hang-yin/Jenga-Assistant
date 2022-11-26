@@ -390,6 +390,7 @@ class Cam(Node):
                     self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
                     self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
                     self.piece_pub.publish(centroid_pose)
+                    # TODO: Add tf. Camera -> piece.
                     self.scan_index += self.band_width
                     self.band_start += self.band_width
                     self.state = State.PAUSED
