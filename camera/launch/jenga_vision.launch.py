@@ -1,8 +1,9 @@
 
+import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
-from ament_index_python.packages import get_package_share_path
+from ament_index_python.packages import get_package_share_path, get_package_share_directory
 from launch.conditions import LaunchConfigurationEquals
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
@@ -13,6 +14,7 @@ def generate_launch_description():
     camera_path = get_package_share_path('camera')
     default_rviz_config_path  = camera_path / 'april.rviz'
     default_april_config_path = camera_path / 'april.yaml'
+    default_tf_config_path = camera_path / 'tf.yaml'
 
     rviz_launch_arg = DeclareLaunchArgument(
         name='rviz_pub', 
@@ -31,10 +33,27 @@ def generate_launch_description():
         choices=['true', 'false'],
         description='Launch calibration node')
 
+    # config = os.path.join(
+    #     get_package_share_directory('camera'),
+    #     'tf.yaml'
+    #     )
+        
+    # node=Node(
+    #     package = 'ros2_tutorials',
+    #     name = 'your_amazing_node',
+    #     executable = 'test_yaml_params',
+    #     parameters = [config]
 
     cv_node = Node(
         package='camera',
         executable='cam',
+        output='screen'
+    )
+
+    tf_broad_node = Node(
+        package='camera',
+        executable='broadcast',
+        parameters=[default_tf_config_path],
         output='screen'
     )
 
@@ -92,6 +111,7 @@ def generate_launch_description():
         cali_launch_arg,
         rviz_config_arg,
         rviz_launch_arg,
+        tf_broad_node,
         rviz_node,
         april_node,
         cv_node,

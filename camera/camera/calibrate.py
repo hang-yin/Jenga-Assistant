@@ -165,7 +165,7 @@ class Calibrate(Node):
                 self.frame_base,
                 rclpy.time.Time())
             self.get_logger().info(f"cam_base: {cam_base}")
-            dump = {'/**':{'ros_parameters': {'x_trans': cam_base.transform.translation.x,
+            dump = {'/**':{'ros__parameters': {'x_trans': cam_base.transform.translation.x,
                                               'y_trans': cam_base.transform.translation.y,
                                               'z_trans': cam_base.transform.translation.z,
                                               'x_rot': cam_base.transform.rotation.x,
