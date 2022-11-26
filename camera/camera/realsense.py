@@ -11,7 +11,28 @@ import sys
 import pyrealsense2 as rs2
 from enum import Enum, auto
 from std_srvs.srv import Empty
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import PoseArray, Pose, Quaternion
+from math import sqrt, sin, cos
+
+
+def angle_axis_to_quaternion(theta, axis):
+    """
+    Convert from angle-axis of rotation to a quaternion.
+    This is taken from the tf activity we did in class.
+    Args:
+        theta:  rotation angle, in radians
+        axis: the rotational axis. This will be normalized
+    Returns
+    -------
+    A Quaternion corresponding to the rotation
+    """
+    magnitude = sqrt(axis[0]**2 + axis[1]**2 + axis[2]**2)
+    normalized = [v/magnitude for v in axis]
+    sinTheta2 = sin(theta/2.0)
+    return Quaternion(x=normalized[0]*sinTheta2,
+                      y=normalized[1]*sinTheta2,
+                      z=normalized[2]*sinTheta2,
+                      w=cos(theta/2.0))
 
 class State(Enum):
     """The current state of the brick."""
@@ -46,7 +67,8 @@ class Cam(Node):
                                                  self.info_callback,
                                                  10)
 
-        self.piece_pub = self.create_publisher(Point, 'jenga_piece', 10)
+        self.piece_pub = self.create_publisher(Pose, 'jenga_piece', 10)
+        self.corners_pub = self.create_publisher(PoseArray, 'jenga_corners', 10)
         self.scan = self.create_service(Empty, "scan", self.scan_service_callback)
         self.stop = self.create_service(Empty, "stop", self.stop_service_callback)
         self.calib = self.create_service(Empty, "calib", self.calib_service_callback)
@@ -62,8 +84,8 @@ class Cam(Node):
         kernel_size = 25
         self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
 
-        self.sq_orig = [523,0]
-        self.sq_sz = 375
+        self.sq_orig = [425,0]
+        self.sq_sz = 575
 
         self.rect = None
         self.update_rect()
@@ -231,9 +253,11 @@ class Cam(Node):
         # self.get_logger().info(f"Areas: {areas}")
         max_centroid = None
         largest_area = None
-        deprojected = None
+        centroid_pose = None
         box = None
+        corner_array = None
         if len(areas) != 0: 
+            # There is something large in the image.
             largest_index = np.argmax(areas)
             largest_area = areas[largest_index]
             max_centroid = centroids[largest_index]
@@ -241,32 +265,42 @@ class Cam(Node):
             # self.get_logger().info(f"estimated center: {max_centroid}")
             centroid_depth = depth_cpy[max_centroid[1]][max_centroid[0]]
             # self.get_logger().info(f"Centroid depth: {centroid_depth}")
-            deprojected = rs2.rs2_deproject_pixel_to_point(self.intrinsics,
-                                                            [max_centroid[0], max_centroid[1]],
-                                                            centroid_depth)
+            centroid_deprojected = rs2.rs2_deproject_pixel_to_point(self.intrinsics,
+                                                                    [max_centroid[0],
+                                                                     max_centroid[1]],
+                                                                    centroid_depth)
+            centroid_pose = Pose()
+            centroid_pose.position.x = centroid_deprojected[0]
+            centroid_pose.position.y = centroid_deprojected[1]
+            centroid_pose.position.z = centroid_deprojected[2]
             # self.get_logger().info(f"DEPROJECTED Centroid depth:{deprojected}\n")
             # Try finding the corners of the object
-            # gray = np.array(depth_mask,dtype=np.float32)
-            # dst = cv2.cornerHarris(gray,2,3,0.04)
-            # dst = cv2.dilate(dst,None)
-            # corner_img = np.array(self.color_frame)
-            # # Might need to vary the threshold
-            # corner_img[dst>self.corner_threshold*dst.max()]=[0,0,255]
-            # cv2.imshow("Corners", corner_img)
-            # Trying to get the corners
-            # x,y,w,h = cv2.boundingRect(max_contour)
-            # please = cv2.rectangle(np.array(self.color_frame),(x,y),(x+w,y+h),(255,0,0),3)
-            # cv2.imshow("please", please)
             min_rect = cv2.minAreaRect(max_contour)
             box = cv2.boxPoints(min_rect)
             box = np.intp(box)
-            self.get_logger().info(f"Box coords: {box}")
-            # atan2(dy, dx)
+            # self.get_logger().info(f"Box coords: {box}")
             dy = box[1][1]-box[0][1]
             dx = box[1][0]-box[0][0]
-            self.get_logger().info(f"dy: {dy}, dx: {dx}")
+            # self.get_logger().info(f"dy: {dy}, dx: {dx}")
             angle = np.arctan2(dy,dx)
             self.get_logger().info(f"Angle: {angle}")
+            centroid_pose.orientation = angle_axis_to_quaternion(angle, [0, 0, 1])
+            corner_array = PoseArray()
+            corner_array.header.stamp = self.get_clock().now().to_msg()
+            for corner in box:
+                # Am copying implementation for centroid but might need to switch indices?
+                corner_depth = depth_cpy[corner[1]][corner[0]]
+                # self.get_logger().info(f"Corner: {corner_depth}")
+                corner_deprojected = rs2.rs2_deproject_pixel_to_point(self.intrinsics,
+                                                                      corner,
+                                                                      corner_depth)
+                # self.get_logger().info(f"DEPROJECTED Corner:{corner_deprojected}")
+                cornerPose = Pose()
+                cornerPose.position.x = corner_deprojected[0]
+                cornerPose.position.y = corner_deprojected[1]
+                cornerPose.position.z = corner_deprojected[2]
+                corner_array.poses.append(cornerPose)
+            # self.get_logger().info(f"CORNER ARRAY: {corner_array}")
 
         drawn_contours = cv2.drawContours(np.array(self.color_frame), large_contours, -1, (0,255,0), 3)
         if max_centroid is not None:
@@ -275,10 +309,7 @@ class Cam(Node):
         cv2.imshow("Depth Contours on Color Image", drawn_contours)
 
         cv2.waitKey(1)
-        return largest_area, deprojected
-
-    def apriltag_tf(self):
-        pass
+        return largest_area, centroid_pose, corner_array
 
     def timer_callback(self):
         if self.state == State.WAITING:
@@ -288,7 +319,7 @@ class Cam(Node):
                 self.state = State.PAUSED
 
         elif self.state == State.PAUSED:
-            largest_area, _ = self.get_mask()
+            largest_area, _, _ = self.get_mask()
 
         elif self.state == State.FINDTOP:
             # Begin scanning downwards.
@@ -298,10 +329,10 @@ class Cam(Node):
             if self.scan_index > self.max_scan:
                 # This should not happen. But if it doesn't find anything large in the band:
                 self.scan_index = self.scan_start
-                self.get_logger().info("WTFFFFFFF")
+                self.get_logger().info("Didn't find the tower?")
                 self.state = State.PAUSED
 
-            largest_area, _ = self.get_mask()
+            largest_area, _, _ = self.get_mask()
             if largest_area:
                 if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
@@ -309,17 +340,16 @@ class Cam(Node):
                     self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
                                            f"area: {largest_area}\n")
                     self.tower_top = self.band_start+self.band_width
-                    # For testing purposes I commented the rest out
-                    self.scan_index += self.band_width
-                    self.band_start += self.band_width
-                    self.state = State.PAUSED
+                    # For testing purposes
+                    # self.scan_index += self.band_width
+                    # self.band_start += self.band_width
+                    # self.state = State.PAUSED
                     # Go down past the top pieces, or else this will also be detected as table.
-                    # (Need to increase by a bit more than 1x bandwidth. I do 1.2 to be safe.)
-                    # self.scan_index = self.tower_top + self.band_width
-                    # self.band_start = self.tower_top + self.band_width
+                    self.scan_index = self.tower_top + self.band_width
+                    self.band_start = self.tower_top + self.band_width
                     # Go and find the table
-                    # self.state = State.FINDTOP
-                    # self.get_logger().info("Searching for table")
+                    self.state = State.FINDTABLE
+                    self.get_logger().info("Searching for table")
 
         elif self.state == State.FINDTABLE:
             # Basically same logic as findtop.
@@ -330,10 +360,10 @@ class Cam(Node):
             if self.scan_index > self.max_scan:
                 # This should not happen. But if it doesn't find anything large in the band:
                 self.scan_index = self.scan_start
-                self.get_logger().info("WTFFFFFFF")
+                self.get_logger().info("Didn't find the table?")
                 self.state = State.PAUSED
 
-            largest_area, _ = self.get_mask()
+            largest_area, _, _ = self.get_mask()
             if largest_area:
                 if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
@@ -353,17 +383,13 @@ class Cam(Node):
                 self.scan_index = self.tower_top +1.2*self.band_width
                 self.get_logger().info("Reset scan")
             # Look for piece sticking out in range from top to table
-            largest_area, deprojected = self.get_mask()
+            largest_area, centroid_pose, _ = self.get_mask()
             if largest_area:
                 if largest_area > self.piece_area_threshold:
                     self.get_logger().info("Piece (?) detected")
                     self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
-                    self.get_logger().info(f"Coords in camera frame: {deprojected}")
-                    jenga_piece = Point()
-                    jenga_piece.x = deprojected[0]
-                    jenga_piece.y = deprojected[1]
-                    jenga_piece.z = deprojected[2]
-                    self.piece_pub.publish(jenga_piece)
+                    self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
+                    self.piece_pub.publish(centroid_pose)
                     self.state = State.PAUSED
 
 
