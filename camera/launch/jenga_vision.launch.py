@@ -25,11 +25,37 @@ def generate_launch_description():
         default_value=str(default_rviz_config_path),
         description='Absolute path to rviz config file')
 
+    cali_launch_arg = DeclareLaunchArgument(
+        name='calibrate', 
+        default_value='false',
+        choices=['true', 'false'],
+        description='Launch calibration node')
+
+
     cv_node = Node(
         package='camera',
         executable='cam',
         output='screen'
     )
+
+    cali_node = Node(
+        package='camera',
+        executable='cali',
+        output='screen',
+        condition=LaunchConfigurationEquals('calibrate', 'true')
+    )
+
+
+    # launch_franka = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource([
+    #             PathJoinSubstitution([
+    #                 FindPackageShare('franka_moveit_config'),
+    #                 'launch/moveit.launch.py'
+    #             ])
+    #         ]),
+    #     launch_arguments=[('robot_ip', 'dont-care'), ('use_fake_hardware', 'true')]
+    # )
+
 
     launch_realsense = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
@@ -63,9 +89,12 @@ def generate_launch_description():
 
     return LaunchDescription([
         launch_realsense,
-        cv_node,
+        cali_launch_arg,
         rviz_config_arg,
         rviz_launch_arg,
         rviz_node,
-        april_node
+        april_node,
+        cv_node,
+        cali_node,
+        # launch_franka
     ])

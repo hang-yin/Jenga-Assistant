@@ -13,7 +13,8 @@ setup(
                                    'launch/jenga_vision.launch.py',
                                    'launch/cv.launch.py',
                                    'config/april.rviz',
-                                   'config/april.yaml']),
+                                   'config/april.yaml',
+                                   'config/tf.yaml']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -24,7 +25,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'cam = camera.realsense:main'
+            'cam = camera.realsense:main',
+            'cali = camera.calibrate:main'
         ],
     },
 )
