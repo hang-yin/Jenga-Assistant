@@ -294,7 +294,7 @@ class Cam(Node):
             # self.get_logger().info(f"dy: {dy}, dx: {dx}")
             angle = np.arctan2(dy,dx)
             # self.get_logger().info(f"Angle: {angle}")
-            centroid_pose.orientation = angle_axis_to_quaternion(angle, [0, 0, 1])
+            centroid_pose.orientation = angle_axis_to_quaternion(angle, [0, 1, 0])
             corner_array = PoseArray()
             corner_array.header.stamp = self.get_clock().now().to_msg()
             for corner in box:
@@ -400,7 +400,6 @@ class Cam(Node):
                     self.get_logger().info("Piece (?) detected")
                     self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
                     self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
-                    self.piece_pub.publish(centroid_pose)
                     # TODO: Add tf. Camera -> piece.
                     #create tf between the tag and the rotated frame
                     self.brick.header.stamp = self.get_clock().now().to_msg()
@@ -410,11 +409,12 @@ class Cam(Node):
                     self.brick.transform.translation.y = centroid_pose.position.y
                     self.brick.transform.translation.z = centroid_pose.position.z
                     # calculate the rotations with quaternians
-                    # self.brick.transform.rotation.x = centroid_pose.orientation.x
-                    # self.brick.transform.rotation.y = centroid_pose.orientation.y
-                    # self.brick.transform.rotation.z = centroid_pose.orientation.z
-                    # self.brick.transform.rotation.w = centroid_pose.orientation.w
+                    self.brick.transform.rotation.x = centroid_pose.orientation.x
+                    self.brick.transform.rotation.y = centroid_pose.orientation.y
+                    self.brick.transform.rotation.z = centroid_pose.orientation.z
+                    self.brick.transform.rotation.w = centroid_pose.orientation.w
                     self.tf_broadcaster.sendTransform(self.brick)
+                    self.piece_pub.publish(centroid_pose)
                     self.scan_index += self.band_width
                     self.band_start += self.band_width
                     self.state = State.PAUSED
