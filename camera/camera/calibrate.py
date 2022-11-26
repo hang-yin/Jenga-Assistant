@@ -1,9 +1,11 @@
 import rclpy
 import math
 import yaml
+import os
 from rclpy.node import Node
 from geometry_msgs.msg import Quaternion
 from ament_index_python.packages import get_package_share_path
+from ament_index_python.packages import get_package_share_directory
 import numpy as np
 from tf2_ros import TransformBroadcaster
 # np.set_printoptions(threshold=sys.maxsize)
@@ -100,8 +102,7 @@ class Calibrate(Node):
         self.t = TransformStamped()
         self.rot_base = TransformStamped()
 
-        camera_path = get_package_share_path('camera')
-        self.tf_path  = camera_path / 'tf.rviz'
+        
 
     def timer_callback(self):
         #listener for the camera to tag
@@ -164,20 +165,25 @@ class Calibrate(Node):
                 self.frame_base,
                 rclpy.time.Time())
             self.get_logger().info(f"cam_base: {cam_base}")
-            dump = {'ros_parameters': {'x_trans': cam_base.transform.translation.x,
-                                       'y_trans': cam_base.transform.translation.y,
-                                       'z_trans': cam_base.transform.translation.z,
-                                       'x_rot': cam_base.transform.rotation.x,
-                                       'y_rot': cam_base.transform.rotation.y,
-                                       'z_rot': cam_base.transform.rotation.z,
-                                       'w_rot': cam_base.transform.rotation.w}}
+            dump = {'/**':{'ros_parameters': {'x_trans': cam_base.transform.translation.x,
+                                              'y_trans': cam_base.transform.translation.y,
+                                              'z_trans': cam_base.transform.translation.z,
+                                              'x_rot': cam_base.transform.rotation.x,
+                                              'y_rot': cam_base.transform.rotation.y,
+                                              'z_rot': cam_base.transform.rotation.z,
+                                              'w_rot': cam_base.transform.rotation.w}}}
         except:
             self.get_logger().info(
                 f'Could not transform {self.frame_camera} to {self.frame_base}')
             return
-        # self.get_logger().info(self.tf_path)
-        with open('tf.yaml', 'w') as file: 
-                yaml.dump(dump, file)
+        
+        self.get_logger().info("LOL IT LAUNCHED")
+        # Write the transform information to the tf.yaml in the share directory
+        # Must be done each time the robot is being reset
+        camera_path = get_package_share_path('camera')
+        tf_path = str(camera_path)+'/tf.yaml'
+        with open(str(tf_path), 'w') as outfile: 
+                outfile.write(yaml.dump(dump, default_flow_style=False))
         
 
 def main(args=None):
