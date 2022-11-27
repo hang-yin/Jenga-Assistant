@@ -380,13 +380,14 @@ class PlanAndExecute:
             # IK service has failed
             return None
 
-    async def plan_to_cartisian_pose(self, start_pose, end_pose, execute):
+    async def plan_to_cartisian_pose(self, start_pose, end_pose, v, execute):
         """Return MoveGroup action from a start to end pose (position + orientation)."""
         self.node.get_logger().info("Plan to Pose")
         # if not start_pose:
         start_pose = self.getStartPose()
         self.master_goal.request.start_state.joint_state = self.js
         self.fill_constraints(self.js.name, self.js.position, 0.001)
+        self.master_goal.request.max_velocity_scaling_factor = v
         # else:
         #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
         #     request_temp = GetCartesianPath.Request(ik_request=request_start)
