@@ -97,7 +97,6 @@ class Test(Node):
         self.pregrasp_pose = None
 
         self.piece_sub = self.create_subscription(Pose, 'jenga_piece', self.piece_cb, 10)
-        self.piece_pose = None
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         # added these so it won't rely on service calls to run
@@ -105,15 +104,25 @@ class Test(Node):
         self.execute = True
     
     def piece_cb(self, data):
-        self.get_logger().info(f'Piece location in camera frame: {data}')
+        """
+        Get the location of the jenga piece from cv nodes, and transform into panda_link0 frame.
+
+        The location of the jenga piece in panda_link0 frame is then stored in self.goal_pose
+        """
+        self.get_logger().info(f'Piece location in camera frame:\n{data}')
+        # TODO: Might need to wait a bit before looking up the transform.
+        # Sometimes it is not there immediately.
         try:
             t = self.tf_buffer.lookup_transform('panda_link0', 'brick', rclpy.time.Time())
-            # I round the z coordinate to 4 sig figs since sometimes there are small flickers
-            # For example sometimes it flickers between
-            # 2.95 and 2.949999999999
-            self.get_logger().info(f'transform bw base and brick: {t}')
+            self.get_logger().info(f'transform bw base and brick:\n{t}')
             self.get_logger().info('Go to orient')
-            self.piece_pose = t.transform
+            self.goal_pose.position.x = t.transform.translation.x
+            self.goal_pose.position.y = t.transform.translation.y
+            self.goal_pose.position.z = t.transform.translation.z
+            self.goal_pose.orientation.x = t.transform.rotation.x
+            self.goal_pose.orientation.y = t.transform.rotation.y
+            self.goal_pose.orientation.z = t.transform.rotation.z
+            self.goal_pose.orientation.w = t.transform.rotation.w
             self.state = State.ORIENT
         except TransformException:
             print("couldn't do panda_link0->brick transform")
@@ -239,16 +248,16 @@ class Test(Node):
             self.state = State.IDLE
         elif self.state == State.ORIENT:
             self.get_logger().info('ORIENT STATE')
-            # TODO: if y > 0, do something, else do something else
             orientation_pose = copy.deepcopy(self.goal_pose)
-            orientation_pose.orientation.x = self.piece_pose.rotation.x
-            # if self.goal_pose.position.y > 0:
-            #     orientation_pose.orientation.y = -0.3826834
-            # else:
-            #     orientation_pose.orientation.y = 0.3826834
-            orientation_pose.orientation.y = self.piece_pose.rotation.y
-            orientation_pose.orientation.z = self.piece_pose.rotation.z
-            orientation_pose.orientation.w = self.piece_pose.rotation.w
+            # Turn to either +/- 45 degrees depending on piece position.
+            orientation_pose.orientation.x = 0.9238795
+            if self.goal_pose.position.y > 0:
+                orientation_pose.orientation.y = -0.3826834
+            else:
+                orientation_pose.orientation.y = 0.3826834
+            orientation_pose.orientation.z = 0.0
+            orientation_pose.orientation.w = 0.0
+
             self.get_logger().info('PLAN')
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 orientation_pose, 0.02,
