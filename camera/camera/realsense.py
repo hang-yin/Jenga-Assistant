@@ -94,8 +94,8 @@ class Cam(Node):
         kernel_size = 25
         self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
 
-        self.sq_orig = [434,0]
-        self.sq_sz = 366
+        self.sq_orig = [581,0]
+        self.sq_sz = 336
 
         self.rect = None
         self.update_rect()
@@ -104,7 +104,7 @@ class Cam(Node):
 
         self.tower_top = None
         self.table = None
-        self.scan_start = 700
+        self.scan_start = 500
         self.scan_index = self.scan_start
         self.max_scan = 1000
         self.scan_step = 0.5
@@ -122,9 +122,10 @@ class Cam(Node):
         cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
         cv2.createTrackbar('band width', 'Mask' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'Mask' , self.band_start, 1000, self.band_start_tb)
-        cv2.createTrackbar('origin x', 'Mask', self.sq_orig[0], 1000, self.sqx_trackbar)
-        cv2.createTrackbar('origin y', 'Mask' , self.sq_orig[1], 1000, self.sqy_trackbar)
-        cv2.createTrackbar('size', 'Mask' , self.sq_sz, 700, self.sqw_trackbar)
+        cv2.namedWindow('Color')
+        cv2.createTrackbar('origin x', 'Color', self.sq_orig[0], 1000, self.sqx_trackbar)
+        cv2.createTrackbar('origin y', 'Color' , self.sq_orig[1], 1000, self.sqy_trackbar)
+        cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
 
         # cv2.namedWindow('Corners')
         # cv2.createTrackbar('corner threshold*100', 'Corners',
@@ -280,9 +281,13 @@ class Cam(Node):
                                                                      max_centroid[1]],
                                                                     centroid_depth)
             centroid_pose = Pose()
-            centroid_pose.position.x = -centroid_deprojected[1]/1000.
-            centroid_pose.position.y = -centroid_deprojected[2]/1000.
-            centroid_pose.position.z = centroid_deprojected[0]/1000.
+            # # THIS IS NOT RIGHT ANYMORE LMAO
+            # centroid_pose.position.x = -centroid_deprojected[1]/1000.
+            # centroid_pose.position.y = -centroid_deprojected[2]/1000.
+            # centroid_pose.position.z = centroid_deprojected[0]/1000.
+            centroid_pose.position.x = centroid_deprojected[0]/1000.
+            centroid_pose.position.y = centroid_deprojected[1]/1000.
+            centroid_pose.position.z = centroid_deprojected[2]/1000.
             # self.get_logger().info(f"DEPROJECTED Centroid depth:{deprojected}\n")
             # Try finding the corners of the object
             min_rect = cv2.minAreaRect(max_contour)
@@ -313,11 +318,14 @@ class Cam(Node):
                 corner_array.poses.append(cornerPose)
             # self.get_logger().info(f"CORNER ARRAY: {corner_array}")
 
-        drawn_contours = cv2.drawContours(np.array(self.color_frame), large_contours, -1, (0,255,0), 3)
+        color_rect = cv2.rectangle(np.array(self.color_frame),
+                                   self.rect[0][0], self.rect[0][2],
+                                   (255,0,0), 2)
+        drawn_contours = cv2.drawContours(color_rect, large_contours, -1, (0,255,0), 3)
         if max_centroid is not None:
             drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0,0,255), 5)
             drawn_contours = cv2.drawContours(drawn_contours, [box], 0, (255,0,0), 3)
-        cv2.imshow("Depth Contours on Color Image", drawn_contours)
+        cv2.imshow('Color', drawn_contours)
 
         cv2.waitKey(1)
         return largest_area, centroid_pose, corner_array
@@ -384,7 +392,7 @@ class Cam(Node):
                     self.table = self.band_start
                     self.scan_index = self.tower_top + self.band_width
                     self.band_start = self.tower_top + self.band_width
-                    self.state = State.SCANNING
+                    self.state = State.PAUSED
         elif self.state == State.SCANNING:
             # Keep scanning downwards
             self.band_start = self.scan_index
@@ -400,7 +408,6 @@ class Cam(Node):
                     self.get_logger().info("Piece (?) detected")
                     self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
                     self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
-                    # TODO: Add tf. Camera -> piece.
                     #create tf between the tag and the rotated frame
                     self.brick.header.stamp = self.get_clock().now().to_msg()
                     self.brick.header.frame_id = self.frame_camera
@@ -415,8 +422,8 @@ class Cam(Node):
                     self.brick.transform.rotation.w = centroid_pose.orientation.w
                     self.tf_broadcaster.sendTransform(self.brick)
                     self.piece_pub.publish(centroid_pose)
-                    self.scan_index += self.band_width
-                    self.band_start += self.band_width
+                    # self.scan_index += self.band_width
+                    # self.band_start += self.band_width
                     self.state = State.PAUSED
 
 
