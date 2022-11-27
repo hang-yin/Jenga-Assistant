@@ -212,6 +212,7 @@ class Calibrate(Node):
             with open(str(tf_path), 'w') as outfile:
                     outfile.write(yaml.dump(self.dump, default_flow_style=False))
             self.state = State.IDLE
+            self.get_logger().info("tf.yaml written to! You can exit now.")
         
 
 def main(args=None):
