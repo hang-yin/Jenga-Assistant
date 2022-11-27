@@ -80,7 +80,8 @@ class Test(Node):
         self.timer = self.create_timer(period, self.timer_callback, callback_group=self.cbgroup)
         self.movegroup = None
         self.go_here = self.create_service(GoHere, '/go_here', self.go_here_callback)
-        self.cart_go_here = self.create_service(GoHere, 'cartesian_here', self.cart_callback)
+        self.cart_go_here = self.create_service(GoHere, '/cartesian_here', self.cart_callback)
+        self.jenga = self.create_service(GoHere, '/jenga_time', self.jenga_callback)
         self.cal = self.create_service(Empty, '/calibrate', self.calibrate_callback)
         self.cal = self.create_service(Empty, '/ready', self.ready_callback)
         self.place = self.create_service(Place, '/place', self.place_callback)
@@ -128,6 +129,20 @@ class Test(Node):
         return response
     
     def cart_callback(self, request, response):
+        """
+        Call a custom service that takes one Pose of variable length, a regular Pose, and a bool.
+
+        The user can pass a custom start postion to the service and a desired end goal. The boolean
+        indicates whether to plan or execute the path.
+        """
+        self.goal_pose = request.goal_pose
+        self.execute = True
+        self.start_pose = None
+        self.state = State.CARTESIAN
+        response.success = True
+        return response
+
+    def jenga_callback(self, request, response):
         """
         Call a custom service that takes one Pose of variable length, a regular Pose, and a bool.
 
@@ -234,27 +249,27 @@ class Test(Node):
             # else:
             #     self.ct += 1
 
-        # elif self.state == State.CARTESIAN:
-        #     self.state = State.IDLE
-        #     # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
-        #     #                                              self.goal_pose,
-        #     #                                              self.execute)
-        #     # self.future = await self.PlanEx.plan_to_position(self.start_pose,
-        #     #                                                  self.goal_pose,
-        #     #                                                  self.execute)
-        #     # self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
-        #     #                                                     self.goal_pose,
-        #     #                                                     self.execute)
-        #     offset = math.sin(math.pi/2) * 0.1
-        #     pre_grasp = self.goal_pose
-        #     pre_grasp.position.x = self.goal_pose.position.x - offset
-        #     if self.goal_pose.position.y > 0:
-        #         pre_grasp.position.y  = self.goal_pose.position.y + offset
-        #     else:
-        #         pre_grasp.position.y = self.goal_pose.position.y - offset
-        #     self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-        #                                                            pre_grasp,
-        #                                                            self.execute)
+        elif self.state == State.CARTESIAN:
+            self.state = State.IDLE
+            # self.future = await self.PlanEx.plan_to_pose(self.start_pose,
+            #                                              self.goal_pose,
+            #                                              self.execute)
+            # self.future = await self.PlanEx.plan_to_position(self.start_pose,
+            #                                                  self.goal_pose,
+            #                                                  self.execute)
+            # self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
+            #                                                     self.goal_pose,
+            #                                                     self.execute)
+            offset = math.sin(math.pi/2) * 0.1
+            pre_grasp = self.goal_pose
+            pre_grasp.position.x = self.goal_pose.position.x - offset
+            if self.goal_pose.position.y > 0:
+                pre_grasp.position.y  = self.goal_pose.position.y + offset
+            else:
+                pre_grasp.position.y = self.goal_pose.position.y - offset
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                   pre_grasp, 0.1,
+                                                                   self.execute)
         #     # await self.PlanEx.grab()
         elif self.state == State.ORIENT:
             # TODO: if y > 0, do something, else do something else
