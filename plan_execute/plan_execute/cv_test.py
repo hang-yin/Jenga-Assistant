@@ -75,7 +75,7 @@ class Test(Node):
 
     def __init__(self):
         """Create callbacks, initialize variables, start timer."""
-        super().__init__('simple_move')
+        super().__init__('cv_test')
         # Start timer
         self.freq = 100.
         self.cbgroup = MutuallyExclusiveCallbackGroup()
@@ -123,6 +123,7 @@ class Test(Node):
             self.goal_pose.orientation.y = t.transform.rotation.y
             self.goal_pose.orientation.z = t.transform.rotation.z
             self.goal_pose.orientation.w = t.transform.rotation.w
+            self.get_logger().info(f'Goal Pose:\n{self.goal_pose}')
             self.state = State.ORIENT
         except TransformException:
             print("couldn't do panda_link0->brick transform")
@@ -264,7 +265,7 @@ class Test(Node):
                                                                 self.execute)
             self.get_logger().info('DONE')
             self.prev_state = State.ORIENT
-            self.state = State.IDLE
+            self.state = State.PREGRAB
         
         elif self.state == State.PREGRAB:
             # go to pre-grab pose
@@ -277,7 +278,7 @@ class Test(Node):
                 pre_grasp.position.y = self.goal_pose.position.y - offset
             self.pregrasp_pose = pre_grasp
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pre_grasp,
+                                                                   pre_grasp, 0.1,
                                                                    self.execute)
             self.prev_state = State.PREGRAB
             self.state = State.GRAB
@@ -287,10 +288,10 @@ class Test(Node):
             self.get_logger().info('grabbing')
             self.get_logger().info(str(self.goal_pose))
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   self.goal_pose,
+                                                                   self.goal_pose, 0.1,
                                                                    self.execute)
             # grab
-            # self.future = await self.PlanEx.grab()
+            self.future = await self.PlanEx.grab()
             time.sleep(4) # maybe change to a counter rather than sleep 
 
             # go to pull pose
@@ -303,7 +304,7 @@ class Test(Node):
             pull_pose = copy.deepcopy(self.pregrasp_pose)
             self.get_logger().info(str(pull_pose))
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pull_pose,
+                                                                   pull_pose, 0.1,
                                                                    self.execute)
             self.prev_state = State.PULL
             self.get_logger().info(str(self.prev_state))
@@ -327,7 +328,7 @@ class Test(Node):
             self.get_logger().info(str(self.prev_state))
             if self.prev_state == State.PULL:
                 self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                    ready_pose,
+                                                                    ready_pose, 0.1,
                                                                     self.execute)
                 self.get_logger().info('ORIENTING')
                 self.prev_state = State.READY
@@ -358,12 +359,12 @@ class Test(Node):
             set_pose.position.y = -0.069
             set_pose.position.z = 0.205
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   set_pose,
+                                                                   set_pose, 0.1,
                                                                    self.execute)
             self.prev_state = State.SET            
             self.state = State.RELEASE
         elif self.state == State.RELEASE:
-            # self.future = await self.PlanEx.release()
+            self.future = await self.PlanEx.release()
             time.sleep(1)
             self.prev_state = State.RELEASE
             self.state = State.READY
