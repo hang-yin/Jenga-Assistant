@@ -2,6 +2,7 @@ import rclpy
 import math
 import yaml
 import os
+from enum import Enum, auto
 from rclpy.node import Node
 from geometry_msgs.msg import Quaternion
 from ament_index_python.packages import get_package_share_path
@@ -12,20 +13,17 @@ from tf2_ros import TransformBroadcaster
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from geometry_msgs.msg import TransformStamped
-from enum import Enum, auto
-
 
 class State(Enum):
-    """Current Transform to apply"""
+    """
+    Current state of the system.
 
-    LOOKUP_CAMERA_TAG = auto(),
-    LOOKUP_EE_BASE = auto(),
-    CREATE_TAG_ROTATED = auto(),
-    CREATE_ROTATED_BASE = auto(),
-    LOOKUP_CAMERA_BASE = auto(),
-    WRITE_YAML = auto(),
-    IDLE = auto()
-
+    Determines what the main timer function should be doing on each iteration
+    """
+    LISTEN = auto(),
+    CALIBRATE = auto(),
+    WRITE = auto()
+    DONE = auto()
 
 def quaternion_from_euler(ai, aj, ak): # I STOLE THIS FROM THE ROS DOCS
     ai /= 2.0
@@ -114,18 +112,15 @@ class Calibrate(Node):
         self.rot = TransformStamped()
         self.t = TransformStamped()
         self.rot_base = TransformStamped()
-
-        self.state = State.LOOKUP_CAMERA_TAG
-
-        self.camera_tag = None
-        self.ee_base = None
-        self.dump = None
-        self.og_q = None
-
+        self.state = State.LISTEN
+        self.listen = 0
+        self.calibrate = 0
+        self.write = 0
 
     def timer_callback(self):
-        if self.state == State.LOOKUP_CAMERA_TAG:
-        #listener for the camera to tag
+        # self.get_logger().info(str(self.state))
+        if self.state == State.LISTEN:
+            #listener for the camera to tag
             try:
                 r = self.tf_buffer.lookup_transform(
                     self.frame_camera,
@@ -133,33 +128,33 @@ class Calibrate(Node):
                     rclpy.time.Time())
                 self.og_q = np.array([r.transform.rotation.x, r.transform.rotation.y,
                                 r.transform.rotation.z, r.transform.rotation.w])
-                self.get_logger().info(f"camera->tag: {r}")
-                self.camera_tag = r
-                
-                self.state = State.LOOKUP_EE_BASE
+                # self.get_logger().info(f"t: {r}")
             except:
                 self.get_logger().info(
                     f'Could not transform {self.frame_camera} to {self.frame_tag}')
-        
-        elif self.state == State.LOOKUP_EE_BASE:
+                return
+
             # listener for the end effector to the base
             try:
-                s = self.tf_buffer.lookup_transform(
+                self.s = self.tf_buffer.lookup_transform(
                     self.frame_ee,
                     self.frame_base,
                     rclpy.time.Time())
-                self.get_logger().info(f"ee->base: {s}")
-                self.ee_base = s
-                self.state = State.CREATE_TAG_ROTATED
+                # self.get_logger().info(f"s: {s}")
             except:
                 self.get_logger().info(
                     f'Could not transform {self.frame_ee} to {self.frame_base}')
-        
-        elif self.state == State.CREATE_TAG_ROTATED:
+                return
+            if self.listen < 300:
+                self.listen += 1
+            else:
+                self.state = State.CALIBRATE
+
+        if self.state == State.CALIBRATE:
             rad = deg_to_rad(90)
             #create tf between the tag and the rotated frame
             self.rot.header.stamp = self.get_clock().now().to_msg()
-            self.rot.header.frame_id = self.frame_ee
+            self.rot.header.frame_id = self.frame_tag
             self.rot.child_frame_id = self.frame_rotate
             self.rot.transform.translation.x = 0.0
             self.rot.transform.translation.y = 0.0
@@ -174,26 +169,22 @@ class Calibrate(Node):
             self.rot.transform.rotation.z = q_new[2]
             self.rot.transform.rotation.w = q_new[3]
             self.tf_broadcaster.sendTransform(self.rot)
-            self.get_logger().info(f"rotated: {self.rot}")
-            self.state = State.CREATE_ROTATED_BASE
-        
-        elif self.state == State.CREATE_ROTATED_BASE:
+
             # create a tf between the rotated frame and panda_link0
-            self.rot_base = self.ee_base
+            self.rot_base = self.s
             self.rot_base.header.stamp = self.get_clock().now().to_msg()
             self.rot_base.header.frame_id = self.frame_rotate
             self.rot_base.child_frame_id = self.frame_base
             self.tf_broadcaster.sendTransform(self.rot_base)
-            self.state = State.LOOKUP_CAMERA_BASE
 
-        elif self.state == State.LOOKUP_CAMERA_BASE:
+
             # listener for the camera to base
             try:
                 cam_base = self.tf_buffer.lookup_transform(
                     self.frame_camera,
                     self.frame_base,
                     rclpy.time.Time())
-                self.get_logger().info(f"cam_base: {cam_base}")
+                # self.get_logger().info(f"cam_base: {cam_base}")
                 self.dump = {'/**':{'ros__parameters': {'x_trans': cam_base.transform.translation.x,
                                                 'y_trans': cam_base.transform.translation.y,
                                                 'z_trans': cam_base.transform.translation.z,
@@ -201,20 +192,28 @@ class Calibrate(Node):
                                                 'y_rot': cam_base.transform.rotation.y,
                                                 'z_rot': cam_base.transform.rotation.z,
                                                 'w_rot': cam_base.transform.rotation.w}}}
-                self.state = State.WRITE_YAML
             except:
                 self.get_logger().info(
                     f'Could not transform {self.frame_camera} to {self.frame_base}')
+                return
 
-        elif self.state == State.WRITE_YAML:
+            if self.calibrate < 300:
+                    self.calibrate += 1
+            else:
+                    self.state = State.WRITE
+
+        if self.state == State.WRITE:
+
             # Write the transform information to the tf.yaml in the share directory
             # Must be done each time the robot is being reset
             camera_path = get_package_share_path('camera')
             tf_path = str(camera_path)+'/tf.yaml'
             with open(str(tf_path), 'w') as outfile:
                     outfile.write(yaml.dump(self.dump, default_flow_style=False))
-            self.state = State.IDLE
-            self.get_logger().info("tf.yaml written to! You can exit now.")
+            self.state = State.DONE
+    
+        if self.state == State.DONE:
+            self.get_logger().info("Done calibrating!")
         
 
 def main(args=None):
