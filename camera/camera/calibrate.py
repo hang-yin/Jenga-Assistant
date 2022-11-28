@@ -133,8 +133,9 @@ class Calibrate(Node):
                     rclpy.time.Time())
                 self.og_q = np.array([r.transform.rotation.x, r.transform.rotation.y,
                                 r.transform.rotation.z, r.transform.rotation.w])
-                # self.get_logger().info(f"t: {r}")
+                self.get_logger().info(f"camera->tag: {r}")
                 self.camera_tag = r
+                
                 self.state = State.LOOKUP_EE_BASE
             except:
                 self.get_logger().info(
@@ -147,7 +148,7 @@ class Calibrate(Node):
                     self.frame_ee,
                     self.frame_base,
                     rclpy.time.Time())
-                # self.get_logger().info(f"s: {s}")
+                self.get_logger().info(f"ee->base: {s}")
                 self.ee_base = s
                 self.state = State.CREATE_TAG_ROTATED
             except:
@@ -158,7 +159,7 @@ class Calibrate(Node):
             rad = deg_to_rad(90)
             #create tf between the tag and the rotated frame
             self.rot.header.stamp = self.get_clock().now().to_msg()
-            self.rot.header.frame_id = self.frame_tag
+            self.rot.header.frame_id = self.frame_ee
             self.rot.child_frame_id = self.frame_rotate
             self.rot.transform.translation.x = 0.0
             self.rot.transform.translation.y = 0.0
@@ -173,6 +174,7 @@ class Calibrate(Node):
             self.rot.transform.rotation.z = q_new[2]
             self.rot.transform.rotation.w = q_new[3]
             self.tf_broadcaster.sendTransform(self.rot)
+            self.get_logger().info(f"rotated: {self.rot}")
             self.state = State.CREATE_ROTATED_BASE
         
         elif self.state == State.CREATE_ROTATED_BASE:
