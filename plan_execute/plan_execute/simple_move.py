@@ -99,6 +99,10 @@ class Test(Node):
         self.block_pose = Pose()
         self.future = None
         self.pregrasp_pose = None
+        self.place_pose = Pose()
+        self.place_pose.position.x = 0.474
+        self.place_pose.position.y = -0.069
+        self.place_pose.position.z = 0.205
 
     def go_here_callback(self, request, response):
         """
@@ -379,9 +383,9 @@ class Test(Node):
             set_pose = copy.deepcopy(self.goal_pose)
             
             offset = math.sin(math.pi/2) * 0.02
-            set_pose.position.x = 0.474 - offset
-            set_pose.position.y = -0.069 - offset
-            set_pose.position.z = 0.205
+            set_pose.position.x = self.place_pose.position.x - offset
+            set_pose.position.y = self.place_pose.position.y - offset
+            set_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    set_pose, 0.1,
                                                                    self.execute)
@@ -396,9 +400,9 @@ class Test(Node):
             prepush_pose = copy.deepcopy(self.goal_pose)
             
             offset = math.sin(math.pi/2) * 0.04
-            prepush_pose.position.x = 0.474 - offset
-            prepush_pose.position.y = -0.069 - offset
-            prepush_pose.position.z = 0.205
+            prepush_pose.position.x = self.place_pose.position.x - offset
+            prepush_pose.position.y = self.place_pose.position.y - offset
+            prepush_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    prepush_pose, 0.1,
                                                                    self.execute)
@@ -411,9 +415,9 @@ class Test(Node):
             self.state = State.PUSH
         elif self.state == State.PUSH:
             push_pose = copy.deepcopy(self.goal_pose)
-            push_pose.position.x = 0.474
-            push_pose.position.y = -0.069
-            push_pose.position.z = 0.205
+            push_pose.position.x = self.place_pose.position.x
+            push_pose.position.y = self.place_pose.position.y
+            push_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    push_pose, 0.1,
                                                                    self.execute)
