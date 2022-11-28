@@ -281,7 +281,7 @@ class Test(Node):
                                                                    pre_grasp, 0.1,
                                                                    self.execute)
             self.prev_state = State.PREGRAB
-            self.state = State.GRAB
+            self.state = State.IDLE
 
         elif self.state == State.GRAB:
             # # go to grab pose

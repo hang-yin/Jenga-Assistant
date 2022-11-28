@@ -94,8 +94,8 @@ class Cam(Node):
         kernel_size = 25
         self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
 
-        self.sq_orig = [581,0]
-        self.sq_sz = 336
+        self.sq_orig = [450,0]
+        self.sq_sz = 450
 
         self.rect = None
         self.update_rect()

@@ -33,28 +33,19 @@ def generate_launch_description():
         choices=['true', 'false'],
         description='Launch calibration node')
 
-    # config = os.path.join(
-    #     get_package_share_directory('camera'),
-    #     'tf.yaml'
-    #     )
-        
-    # node=Node(
-    #     package = 'ros2_tutorials',
-    #     name = 'your_amazing_node',
-    #     executable = 'test_yaml_params',
-    #     parameters = [config]
-
     cv_node = Node(
         package='camera',
         executable='cam',
-        output='screen'
+        output='screen',
+        condition=LaunchConfigurationEquals('calibrate', 'false')
     )
 
     tf_broad_node = Node(
         package='camera',
         executable='broadcast',
         parameters=[default_tf_config_path],
-        output='screen'
+        output='screen',
+        condition=LaunchConfigurationEquals('calibrate', 'false')
     )
 
     cali_node = Node(
