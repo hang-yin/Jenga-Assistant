@@ -74,7 +74,7 @@ class Cam(Node):
         self.corners_pub = self.create_publisher(PoseArray, 'jenga_corners', 10)
         self.scan = self.create_service(Empty, "scan", self.scan_service_callback)
         self.stop = self.create_service(Empty, "stop", self.stop_service_callback)
-        self.calib = self.create_service(Empty, "calib", self.calib_service_callback)
+        self.calib = self.create_service(Empty, "findtower", self.calib_service_callback)
         self.br = CvBridge()
 
         # Initialize the transform broadcaster
@@ -116,7 +116,12 @@ class Cam(Node):
         self.object_area_threshold = 10000
         self.piece_area_threshold = 2500
 
-        self.piece_depth = 35 #33.782 #1.3 in
+        self.piece_depth = 0.029 # 3 cm
+
+        self.avg_sec = 1.0
+        self.avg_frames = int(self.avg_sec*self.freq)
+        self.ct = 0
+        self.avg_piece = Pose()
 
         cv2.namedWindow('Mask')
         cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
@@ -405,26 +410,45 @@ class Cam(Node):
             largest_area, centroid_pose, _ = self.get_mask()
             if largest_area:
                 if largest_area > self.piece_area_threshold:
-                    self.get_logger().info("Piece (?) detected")
-                    self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
-                    self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
-                    #create tf between the tag and the rotated frame
-                    self.brick.header.stamp = self.get_clock().now().to_msg()
-                    self.brick.header.frame_id = self.frame_camera
-                    self.brick.child_frame_id = self.frame_brick
-                    self.brick.transform.translation.x = centroid_pose.position.x
-                    self.brick.transform.translation.y = centroid_pose.position.y
-                    self.brick.transform.translation.z = centroid_pose.position.z
-                    # calculate the rotations with quaternians
-                    self.brick.transform.rotation.x = centroid_pose.orientation.x
-                    self.brick.transform.rotation.y = centroid_pose.orientation.y
-                    self.brick.transform.rotation.z = centroid_pose.orientation.z
-                    self.brick.transform.rotation.w = centroid_pose.orientation.w
-                    self.tf_broadcaster.sendTransform(self.brick)
-                    self.piece_pub.publish(centroid_pose)
-                    # self.scan_index += self.band_width
-                    # self.band_start += self.band_width
-                    self.state = State.PAUSED
+                    if self.ct < self.avg_frames:
+                        self.get_logger().info(f'Current pose: {centroid_pose.position}')
+                        # self.get_logger().info("Piece (?) detected")
+                        # self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
+                        # self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
+                        # Avg the pose
+                        self.avg_piece.position.x += centroid_pose.position.x
+                        self.avg_piece.position.y += centroid_pose.position.y
+                        self.avg_piece.position.z += centroid_pose.position.z
+                        self.ct += 1
+                    else:
+                        self.avg_piece.position.x /= float(self.avg_frames)
+                        self.avg_piece.position.y /= float(self.avg_frames)
+                        self.avg_piece.position.z /= float(self.avg_frames)
+                        self.avg_piece.position.z += self.piece_depth/2.
+                        self.get_logger().info("Done averaging")
+                        self.get_logger().info(f"Final pose: {self.avg_piece}")
+                        self.ct = 0
+                        #create tf between the tag and the rotated frame
+                        self.brick.header.stamp = self.get_clock().now().to_msg()
+                        self.brick.header.frame_id = self.frame_camera
+                        self.brick.child_frame_id = self.frame_brick
+                        # This used to be centroid_pose now it is the averaged centroid pose
+                        self.brick.transform.translation.x = self.avg_piece.position.x
+                        self.brick.transform.translation.y = self.avg_piece.position.y
+                        self.brick.transform.translation.z = self.avg_piece.position.z
+                        # calculate the rotations with quaternians
+                        self.brick.transform.rotation.x = self.avg_piece.orientation.x
+                        self.brick.transform.rotation.y = self.avg_piece.orientation.y
+                        self.brick.transform.rotation.z = self.avg_piece.orientation.z
+                        self.brick.transform.rotation.w = self.avg_piece.orientation.w
+                        self.tf_broadcaster.sendTransform(self.brick)
+                        # ALso used to be centroid_pose
+                        self.piece_pub.publish(self.avg_piece)
+                        # self.scan_index += self.band_width
+                        # self.band_start += self.band_width
+                        # Reset Avg Piece
+                        self.avg_piece = Pose()
+                        self.state = State.PAUSED
 
 
 
