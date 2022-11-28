@@ -11,11 +11,6 @@ import math
 import copy
 import time
 
-
-class Ready_State(Enum):
-    PREPLACE = auto()
-
-
 class State(Enum):
     """
     Current state of the system.
@@ -38,6 +33,9 @@ class State(Enum):
     READY = auto(),
     CALIBRATE = auto(),
     RELEASE = auto(),
+    PREPUSH = auto(),
+    PREPUSHFINGER = auto(),
+    PUSH = auto(),
     # ready 
         # sends pose back to ready default position of robot after any movement or motion
     # calibrate
@@ -375,9 +373,14 @@ class Test(Node):
             self.prev_state = State.ORIENT2
             self.state = State.SET
         elif self.state == State.SET:
+            # TODO need six positions for the block: left1, center1, right1, left2, center2, right2
+            # for now, we will hard code this to be left1
+            # we need an offset for the x and y
             set_pose = copy.deepcopy(self.goal_pose)
-            set_pose.position.x = 0.474
-            set_pose.position.y = -0.069
+            
+            offset = math.sin(math.pi/2) * 0.02
+            set_pose.position.x = 0.474 - offset
+            set_pose.position.y = -0.069 - offset
             set_pose.position.z = 0.205
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    set_pose, 0.1,
@@ -388,6 +391,33 @@ class Test(Node):
             self.future = await self.PlanEx.release()
             time.sleep(1)
             self.prev_state = State.RELEASE
+            self.state = State.PREPUSH
+        elif self.state == State.PREPUSH:
+            prepush_pose = copy.deepcopy(self.goal_pose)
+            
+            offset = math.sin(math.pi/2) * 0.04
+            prepush_pose.position.x = 0.474 - offset
+            prepush_pose.position.y = -0.069 - offset
+            prepush_pose.position.z = 0.205
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                   prepush_pose, 0.1,
+                                                                   self.execute)
+            self.prev_state = State.PREPUSH            
+            self.state = State.PREPUSHFINGER
+        elif self.state == State.PREPUSHFINGER:
+            self.future = await self.PlanEx.grab() # maybe TODO create a new function for this state
+            time.sleep(1)
+            self.prev_state = State.PREPUSHFINGER
+            self.state = State.PUSH
+        elif self.state == State.PUSH:
+            push_pose = copy.deepcopy(self.goal_pose)
+            push_pose.position.x = 0.474
+            push_pose.position.y = -0.069
+            push_pose.position.z = 0.205
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                   push_pose, 0.1,
+                                                                   self.execute)
+            self.prev_state = State.PUSH
             self.state = State.READY
         
         elif self.state == State.PLACEBLOCK:
