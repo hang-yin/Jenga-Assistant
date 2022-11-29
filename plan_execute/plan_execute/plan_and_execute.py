@@ -110,6 +110,18 @@ class PlanAndExecute:
         self.master_goal.request.max_velocity_scaling_factor = 0.1
         self.master_goal.request.max_acceleration_scaling_factor = 0.1
         self.collision_list = []
+    
+    async def removeTower(self):
+        """Remove a collision object from the planning scene."""
+        scene_request = PlanningSceneComponents()
+        scene_request.components = 0
+        temp_scene_request = GetPlanningScene.Request(components=scene_request)
+        scene = await self.node.planscene.call_async(temp_scene_request)
+        scene = scene.scene
+        scene.robot_state.joint_state = self.js
+        self.collision_list = self.collision_list[:1]
+        scene.world.collision_objects = self.collision_list
+        self.node.block_pub.publish(scene)
 
     def printBlock(self, req):
         """Make a string of a request or message then log it to the terminal."""
