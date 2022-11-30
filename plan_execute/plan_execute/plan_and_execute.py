@@ -399,7 +399,6 @@ class PlanAndExecute:
         start_pose = self.getStartPose()
         self.master_goal.request.start_state.joint_state = self.js
         self.fill_constraints(self.js.name, self.js.position, 0.001)
-        self.master_goal.request.max_velocity_scaling_factor = v
         # else:
         #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
         #     request_temp = GetCartesianPath.Request(ik_request=request_start)
@@ -423,8 +422,25 @@ class PlanAndExecute:
         # if Cart_response:
             # Create a plan off current joint states
             # plan_result = await self.plan(Cart_response)
+        
         if execute:
+            
+            # decrease velocity
+            for point in Cart_response.joint_trajectory.points:
+                total_time = point.time_from_start.nanosec + point.time_from_start.sec * 1000000000
+                total_time *= 1.0/v
+                point.time_from_start.sec = math.floor(total_time / 1000000000)
+                point.time_from_start.nanosec = math.floor(total_time % 1000000000)
+                
+                for i in range(len(point.velocities)):
+                    point.velocities[i] *= v
+                
+                for i in range(len(point.accelerations)):
+                    point.accelerations[i] *= v
+            
             # execute the plan
+            self.node.get_logger().info("\n\n\n cart response \n\n\n")
+            self.printBlock(Cart_response)
             traj_goal = ExecuteTrajectory.Goal(trajectory=Cart_response)
             execute_future = await self.node._execute_client.send_goal_async(traj_goal)
             execute_result = await execute_future.get_result_async()

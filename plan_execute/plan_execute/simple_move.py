@@ -294,7 +294,7 @@ class Test(Node):
         
         elif self.state == State.PREGRAB:
             # go to pre-grab pose
-            offset = math.sin(math.pi/2) * 0.1
+            offset = math.sin(math.pi/2) * 0.2
             pre_grasp = copy.deepcopy(self.goal_pose)
             pre_grasp.position.x = self.goal_pose.position.x - offset
             if self.goal_pose.position.y > 0:
@@ -303,7 +303,7 @@ class Test(Node):
                 pre_grasp.position.y = self.goal_pose.position.y - offset
             self.pregrasp_pose = pre_grasp
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pre_grasp, 0.1,
+                                                                   pre_grasp, 1.0,
                                                                    self.execute)
             self.prev_state = State.PREGRAB
             self.state = State.GRAB
@@ -313,7 +313,7 @@ class Test(Node):
             self.get_logger().info('grabbing')
             self.get_logger().info(str(self.goal_pose))
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   self.goal_pose, 0.1,
+                                                                   self.goal_pose, 1.0,
                                                                    self.execute)
             # grab
             self.future = await self.PlanEx.grab()
@@ -329,7 +329,7 @@ class Test(Node):
             pull_pose = copy.deepcopy(self.pregrasp_pose)
             self.get_logger().info(str(pull_pose))
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pull_pose, 0.05,
+                                                                   pull_pose, 0.25,
                                                                    self.execute)
             self.prev_state = State.PULL
             self.get_logger().info(str(self.prev_state))
@@ -353,7 +353,7 @@ class Test(Node):
             self.get_logger().info(str(self.prev_state))
             if self.prev_state == State.PULL:
                 self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                    ready_pose, 0.1,
+                                                                    ready_pose, 1.0,
                                                                     self.execute)
                 self.get_logger().info('ORIENTING')
                 self.prev_state = State.READY
@@ -403,7 +403,7 @@ class Test(Node):
             set_pose.position.y = self.place_pose.position.y - offset
             set_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   set_pose, 0.1,
+                                                                   set_pose, 1.2,
                                                                    self.execute)
             self.prev_state = State.SET            
             self.state = State.RELEASE
@@ -421,7 +421,7 @@ class Test(Node):
             prepush_pose.position.y = self.place_pose.position.y - offset
             prepush_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   prepush_pose, 0.1,
+                                                                   prepush_pose, 1.2,
                                                                    self.execute)
             self.prev_state = State.PREPUSH            
             self.state = State.PREPUSHFINGER
@@ -437,7 +437,7 @@ class Test(Node):
             push_pose.position.y = self.place_pose.position.y - offset
             push_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   push_pose, 0.1,
+                                                                   push_pose, 0.25,
                                                                    self.execute)
             self.prev_state = State.PUSH
             self.state = State.POSTPUSH
@@ -448,7 +448,7 @@ class Test(Node):
             postpush_pose.position.y = self.place_pose.position.y - offset
             postpush_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   postpush_pose, 0.1,
+                                                                   postpush_pose, 1.0,
                                                                    self.execute)
             self.prev_state = State.POSTPUSH
             self.state = State.READY
