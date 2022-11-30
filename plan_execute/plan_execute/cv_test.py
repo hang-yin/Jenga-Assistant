@@ -376,6 +376,11 @@ class Test(Node):
                 self.get_logger().info('Go to orient')
                 self.goal_pose.position.x = t.transform.translation.x
                 self.goal_pose.position.y = t.transform.translation.y
+                # HARDCODED OFFSET LMAO WILL IT WORK?
+                if self.goal_pose.position.y < 0:
+                    self.goal_pose.position.y -= 0.02
+                else: 
+                    self.goal_pose.position.y += 0.02
                 self.goal_pose.position.z = t.transform.translation.z
                 self.goal_pose.orientation.x = t.transform.rotation.x
                 self.goal_pose.orientation.y = t.transform.rotation.y

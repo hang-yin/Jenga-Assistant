@@ -198,7 +198,7 @@ class Cam(Node):
     
     def piece_found_cb(self, data):
         # Stop publishing tf data!!
-        self.get_logger().info('STOP publishing tfs')
+        self.get_logger().info('Brick found')
         self.state = State.PAUSED
 
     def calib_service_callback(self, _, response):
@@ -450,6 +450,9 @@ class Cam(Node):
                         self.avg_piece.position.x = np.median(self.piece_x)
                         self.avg_piece.position.y = np.median(self.piece_y)
                         self.avg_piece.position.z = np.median(self.piece_z)
+                        self.piece_x = []
+                        self.piece_y = []
+                        self.piece_z = []
                         self.avg_piece.position.z += self.piece_depth/2.
                         self.get_logger().info("Done averaging")
                         self.get_logger().info(f"Final pose: {self.avg_piece}")
