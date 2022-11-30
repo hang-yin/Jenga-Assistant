@@ -470,7 +470,7 @@ class Cam(Node):
                         # self.avg_piece = Pose()
                         self.state = State.PUBLISHPIECE
         elif self.state == State.PUBLISHPIECE:
-            self.get_logger().info('PUBLISH TFS!')
+            # self.get_logger().info('PUBLISH TFS!')
             # Continue to publish camera image
             _,_,_ = self.get_mask()
             #create tf between the tag and the rotated frame using avg_piece

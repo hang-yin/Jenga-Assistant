@@ -275,7 +275,7 @@ class Test(Node):
                                                                    pre_grasp, 0.1,
                                                                    self.execute)
             self.prev_state = State.PREGRAB
-            self.state = State.IDLE
+            self.state = State.GRAB
 
         elif self.state == State.GRAB:
             # # go to grab pose
@@ -304,6 +304,7 @@ class Test(Node):
             self.get_logger().info(str(self.prev_state))
             self.state = State.READY
         elif self.state == State.READY:
+            self.get_logger().info('State.Ready')
             # TODO: go to ready pose
         
             ready_pose = Pose()
@@ -377,8 +378,9 @@ class Test(Node):
                 self.goal_pose.position.x = t.transform.translation.x
                 self.goal_pose.position.y = t.transform.translation.y
                 # HARDCODED OFFSET LMAO WILL IT WORK?
+                self.get_logger().info(f'y init: {t.transform.translation.y}')
                 if self.goal_pose.position.y < 0:
-                    self.goal_pose.position.y -= 0.02
+                    self.goal_pose.position.y -= 0
                 else: 
                     self.goal_pose.position.y += 0.02
                 self.goal_pose.position.z = t.transform.translation.z
