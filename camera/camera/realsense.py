@@ -16,6 +16,7 @@ from math import sqrt, sin, cos
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
+from std_msgs.msg import Bool
 
 
 def angle_axis_to_quaternion(theta, axis):
@@ -71,6 +72,10 @@ class Cam(Node):
                                                  "/camera/aligned_depth_to_color/camera_info",
                                                  self.info_callback,
                                                  10)
+        self.piece_found_sub = self.create_subscription(Bool,
+                                                        'piece_found',
+                                                        self.piece_found_cb,
+                                                        10)
 
         self.piece_pub = self.create_publisher(Pose, 'jenga_piece', 10)
         self.corners_pub = self.create_publisher(PoseArray, 'jenga_corners', 10)
@@ -190,6 +195,11 @@ class Cam(Node):
         self.state = State.PAUSED
         self.get_logger().info("Pause Scanning")
         return response
+    
+    def piece_found_cb(self, data):
+        # Stop publishing tf data!!
+        self.get_logger().info('STOP publishing tfs')
+        self.state = State.PAUSED
 
     def calib_service_callback(self, _, response):
         """ Re caluclate the height of the tower """
@@ -457,6 +467,7 @@ class Cam(Node):
                         # self.avg_piece = Pose()
                         self.state = State.PUBLISHPIECE
         elif self.state == State.PUBLISHPIECE:
+            self.get_logger().info('PUBLISH TFS!')
             # Continue to publish camera image
             _,_,_ = self.get_mask()
             #create tf between the tag and the rotated frame using avg_piece
