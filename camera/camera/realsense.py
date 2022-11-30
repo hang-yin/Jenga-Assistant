@@ -48,6 +48,8 @@ class State(Enum):
     FINDTABLE = auto(),
     # Scanning to find a piece that's pushed out
     SCANNING = auto(),
+    # Publish frame of found jenga piece
+    PUBLISHPIECE = auto(),
     # Don't scan but still show the screen
     PAUSED = auto()
 
@@ -79,7 +81,7 @@ class Cam(Node):
 
         # Initialize the transform broadcaster
         # Static bc block only gets published once!
-        self.tf_broadcaster = StaticTransformBroadcaster(self)
+        self.tf_broadcaster = TransformBroadcaster(self)
         self.brick = TransformStamped()
         self.frame_brick = "brick"
         self.frame_camera ='camera_link'
@@ -118,10 +120,14 @@ class Cam(Node):
 
         self.piece_depth = 0.029 # 3 cm
 
-        self.avg_sec = 1.0
+        self.avg_sec = 3.0
         self.avg_frames = int(self.avg_sec*self.freq)
         self.ct = 0
         self.avg_piece = Pose()
+
+        self.piece_x = []
+        self.piece_y = []
+        self.piece_z = []
 
         cv2.namedWindow('Mask')
         cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
@@ -226,6 +232,7 @@ class Cam(Node):
     def get_mask(self):
         # Do this in case the subscriber somehow updates in the middle of the function?
         depth_cpy = np.array(self.depth_frame)
+        # self.get_logger().info(f"SHAPE: {depth_cpy.shape}")
 
         # Only keep stuff that's within the appropriate depth band.
         depth_mask = cv2.inRange(depth_cpy, self.band_start, self.band_start+self.band_width)
@@ -293,6 +300,7 @@ class Cam(Node):
             centroid_pose.position.x = centroid_deprojected[0]/1000.
             centroid_pose.position.y = centroid_deprojected[1]/1000.
             centroid_pose.position.z = centroid_deprojected[2]/1000.
+            # self.get_logger().info(f"ORIGIN: {centroid_pose.position}")
             # self.get_logger().info(f"DEPROJECTED Centroid depth:{deprojected}\n")
             # Try finding the corners of the object
             min_rect = cv2.minAreaRect(max_contour)
@@ -416,22 +424,27 @@ class Cam(Node):
                         # self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
                         # self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
                         # Avg the pose
-                        self.avg_piece.position.x += centroid_pose.position.x
-                        self.avg_piece.position.y += centroid_pose.position.y
-                        self.avg_piece.position.z += centroid_pose.position.z
+                        self.piece_x.append(centroid_pose.position.x)
+                        self.piece_y.append(centroid_pose.position.y)
+                        self.piece_z.append(centroid_pose.position.z)
+                        # self.avg_piece.position.x += centroid_pose.position.x
+                        # self.avg_piece.position.y += centroid_pose.position.y
+                        # self.avg_piece.position.z += centroid_pose.position.z
                         self.ct += 1
+                        # Stay at same scan level
+                        self.scan_index -= self.scan_step
                     else:
-                        self.avg_piece.position.x /= float(self.avg_frames)
-                        self.avg_piece.position.y /= float(self.avg_frames)
-                        self.avg_piece.position.z /= float(self.avg_frames)
+                        # self.avg_piece.position.x /= float(self.avg_frames)
+                        # self.avg_piece.position.y /= float(self.avg_frames)
+                        # self.avg_piece.position.z /= float(self.avg_frames)
+                        self.avg_piece.position.x = np.median(self.piece_x)
+                        self.avg_piece.position.y = np.median(self.piece_y)
+                        self.avg_piece.position.z = np.median(self.piece_z)
                         self.avg_piece.position.z += self.piece_depth/2.
                         self.get_logger().info("Done averaging")
                         self.get_logger().info(f"Final pose: {self.avg_piece}")
                         self.ct = 0
-                        #create tf between the tag and the rotated frame
-                        self.brick.header.stamp = self.get_clock().now().to_msg()
-                        self.brick.header.frame_id = self.frame_camera
-                        self.brick.child_frame_id = self.frame_brick
+                        self.piece_pub.publish(self.avg_piece)
                         # This used to be centroid_pose now it is the averaged centroid pose
                         self.brick.transform.translation.x = self.avg_piece.position.x
                         self.brick.transform.translation.y = self.avg_piece.position.y
@@ -441,14 +454,18 @@ class Cam(Node):
                         self.brick.transform.rotation.y = self.avg_piece.orientation.y
                         self.brick.transform.rotation.z = self.avg_piece.orientation.z
                         self.brick.transform.rotation.w = self.avg_piece.orientation.w
-                        self.tf_broadcaster.sendTransform(self.brick)
-                        # ALso used to be centroid_pose
-                        self.piece_pub.publish(self.avg_piece)
-                        # self.scan_index += self.band_width
-                        # self.band_start += self.band_width
-                        # Reset Avg Piece
-                        self.avg_piece = Pose()
-                        self.state = State.PAUSED
+                        # self.avg_piece = Pose()
+                        self.state = State.PUBLISHPIECE
+        elif self.state == State.PUBLISHPIECE:
+            # Continue to publish camera image
+            _,_,_ = self.get_mask()
+            #create tf between the tag and the rotated frame using avg_piece
+            self.brick.header.stamp = self.get_clock().now().to_msg()
+            self.brick.header.frame_id = self.frame_camera
+            self.brick.child_frame_id = self.frame_brick
+            self.tf_broadcaster.sendTransform(self.brick)
+
+
 
 
 

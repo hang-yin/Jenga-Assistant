@@ -244,7 +244,7 @@ class PlanAndExecute:
             # self.printBlock([nx, ny, nz])
             # [npose.orientation.x, npose.orientation.y,
             #  npose.orientation.z, npose.orientation.w] = self.get_quaternion_from_euler(nx, ny, nz)
-            self.printBlock(npose)
+            # self.printBlock(npose)
             points.append(npose)
         points.append(last_point)
         #self.printBlock(len(points))
