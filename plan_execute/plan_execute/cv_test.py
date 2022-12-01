@@ -331,7 +331,7 @@ class Test(Node):
             else:
                 self.future = await self.PlanEx.plan_to_pose(self.start_pose,
                                                                     ready_pose, joint_position,
-                                                                    0.001, self.execute)
+                                                                    0.01, self.execute)
                 self.get_logger().info('IDLE')
                 self.prev_state = State.READY
                 self.state = State.IDLE
@@ -380,7 +380,7 @@ class Test(Node):
                 # HARDCODED OFFSET LMAO WILL IT WORK?
                 self.get_logger().info(f'y init: {t.transform.translation.y}')
                 if self.goal_pose.position.y < 0:
-                    self.goal_pose.position.y -= 0
+                    self.goal_pose.position.y += 0.03
                 else: 
                     self.goal_pose.position.y += 0.02
                 self.goal_pose.position.z = t.transform.translation.z
