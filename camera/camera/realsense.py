@@ -17,7 +17,6 @@ from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from std_msgs.msg import Bool
-from math import dist
 
 
 def angle_axis_to_quaternion(theta, axis):
@@ -112,7 +111,7 @@ class Cam(Node):
 
         self.tower_top = None
         self.table = None
-        self.scan_start = 450
+        self.scan_start = 500
         self.scan_index = self.scan_start
         self.max_scan = 1000
         self.scan_step = 0.5
@@ -122,9 +121,7 @@ class Cam(Node):
 
         # How large a contour is to consider it as relevant
         self.object_area_threshold = 10000
-        self.piece_area_threshold = 2000
-        # Size of about 1 piece when it's on the top
-        self.top_area_threshold = 16000
+        self.piece_area_threshold = 2500
 
         self.piece_depth = 0.029 # 3 cm
 
@@ -137,15 +134,14 @@ class Cam(Node):
         self.piece_y = []
         self.piece_z = []
 
-        # cv2.namedWindow('Mask')
-        # cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
-        
+        cv2.namedWindow('Mask')
+        cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
+        cv2.createTrackbar('band width', 'Mask' , self.band_width, 100, self.band_width_tb)
+        cv2.createTrackbar('band start', 'Mask' , self.band_start, 1000, self.band_start_tb)
         cv2.namedWindow('Color')
         cv2.createTrackbar('origin x', 'Color', self.sq_orig[0], 1000, self.sqx_trackbar)
         cv2.createTrackbar('origin y', 'Color' , self.sq_orig[1], 1000, self.sqy_trackbar)
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
-        cv2.createTrackbar('band width', 'Color' , self.band_width, 100, self.band_width_tb)
-        cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
 
         # cv2.namedWindow('Corners')
         # cv2.createTrackbar('corner threshold*100', 'Corners',
@@ -191,7 +187,7 @@ class Cam(Node):
             self.state = State.SCANNING
             self.get_logger().info("Begin Scanning for pieces")
         else:
-            self.get_logger().info("You have to call /findtower first before scanning!!!")
+            self.get_logger().info("You have to call /calib first before scanning!!!")
         return response
 
     def stop_service_callback(self, _, response):
@@ -243,7 +239,7 @@ class Cam(Node):
         # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(current_frame, alpha=0.3), cv2.COLORMAP_JET)
         # cv2.imshow("im 13 and this is deep", depth_colormap)
 
-    def get_mask(self, care_about_square = True):
+    def get_mask(self):
         # Do this in case the subscriber somehow updates in the middle of the function?
         depth_cpy = np.array(self.depth_frame)
         # self.get_logger().info(f"SHAPE: {depth_cpy.shape}")
@@ -266,7 +262,7 @@ class Cam(Node):
         rectangle = cv2.rectangle(np.array(depth_mask),
                                   self.rect[0][0], self.rect[0][2],
                                   (255,0,0), 2)
-        # cv2.imshow("Mask", rectangle)
+        cv2.imshow("Mask", rectangle)
 
         # Find the contours of this cropped mask to help locate tower.
         contours, _ = cv2.findContours(depth_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -287,9 +283,9 @@ class Cam(Node):
                     large_contours.append(c)
             except: 
                 pass
+        # self.get_logger().info(f"Areas: {areas}")
         max_centroid = None
         largest_area = None
-        box_area = None
         centroid_pose = None
         box = None
         corner_array = None
@@ -297,7 +293,6 @@ class Cam(Node):
             # There is something large in the image.
             largest_index = np.argmax(areas)
             largest_area = areas[largest_index]
-            # self.get_logger().info(f"Largest Area: {largest_area}")
             max_centroid = centroids[largest_index]
             max_contour = large_contours[largest_index]
             # self.get_logger().info(f"estimated center: {max_centroid}")
@@ -308,6 +303,10 @@ class Cam(Node):
                                                                      max_centroid[1]],
                                                                     centroid_depth)
             centroid_pose = Pose()
+            # # THIS IS NOT RIGHT ANYMORE LMAO
+            # centroid_pose.position.x = -centroid_deprojected[1]/1000.
+            # centroid_pose.position.y = -centroid_deprojected[2]/1000.
+            # centroid_pose.position.z = centroid_deprojected[0]/1000.
             centroid_pose.position.x = centroid_deprojected[0]/1000.
             centroid_pose.position.y = centroid_deprojected[1]/1000.
             centroid_pose.position.z = centroid_deprojected[2]/1000.
@@ -317,7 +316,6 @@ class Cam(Node):
             min_rect = cv2.minAreaRect(max_contour)
             box = cv2.boxPoints(min_rect)
             box = np.intp(box)
-            box_area = dist(box[0],box[1])*dist(box[1],box[2])
             # self.get_logger().info(f"Box coords: {box}")
             dy = box[1][1]-box[0][1]
             dx = box[1][0]-box[0][0]
@@ -350,18 +348,10 @@ class Cam(Node):
         if max_centroid is not None:
             drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0,0,255), 5)
             drawn_contours = cv2.drawContours(drawn_contours, [box], 0, (255,0,0), 3)
-            if care_about_square and (largest_area/box_area < 0.9):
-                    # The contour is not really a rectangle and therefore doesn't work well
-                    largest_area = None
-                    centroid_pose = None
-                    corner_array = None
         cv2.imshow('Color', drawn_contours)
 
         cv2.waitKey(1)
         return largest_area, centroid_pose, corner_array
-
-    def calculate_contours(self, depth_mask):
-
 
     def timer_callback(self):
         if self.state == State.WAITING:
@@ -386,22 +376,19 @@ class Cam(Node):
 
             largest_area, _, _ = self.get_mask()
             if largest_area:
-                if largest_area > self.top_area_threshold:
+                if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
                     self.get_logger().info("FOUND TOWER TOP!!!!!!")
                     self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
                                            f"area: {largest_area}\n")
                     self.tower_top = self.band_start+self.band_width
+                    # For testing purposes
+                    # self.scan_index += self.band_width
+                    # self.band_start += self.band_width
+                    # self.state = State.PAUSED
                     # Go down past the top pieces, or else this will also be detected as table.
-                    # UNCOMMENT THESE LATER
                     self.scan_index = self.tower_top + self.band_width
                     self.band_start = self.tower_top + self.band_width
-                    if largest_area > 3*self.top_area_threshold:
-                        self.get_logger().info("Think 3 pieces on top")
-                    elif largest_area > 2*self.top_area_threshold:
-                        self.get_logger().info("Think 2 pieces on top")
-                    else:
-                        self.get_logger().info("Think 1 piece on top")
                     # Go and find the table
                     self.state = State.FINDTABLE
                     self.get_logger().info("Searching for table")
@@ -418,8 +405,7 @@ class Cam(Node):
                 self.get_logger().info("Didn't find the table?")
                 self.state = State.PAUSED
 
-            # The contour of the table will not be a square.
-            largest_area, _, _ = self.get_mask(care_about_square=False)
+            largest_area, _, _ = self.get_mask()
             if largest_area:
                 if largest_area > self.object_area_threshold:
                     # We believe there is an object at this depth
