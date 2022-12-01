@@ -71,22 +71,22 @@ class Cam(Node):
         self.depth_frame = None
         self.intrinsics = None
 
-        # What "band" I look at upon startup
-        self.band_start = 570
-        self.band_width = 20
-
         # For smoothing the image
         kernel_size = 25
         self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
 
+        # Bounding rectangle
         self.sq_orig = [450,0]
         self.sq_sz = 450
-
         self.rect = None
         self.update_rect()
 
+        # Current state
         self.state = State.WAITING
 
+        # depth "bands"
+        self.band_start = 570
+        self.band_width = 20
         self.tower_top = None
         self.table = None
         self.scan_start = 450
@@ -125,7 +125,6 @@ class Cam(Node):
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
         cv2.createTrackbar('band width', 'Color' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
-
 
     def sqx_trackbar(self, val):
         self.sq_orig[0] = val
@@ -212,16 +211,14 @@ class Cam(Node):
         current_frame = self.br.imgmsg_to_cv2(data)
         self.depth_frame = current_frame
 
-    def get_mask(self, care_about_square = True):
+    def get_mask(self, care_about_square = True, get_lines = False):
         # Do this in case the subscriber somehow updates in the middle of the function?
         depth_cpy = np.array(self.depth_frame)
-
         # Only keep stuff that's within the appropriate depth band.
         depth_mask = cv2.inRange(np.array(depth_cpy), self.band_start, self.band_start+self.band_width)
         # This operation helps to remove "dots" on the depth image.
         # Kernel higher dimensional = smoother. It's also less important if camera is farther away.
         depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, self.kernel)
-
         # All 0s, useful for following bitwise operations.
         bounding_mask = np.zeros((self.intrinsics.height,self.intrinsics.width), np.int8)
         # Creating a square over the area defined in self.rect
@@ -230,7 +227,6 @@ class Cam(Node):
         square = cv2.inRange(square, 1, 255)
         # Cropping the depth_mask so that only what is within the square remains.
         depth_mask = cv2.bitwise_and(depth_mask, depth_mask, mask=square)
-
         # Find the contours of this cropped mask to help locate tower.
         contours, _ = cv2.findContours(depth_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         centroids, areas, large_contours = [], [], []
@@ -253,7 +249,7 @@ class Cam(Node):
             # There is something large in the image.
             largest_index = np.argmax(areas)
             largest_area = areas[largest_index]
-            self.get_logger().info(f"LARGEST AREA: {largest_area}")
+            # self.get_logger().info(f"LARGEST AREA: {largest_area}")
             max_centroid = centroids[largest_index]
             max_contour = large_contours[largest_index]
             centroid_depth = depth_cpy[max_centroid[1]][max_centroid[0]]
@@ -277,7 +273,7 @@ class Cam(Node):
         if max_centroid is not None:
             drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0,0,255), 5)
             drawn_contours = cv2.drawContours(drawn_contours, [box], 0, (255,0,0), 3)
-            if care_about_square and (largest_area/box_area < 0.9):
+            if care_about_square and (largest_area/box_area < 0.85):
                     # The contour is not really a rectangle and therefore doesn't work well
                     largest_area, centroid_pose, corner_array = None, None, None
         cv2.imshow('Color', drawn_contours)
@@ -354,6 +350,7 @@ class Cam(Node):
 
             largest_area, _, corner_array = self.get_mask()
             if largest_area:
+                self.get_logger().info(f"Largest area {largest_area}")
                 if largest_area > self.top_area_threshold:
                     # We believe there is an object at this depth
                     self.get_logger().info("FOUND TOWER TOP!!!!!!")
