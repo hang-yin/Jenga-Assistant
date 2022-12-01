@@ -110,6 +110,18 @@ class PlanAndExecute:
         self.master_goal.request.max_velocity_scaling_factor = 0.1
         self.master_goal.request.max_acceleration_scaling_factor = 0.1
         self.collision_list = []
+    
+    async def removeTower(self):
+        """Remove a collision object from the planning scene."""
+        scene_request = PlanningSceneComponents()
+        scene_request.components = 0
+        temp_scene_request = GetPlanningScene.Request(components=scene_request)
+        scene = await self.node.planscene.call_async(temp_scene_request)
+        scene = scene.scene
+        scene.robot_state.joint_state = self.js
+        self.collision_list = self.collision_list[:1]
+        scene.world.collision_objects = self.collision_list
+        self.node.block_pub.publish(scene)
 
     def printBlock(self, req):
         """Make a string of a request or message then log it to the terminal."""
@@ -254,7 +266,7 @@ class PlanAndExecute:
 
     def createCartreq(self, start_pose, end_pose):
         """Create an Cartisian message filled with info from the goal pose and orientation."""
-        max_step = 0.001
+        max_step = 0.0005
         points = self.createWaypoints(start_pose, end_pose, max_step)
         self.node.get_logger().info("creating cartisian message")
         constraint = Constraints()
@@ -387,7 +399,6 @@ class PlanAndExecute:
         start_pose = self.getStartPose()
         self.master_goal.request.start_state.joint_state = self.js
         self.fill_constraints(self.js.name, self.js.position, 0.001)
-        self.master_goal.request.max_velocity_scaling_factor = v
         # else:
         #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
         #     request_temp = GetCartesianPath.Request(ik_request=request_start)
@@ -411,8 +422,25 @@ class PlanAndExecute:
         # if Cart_response:
             # Create a plan off current joint states
             # plan_result = await self.plan(Cart_response)
+        
         if execute:
+            
+            # decrease velocity
+            for point in Cart_response.joint_trajectory.points:
+                total_time = point.time_from_start.nanosec + point.time_from_start.sec * 1000000000
+                total_time *= 1.0/v
+                point.time_from_start.sec = math.floor(total_time / 1000000000)
+                point.time_from_start.nanosec = math.floor(total_time % 1000000000)
+                
+                for i in range(len(point.velocities)):
+                    point.velocities[i] *= v
+                
+                for i in range(len(point.accelerations)):
+                    point.accelerations[i] *= v
+            
             # execute the plan
+            self.node.get_logger().info("\n\n\n cart response \n\n\n")
+            self.printBlock(Cart_response)
             traj_goal = ExecuteTrajectory.Goal(trajectory=Cart_response)
             execute_future = await self.node._execute_client.send_goal_async(traj_goal)
             execute_result = await execute_future.get_result_async()
@@ -529,7 +557,7 @@ class PlanAndExecute:
         scene.world.collision_objects = self.collision_list
         self.node.block_pub.publish(scene)
     
-    async def grab(self):
+    async def grab(self, width):
         # self.node.get_logger().info("grabbing path")
         # grasp_request = GraspPlanning.Request()
         # grasp_request.group_name = 'panda_arm'
@@ -543,9 +571,9 @@ class PlanAndExecute:
         self.node._gripper_client.wait_for_server()
         self.node.get_logger().info("gripper client connected")
         grasp_goal = Grasp.Goal()
-        grasp_goal.width = 0.05
+        grasp_goal.width = width
         grasp_goal.speed = 0.03
-        grasp_goal.force = 50.0
+        grasp_goal.force = 80.0
         await self.node._gripper_client.send_goal_async(grasp_goal)
         self.node.get_logger().info("grabbed")
     
