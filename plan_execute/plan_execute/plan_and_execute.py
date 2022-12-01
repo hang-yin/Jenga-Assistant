@@ -266,7 +266,7 @@ class PlanAndExecute:
 
     def createCartreq(self, start_pose, end_pose):
         """Create an Cartisian message filled with info from the goal pose and orientation."""
-        max_step = 0.001
+        max_step = 0.0005
         points = self.createWaypoints(start_pose, end_pose, max_step)
         self.node.get_logger().info("creating cartisian message")
         constraint = Constraints()
@@ -557,7 +557,7 @@ class PlanAndExecute:
         scene.world.collision_objects = self.collision_list
         self.node.block_pub.publish(scene)
     
-    async def grab(self):
+    async def grab(self, width):
         # self.node.get_logger().info("grabbing path")
         # grasp_request = GraspPlanning.Request()
         # grasp_request.group_name = 'panda_arm'
@@ -571,9 +571,9 @@ class PlanAndExecute:
         self.node._gripper_client.wait_for_server()
         self.node.get_logger().info("gripper client connected")
         grasp_goal = Grasp.Goal()
-        grasp_goal.width = 0.05
+        grasp_goal.width = width
         grasp_goal.speed = 0.03
-        grasp_goal.force = 50.0
+        grasp_goal.force = 80.0
         await self.node._gripper_client.send_goal_async(grasp_goal)
         self.node.get_logger().info("grabbed")
     
