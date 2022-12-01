@@ -109,10 +109,12 @@ class Cam(Node):
         self.ct = 0
         self.avg_piece = Pose()
 
-        # For averaging (median-ing?) the coordinates of the found piece
+        # For averaging (median-ing?) the coordinates of piece
         self.piece_x = []
         self.piece_y = []
         self.piece_z = []
+
+        self.avg_area = 0
 
         # For storing the coordinates of the top of the tower
         self.starting_top = None
@@ -327,45 +329,61 @@ class Cam(Node):
             if largest_area:
                 self.get_logger().info(f"Largest area {largest_area}")
                 if largest_area > self.top_area_threshold:
-                    # We believe there is an object at this depth
-                    self.get_logger().info("FOUND TOWER TOP!!!!!!")
-                    self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
-                                           f"area: {largest_area}\n")
-                    self.get_logger().info(f"Centroid pose in cam frame:\n{centroid_pose}")
-                    self.tower_top = self.band_start+self.band_width
-                    # This will begin publishing to the tf tree
-                    if self.starting_top is None:
-                        self.starting_top = TransformStamped()
-                        self.starting_top.header.frame_id = self.frame_camera
-                        self.starting_top.child_frame_id = 'starting_top'
-                        self.starting_top.transform.translation.x = centroid_pose.position.x
-                        self.starting_top.transform.translation.y = centroid_pose.position.y
-                        self.starting_top.transform.translation.z = centroid_pose.position.z
+                    if self.ct < self.avg_frames:
+                        self.get_logger().info(f'Current pose: {centroid_pose.position}')
+                        # Record the position
+                        self.piece_x.append(centroid_pose.position.x)
+                        self.piece_y.append(centroid_pose.position.y)
+                        self.piece_z.append(centroid_pose.position.z)
+                        self.ct += 1
+                        # Stay at same scan level
+                        self.scan_index -= self.scan_step
                     else:
-                        self.current_top = TransformStamped()
-                        self.current_top.header.frame_id = self.frame_camera
-                        self.current_top.child_frame_id = 'current_top'
-                        self.current_top.transform.translation.x = centroid_pose.position.x
-                        self.current_top.transform.translation.y = centroid_pose.position.y
-                        self.current_top.transform.translation.z = centroid_pose.position.z
-                    # Go down past the top pieces, or else this will also be detected as table.
-                    # UNCOMMENT THESE LATER
-                    self.scan_index = self.tower_top + self.band_width
-                    self.band_start = self.tower_top + self.band_width
-                    num_pieces = Int16()
-                    if largest_area > 3*self.top_area_threshold:
-                        self.get_logger().info("Think 3 pieces on top")
-                        num_pieces.data = 3
-                    elif largest_area > 2*self.top_area_threshold:
-                        self.get_logger().info("Think 2 pieces on top")
-                        num_pieces.data = 2
-                    else:
-                        self.get_logger().info("Think 1 piece on top")
-                        num_pieces.data = 1
-                    # Go and find the table
-                    self.top_pub.publish(num_pieces)
-                    self.state = State.FINDTABLE
-                    self.get_logger().info("Searching for table PAUSE")
+                        self.ct = 0
+                        avg_x = np.median(self.piece_x)
+                        avg_y = np.median(self.piece_y)
+                        avg_z = np.median(self.piece_z)
+                        self.piece_x = []
+                        self.piece_y = []
+                        self.piece_z = []
+                        self.get_logger().info("FOUND TOWER TOP!!!!!!")
+                        self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
+                                            f"area: {largest_area}\n")
+                        self.get_logger().info(f"Centroid pose in cam frame:\n{avg_x},{avg_y},{avg_z}")
+                        self.tower_top = self.band_start+self.band_width
+                        # This will begin publishing to the tf tree
+                        if self.starting_top is None:
+                            self.starting_top = TransformStamped()
+                            self.starting_top.header.frame_id = self.frame_camera
+                            self.starting_top.child_frame_id = 'starting_top'
+                            self.starting_top.transform.translation.x = avg_x
+                            self.starting_top.transform.translation.y = avg_y
+                            self.starting_top.transform.translation.z = avg_z
+                        else:
+                            self.current_top = TransformStamped()
+                            self.current_top.header.frame_id = self.frame_camera
+                            self.current_top.child_frame_id = 'current_top'
+                            self.current_top.transform.translation.x = avg_x
+                            self.current_top.transform.translation.y = avg_y
+                            self.current_top.transform.translation.z = avg_z
+                        # Go down past the top pieces, or else this will also be detected as table.
+                        # UNCOMMENT THESE LATER
+                        self.scan_index = self.tower_top + self.band_width
+                        self.band_start = self.tower_top + self.band_width
+                        num_pieces = Int16()
+                        if largest_area > 3*self.top_area_threshold:
+                            self.get_logger().info("Think 3 pieces on top")
+                            num_pieces.data = 3
+                        elif largest_area > 2*self.top_area_threshold:
+                            self.get_logger().info("Think 2 pieces on top")
+                            num_pieces.data = 2
+                        else:
+                            self.get_logger().info("Think 1 piece on top")
+                            num_pieces.data = 1
+                        # Go and find the table
+                        self.top_pub.publish(num_pieces)
+                        self.state = State.FINDTABLE
+                        self.get_logger().info("Searching for table PAUSE")
 
         elif self.state == State.FINDTABLE:
             # Basically same logic as findtop.
