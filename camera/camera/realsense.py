@@ -12,7 +12,7 @@ from geometry_msgs.msg import Pose
 from math import sqrt, dist
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int16
 
 
 class State(Enum):
@@ -55,6 +55,7 @@ class Cam(Node):
                                                         10)
 
         self.piece_pub = self.create_publisher(Pose, 'jenga_piece', 10)
+        self.top_pub = self.create_publisher(Int16, 'top_size', 10)
         self.scan = self.create_service(Empty, "scan", self.scan_service_callback)
         self.stop = self.create_service(Empty, "stop", self.stop_service_callback)
         self.calib = self.create_service(Empty, "findtower", self.calib_service_callback)
@@ -114,7 +115,8 @@ class Cam(Node):
         self.piece_z = []
 
         # For storing the coordinates of the top of the tower
-        self.top_corners = None
+        self.starting_top = None
+        self.current_top = None
 
         # cv2.namedWindow('Mask')
         # cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
@@ -243,7 +245,7 @@ class Cam(Node):
                     large_contours.append(c)
             except: 
                 pass
-        largest_area, centroid_pose, corner_array = None, None, None
+        largest_area, centroid_pose, = None, None
         max_centroid, box, box_area = None, None, None
         if len(areas) != 0: 
             # There is something large in the image.
@@ -262,8 +264,11 @@ class Cam(Node):
             centroid_pose.position.y = centroid_deprojected[1]/1000.
             centroid_pose.position.z = centroid_deprojected[2]/1000.
 
-            # Try finding the corners of the largest thing
-            box, box_area, corner_array = self.get_box(max_contour,depth_cpy)
+            min_rect = cv2.minAreaRect(max_contour)
+            box = cv2.boxPoints(min_rect)
+            box = np.intp(box)
+            # Save original box area to test if the contour is a good fit
+            box_area = dist(box[0],box[1])*dist(box[1],box[2])
 
         # Display the images
         color_rect = cv2.rectangle(np.array(self.color_frame),
@@ -273,53 +278,23 @@ class Cam(Node):
         if max_centroid is not None:
             drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0,0,255), 5)
             drawn_contours = cv2.drawContours(drawn_contours, [box], 0, (255,0,0), 3)
-            if care_about_square and (largest_area/box_area < 0.85):
-                    # The contour is not really a rectangle and therefore doesn't work well
-                    largest_area, centroid_pose, corner_array = None, None, None
+            contour_ratio = largest_area/box_area
+            # self.get_logger().info(f"CONTOUR RATIO: {contour_ratio}")
+            if care_about_square and (contour_ratio<0.8):
+                # The contour is not really a rectangle and therefore doesn't work well
+                largest_area, centroid_pose = None, None
         cv2.imshow('Color', drawn_contours)
 
         cv2.waitKey(1)
-        return largest_area, centroid_pose, corner_array
+        return largest_area, centroid_pose
 
-    def get_box(self, max_contour, depth_frame):
-        min_rect = cv2.minAreaRect(max_contour)
-        box = cv2.boxPoints(min_rect)
-        box = np.intp(box)
-        # Save original box area to test if the contour is a good fit
-        box_area = dist(box[0],box[1])*dist(box[1],box[2])
-        # Rescale so that the corners are actually on the physical object
-        # (otherwise looking up the depth doesn't work)
-        percent_shrink = 0.75
-        new_w = sqrt(percent_shrink)*min_rect[1][0]
-        new_h = sqrt(percent_shrink)*min_rect[1][1]
-        new_rect = (min_rect[0], (new_w,new_h), min_rect[2])
-        box = cv2.boxPoints(new_rect)
-        box = np.intp(box)
-        corner_array = []
-        for corner in box:
-            corner_depth = depth_frame[corner[1]][corner[0]]
-            corner_deprojected = rs2.rs2_deproject_pixel_to_point(self.intrinsics,
-                                                                    corner,
-                                                                    corner_depth)
-            # Save data as transform stamped as that is what will be sent
-            corner_position = TransformStamped()
-            corner_position.transform.translation.x =corner_deprojected[0]/1000.
-            corner_position.transform.translation.y =corner_deprojected[1]/1000.
-            corner_position.transform.translation.z =corner_deprojected[2]/1000.
-            corner_array.append(corner_position)
-        return box, box_area, corner_array
-    
     def publish_top(self):
-        if self.top_corners is not None:
-            for n,corner in enumerate(self.top_corners):
-                corner.header.stamp = self.get_clock().now().to_msg()
-                corner.header.frame_id = self.frame_camera
-                corner.child_frame_id = 'tower_corner_'+str(n)
-                # Transform is all 0s if deproject fails. Don't publish these
-                if not ((corner.transform.translation.x == 0) and
-                        (corner.transform.translation.y == 0) and
-                        (corner.transform.translation.z == 0)):
-                    self.tf_broadcaster.sendTransform(corner)
+        if self.starting_top is not None:
+            self.starting_top.header.stamp = self.get_clock().now().to_msg()
+            self.tf_broadcaster.sendTransform(self.starting_top)
+        if self.current_top is not None:
+            self.current_top.header.stamp = self.get_clock().now().to_msg()
+            self.tf_broadcaster.sendTransform(self.current_top)
 
     def timer_callback(self):
 
@@ -335,7 +310,7 @@ class Cam(Node):
 
         elif self.state == State.PAUSED:
             # Just print out the camera data
-            largest_area, _, _ = self.get_mask()
+            largest_area, _ = self.get_mask()
 
         elif self.state == State.FINDTOP:
             # Begin scanning downwards.
@@ -348,7 +323,7 @@ class Cam(Node):
                 self.get_logger().info("Didn't find the tower?")
                 self.state = State.PAUSED
 
-            largest_area, _, corner_array = self.get_mask()
+            largest_area, centroid_pose = self.get_mask()
             if largest_area:
                 self.get_logger().info(f"Largest area {largest_area}")
                 if largest_area > self.top_area_threshold:
@@ -356,23 +331,40 @@ class Cam(Node):
                     self.get_logger().info("FOUND TOWER TOP!!!!!!")
                     self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
                                            f"area: {largest_area}\n")
+                    self.get_logger().info(f"Centroid pose in cam frame:\n{centroid_pose}")
                     self.tower_top = self.band_start+self.band_width
-                    # for c in corner_array:
-                    #     self.get_logger().info(f"Corner:{c}")
                     # This will begin publishing to the tf tree
-                    self.top_corners = corner_array
+                    if self.starting_top is None:
+                        self.starting_top = TransformStamped()
+                        self.starting_top.header.frame_id = self.frame_camera
+                        self.starting_top.child_frame_id = 'starting_top'
+                        self.starting_top.transform.translation.x = centroid_pose.position.x
+                        self.starting_top.transform.translation.y = centroid_pose.position.y
+                        self.starting_top.transform.translation.z = centroid_pose.position.z
+                    else:
+                        self.current_top = TransformStamped()
+                        self.current_top.header.frame_id = self.frame_camera
+                        self.current_top.child_frame_id = 'current_top'
+                        self.current_top.transform.translation.x = centroid_pose.position.x
+                        self.current_top.transform.translation.y = centroid_pose.position.y
+                        self.current_top.transform.translation.z = centroid_pose.position.z
                     # Go down past the top pieces, or else this will also be detected as table.
                     # UNCOMMENT THESE LATER
-                    # self.scan_index = self.tower_top + self.band_width
-                    # self.band_start = self.tower_top + self.band_width
+                    self.scan_index = self.tower_top + self.band_width
+                    self.band_start = self.tower_top + self.band_width
+                    num_pieces = Int16()
                     if largest_area > 3*self.top_area_threshold:
                         self.get_logger().info("Think 3 pieces on top")
+                        num_pieces.data = 3
                     elif largest_area > 2*self.top_area_threshold:
                         self.get_logger().info("Think 2 pieces on top")
+                        num_pieces.data = 2
                     else:
                         self.get_logger().info("Think 1 piece on top")
+                        num_pieces.data = 1
                     # Go and find the table
-                    self.state = State.PAUSED
+                    self.top_pub.publish(num_pieces)
+                    self.state = State.FINDTABLE
                     self.get_logger().info("Searching for table PAUSE")
 
         elif self.state == State.FINDTABLE:
@@ -388,7 +380,7 @@ class Cam(Node):
                 self.state = State.PAUSED
 
             # The contour of the table will not be a square.
-            largest_area, _, _ = self.get_mask(care_about_square=False)
+            largest_area, _ = self.get_mask(care_about_square=False)
             if largest_area:
                 if largest_area > self.table_area_threshold:
                     # We believe there is an object at this depth
@@ -409,7 +401,7 @@ class Cam(Node):
                 self.scan_index = self.tower_top +1.2*self.band_width
                 self.get_logger().info("Reset scan")
             # Look for piece sticking out in range from top to table
-            largest_area, centroid_pose, _ = self.get_mask()
+            largest_area, centroid_pose = self.get_mask()
             if largest_area:
                 if largest_area > self.piece_area_threshold:
                     if self.ct < self.avg_frames:
@@ -450,7 +442,7 @@ class Cam(Node):
                         self.state = State.PUBLISHPIECE
         elif self.state == State.PUBLISHPIECE:
             # Continue to publish camera image
-            _,_,_ = self.get_mask()
+            _, _ = self.get_mask()
             # Create tf between the tag and the rotated frame using avg_piece
             self.brick.header.stamp = self.get_clock().now().to_msg()
             self.brick.header.frame_id = self.frame_camera
