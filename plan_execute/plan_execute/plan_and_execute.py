@@ -440,6 +440,7 @@ class PlanAndExecute:
             
             # execute the plan
             # self.node.get_logger().info("\n\n\n cart response \n\n\n")
+
             # self.printBlock(Cart_response)
             traj_goal = ExecuteTrajectory.Goal(trajectory=Cart_response)
             execute_future = await self.node._execute_client.send_goal_async(traj_goal)
