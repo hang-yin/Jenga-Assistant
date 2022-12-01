@@ -151,7 +151,10 @@ class Calibrate(Node):
                 self.state = State.CALIBRATE
 
         if self.state == State.CALIBRATE:
+            # rad = deg_to_rad(180)
             rad = deg_to_rad(90)
+            rad2 = deg_to_rad(90)
+            # rad3 = deg_to_rad(0)
             #create tf between the tag and the rotated frame
             self.rot.header.stamp = self.get_clock().now().to_msg()
             self.rot.header.frame_id = self.frame_tag
@@ -160,14 +163,20 @@ class Calibrate(Node):
             self.rot.transform.translation.y = 0.0
             self.rot.transform.translation.z = 0.0
             # calculate the rotations with quaternians
+            # z_rot = quaternion_from_euler(0.0, rad, 0.0)
             z_rot = quaternion_from_euler(0.0, 0.0, rad)
             qz_rot = quaternion_multiply(self.og_q, z_rot)
+
+            # y_rot = quaternion_from_euler(0.0, 0.0, rad2)
             y_rot = quaternion_from_euler(-rad, 0.0, 0.0)
-            q_new = quaternion_multiply(qz_rot, y_rot)
-            self.rot.transform.rotation.x = q_new[0]
-            self.rot.transform.rotation.y = q_new[1]
-            self.rot.transform.rotation.z = q_new[2]
-            self.rot.transform.rotation.w = q_new[3]
+            q_final = quaternion_multiply(qz_rot, y_rot)
+
+            # tiny_rot = quaternion_from_euler(rad3, 0.0, 0.0)
+            # q_final = quaternion_multiply(tiny_rot, q_new)
+            self.rot.transform.rotation.x = q_final[0]
+            self.rot.transform.rotation.y = q_final[1]
+            self.rot.transform.rotation.z = q_final[2]
+            self.rot.transform.rotation.w = q_final[3]
             self.tf_broadcaster.sendTransform(self.rot)
 
             # create a tf between the rotated frame and panda_link0
@@ -175,6 +184,8 @@ class Calibrate(Node):
             self.rot_base.header.stamp = self.get_clock().now().to_msg()
             self.rot_base.header.frame_id = self.frame_rotate
             self.rot_base.child_frame_id = self.frame_base
+            # self.rot_base.transform.translation.x = -.33575
+            # self.rot_base.transform.translation.y = -.23575
             self.tf_broadcaster.sendTransform(self.rot_base)
 
 
@@ -198,9 +209,9 @@ class Calibrate(Node):
                 return
 
             if self.calibrate < 300:
-                    self.calibrate += 1
+                self.calibrate += 1
             else:
-                    self.state = State.WRITE
+                self.state = State.WRITE
 
         if self.state == State.WRITE:
 

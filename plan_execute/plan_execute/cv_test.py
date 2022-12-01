@@ -4,6 +4,7 @@ from enum import Enum, auto
 from plan_execute_interface.srv import GoHere, Place
 from plan_execute.plan_and_execute import PlanAndExecute
 from geometry_msgs.msg import Pose
+from std_msgs.msg import Bool, Int16
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from std_srvs.srv import Empty
 # from pynput import keyboard
@@ -41,6 +42,8 @@ class State(Enum):
     READY = auto(),
     CALIBRATE = auto(),
     RELEASE = auto(),
+    FINDPIECE = auto(),
+    FINDTOP = auto(),
     # ready 
         # sends pose back to ready default position of robot after any movement or motion
     # calibrate
@@ -86,6 +89,7 @@ class Test(Node):
         self.cart_go_here = self.create_service(GoHere, '/cartesian_here', self.cart_callback)
         self.cal = self.create_service(Empty, '/calibrate', self.calibrate_callback)
         self.cal = self.create_service(Empty, '/ready', self.ready_callback)
+        self.cal = self.create_service(Empty, '/release', self.release_callback)
         self.place = self.create_service(Place, '/place', self.place_callback)
         self.PlanEx = PlanAndExecute(self)
         self.prev_state = State.START
@@ -97,8 +101,11 @@ class Test(Node):
         self.pregrasp_pose = None
 
         self.piece_sub = self.create_subscription(Pose, 'jenga_piece', self.piece_cb, 10)
+        self.top_sub = self.create_subscription(Int16, 'top_size', self.top_cb, 10)
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.piece_found_pub = self.create_publisher(Bool, 'piece_found', 10)
+        self.tower_top_pose = Pose()
         # added these so it won't rely on service calls to run
         self.start_pose = None
         self.execute = True
@@ -110,23 +117,16 @@ class Test(Node):
         The location of the jenga piece in panda_link0 frame is then stored in self.goal_pose
         """
         self.get_logger().info(f'Piece location in camera frame:\n{data}')
-        # TODO: Might need to wait a bit before looking up the transform.
-        # Sometimes it is not there immediately.
-        try:
-            t = self.tf_buffer.lookup_transform('panda_link0', 'brick', rclpy.time.Time())
-            self.get_logger().info(f'transform bw base and brick:\n{t}')
-            self.get_logger().info('Go to orient')
-            self.goal_pose.position.x = t.transform.translation.x
-            self.goal_pose.position.y = t.transform.translation.y
-            self.goal_pose.position.z = t.transform.translation.z
-            self.goal_pose.orientation.x = t.transform.rotation.x
-            self.goal_pose.orientation.y = t.transform.rotation.y
-            self.goal_pose.orientation.z = t.transform.rotation.z
-            self.goal_pose.orientation.w = t.transform.rotation.w
-            self.get_logger().info(f'Goal Pose:\n{self.goal_pose}')
-            self.state = State.ORIENT
-        except TransformException:
-            print("couldn't do panda_link0->brick transform")
+        self.state = State.FINDPIECE
+    
+    def top_cb(self, data):
+        """
+        Get the location of the jenga piece from cv nodes, and transform into panda_link0 frame.
+
+        The location of the jenga piece in panda_link0 frame is then stored in self.goal_pose
+        """
+        self.get_logger().info(f'NUMBER OF PIECES ON TOP:\n{data}')
+        self.state = State.FINDTOP
 
     def go_here_callback(self, request, response):
         """
@@ -187,6 +187,10 @@ class Test(Node):
         self.execute = True
         self.state = State.READY
         return response
+
+    def release_callback(self, request, response):
+        self.state = State.RELEASE
+        return response
     
     def place_callback(self, request, response):
         """Call service to pass the desired Pose of a block in the scene."""
@@ -206,10 +210,11 @@ class Test(Node):
         await self.PlanEx.place_block(plane_pose, [10.0, 10.0, 0.1], 'plane')
     
     async def place_tower(self):
+        # TODO update with tower location from tfs
         tower_pose = Pose()
         tower_pose.position.x = 0.46
         tower_pose.position.y = 0.0
-        tower_pose.position.z = 0.2
+        tower_pose.position.z = 0.09
         tower_pose.orientation.x = 0.9226898
         tower_pose.orientation.y = 0.3855431
         tower_pose.orientation.z = 0.0
@@ -229,7 +234,7 @@ class Test(Node):
         elif self.state == State.PLACEPLANE:
             self.state = State.IDLE
             await self.place_plane()
-            await self.place_tower()
+            # await self.place_tower()
             self.prev_state = State.PLACEPLANE
             # await self.PlanEx.grab()
         elif self.state == State.CALL:
@@ -278,20 +283,20 @@ class Test(Node):
                 pre_grasp.position.y = self.goal_pose.position.y - offset
             self.pregrasp_pose = pre_grasp
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pre_grasp, 0.1,
+                                                                   pre_grasp, 0.5,
                                                                    self.execute)
             self.prev_state = State.PREGRAB
-            self.state = State.IDLE
+            self.state = State.GRAB
 
         elif self.state == State.GRAB:
             # # go to grab pose
             self.get_logger().info('grabbing')
             self.get_logger().info(str(self.goal_pose))
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   self.goal_pose, 0.1,
+                                                                   self.goal_pose, 0.5,
                                                                    self.execute)
             # grab
-            self.future = await self.PlanEx.grab()
+            self.future = await self.PlanEx.grab(0.05)
             time.sleep(4) # maybe change to a counter rather than sleep 
 
             # go to pull pose
@@ -304,12 +309,13 @@ class Test(Node):
             pull_pose = copy.deepcopy(self.pregrasp_pose)
             self.get_logger().info(str(pull_pose))
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pull_pose, 0.1,
+                                                                   pull_pose, 0.5,
                                                                    self.execute)
             self.prev_state = State.PULL
             self.get_logger().info(str(self.prev_state))
             self.state = State.READY
         elif self.state == State.READY:
+            self.get_logger().info('State.Ready')
             # TODO: go to ready pose
         
             ready_pose = Pose()
@@ -328,7 +334,7 @@ class Test(Node):
             self.get_logger().info(str(self.prev_state))
             if self.prev_state == State.PULL:
                 self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                    ready_pose, 0.1,
+                                                                    ready_pose, 0.5,
                                                                     self.execute)
                 self.get_logger().info('ORIENTING')
                 self.prev_state = State.READY
@@ -342,6 +348,7 @@ class Test(Node):
                 self.state = State.IDLE
 
         elif self.state == State.ORIENT2:
+            # TODO update with either +45 or -45
             self.get_logger().info('ORIENT sencond')
             set_pose = copy.deepcopy(self.goal_pose)
             set_pose.orientation.x = 0.9238795
@@ -357,9 +364,10 @@ class Test(Node):
             set_pose = copy.deepcopy(self.goal_pose)
             set_pose.position.x = 0.474
             set_pose.position.y = -0.069
-            set_pose.position.z = 0.205
+            # TODO update this with height of tower
+            set_pose.position.z = self.tower_top_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   set_pose, 0.1,
+                                                                   set_pose, 0.5,
                                                                    self.execute)
             self.prev_state = State.SET            
             self.state = State.RELEASE
@@ -374,6 +382,44 @@ class Test(Node):
             self.state = State.IDLE
             # place block
             await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.3], 'block')
+
+        elif self.state == State.FINDPIECE:
+            try:
+                t = self.tf_buffer.lookup_transform('panda_link0', 'brick', rclpy.time.Time())
+                self.get_logger().info(f'transform bw base and brick:\n{t}')
+                self.get_logger().info('Go to orient')
+                self.goal_pose.position.x = t.transform.translation.x
+                self.goal_pose.position.y = t.transform.translation.y
+                # HARDCODED OFFSET LMAO WILL IT WORK?
+                self.get_logger().info(f'y init: {t.transform.translation.y}')
+                if self.goal_pose.position.y < 0:
+                    self.goal_pose.position.y -= 0.02
+                else: 
+                    self.goal_pose.position.y += 0.02
+                self.goal_pose.position.z = t.transform.translation.z
+                self.goal_pose.orientation.x = t.transform.rotation.x
+                self.goal_pose.orientation.y = t.transform.rotation.y
+                self.goal_pose.orientation.z = t.transform.rotation.z
+                self.goal_pose.orientation.w = t.transform.rotation.w
+                self.get_logger().info(f'Goal Pose:\n{self.goal_pose}')
+                # publish when found so cv node knows when to stop publishing
+                self.piece_found_pub.publish(Bool())
+                self.state = State.ORIENT
+            except TransformException:
+                print("couldn't do panda_link0->brick transform")
+        elif self.state == State.FINDTOP:
+            try:
+                t = self.tf_buffer.lookup_transform('panda_link0', 'starting_top', rclpy.time.Time())
+                self.get_logger().info(f'transform bw base and top:\n{t}')
+                self.tower_top_pose.position.x = t.transform.translation.x
+                self.tower_top_pose.position.y = t.transform.translation.y
+                self.tower_top_pose.position.z = t.transform.translation.z + 0.05
+                self.get_logger().info(f'TOWER top Pose:\n{self.tower_top_pose}')
+                # publish when found so cv node knows when to stop publishing
+                self.state = State.IDLE
+            except TransformException:
+                print("couldn't do panda_link0->tower transform")
+
 
 def test_entry(args=None):
     rclpy.init(args=args)
