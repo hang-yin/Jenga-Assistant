@@ -14,6 +14,7 @@ import time
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from tf2_ros import TransformException
+from math import sqrt
 
 
 class Ready_State(Enum):
@@ -61,6 +62,7 @@ class State(Enum):
     ORIENT4 = auto(),
     PLACEPOKER = auto(),
     POSTPLACEPOKER = auto(),
+    LETGO = auto(),
     # ready 
         # sends pose back to ready default position of robot after any movement or motion
     # calibrate
@@ -136,9 +138,11 @@ class Test(Node):
         # added these so it won't rely on service calls to run
         self.start_pose = None
         self.execute = True
+        # Pieces are 5cm wide
+        self.piece_width = 0.05
+        self.top_positions = None
 
-        
-    
+
     def piece_cb(self, data):
         """
         Get the location of the jenga piece from cv nodes, and transform into panda_link0 frame.
@@ -246,7 +250,8 @@ class Test(Node):
         return response
 
     def release_callback(self, request, response):
-        self.state = State.RELEASE
+        self.get_logger().info("RELEASE THE GRIPPERS")
+        self.state = State.LETGO
         return response
     
     def place_callback(self, request, response):
@@ -291,7 +296,7 @@ class Test(Node):
         elif self.state == State.PLACEPLANE:
             self.state = State.IDLE
             await self.place_plane()
-            # await self.place_tower()
+            await self.place_tower()
             self.prev_state = State.PLACEPLANE
             # await self.PlanEx.grab()
         elif self.state == State.CALL:
@@ -457,10 +462,6 @@ class Test(Node):
             # for now, we will hard code this to be left1
             # we need an offset for the x and y
             set_pose = copy.deepcopy(self.goal_pose)
-            # offset = math.sin(math.pi/2) * 0.04
-            # set_pose.position.x = self.place_pose.position.x - offset
-            # set_pose.position.y = self.place_pose.position.y - offset
-            # set_pose.position.z = self.place_pose.position.z
             set_pose.position.x = 0.474
             set_pose.position.y = -0.069
             # TODO update this with height of tower
@@ -676,13 +677,34 @@ class Test(Node):
                 self.get_logger().info(f'transform bw base and top:\n{t}')
                 self.tower_top_pose.position.x = t.transform.translation.x
                 self.tower_top_pose.position.y = t.transform.translation.y
-                self.tower_top_pose.position.z = t.transform.translation.z + 0.03
+                self.tower_top_pose.position.z = t.transform.translation.z + 0.05
                 self.get_logger().info(f'TOWER top Pose:\n{self.tower_top_pose}')
                 # publish when found so cv node knows when to stop publishing
                 self.place_pose.position.z = self.tower_top_pose.position.z
+                # assume tower at 45 degree offset
+                s = self.piece_width/sqrt(2)
+                piece_1 = Pose()
+                piece_1.position.x = self.tower_top_pose.position.x + s
+                piece_1.position.y = self.tower_top_pose.position.y - s
+                piece_1.position.z = self.tower_top_pose.position.z
+                self.get_logger().info(f'PIECE1:\n{piece_1}')
+                piece_2 = Pose()
+                piece_2.position.x = self.tower_top_pose.position.x
+                piece_2.position.y = self.tower_top_pose.position.y
+                piece_2.position.z = self.tower_top_pose.position.z
+                self.get_logger().info(f'PIECE2:\n{piece_2}')
+                piece_3 = Pose()
+                piece_3.position.x = self.tower_top_pose.position.x - s
+                piece_3.position.y = self.tower_top_pose.position.y + s
+                piece_3.position.z = self.tower_top_pose.position.z
+                self.get_logger().info(f'PIECE3:\n{piece_3}')
                 self.state = State.IDLE
             except TransformException:
                 print("couldn't do panda_link0->tower transform")
+        elif self.state == State.LETGO:
+            self.future = await self.PlanEx.release()
+            self.get_logger().info("DONE RELEASING")
+            self.state = State.IDLE
 
 def test_entry(args=None):
     rclpy.init(args=args)
