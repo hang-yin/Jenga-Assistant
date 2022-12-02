@@ -77,8 +77,8 @@ class Cam(Node):
         self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
 
         # Bounding rectangle
-        self.sq_orig = [450,0]
-        self.sq_sz = 450
+        self.sq_orig = [415,0]
+        self.sq_sz = 500
         self.rect = None
         self.update_rect()
 
@@ -327,10 +327,10 @@ class Cam(Node):
 
             largest_area, centroid_pose = self.get_mask()
             if largest_area:
-                self.get_logger().info(f"Largest area {largest_area}")
+                # self.get_logger().info(f"Largest area {largest_area}")
                 if largest_area > self.top_area_threshold:
                     if self.ct < self.avg_frames:
-                        self.get_logger().info(f'Current pose: {centroid_pose.position}')
+                        # self.get_logger().info(f'Current pose: {centroid_pose.position}')
                         # Record the position
                         self.piece_x.append(centroid_pose.position.x)
                         self.piece_y.append(centroid_pose.position.y)
@@ -423,11 +423,7 @@ class Cam(Node):
             if largest_area:
                 if largest_area > self.piece_area_threshold:
                     if self.ct < self.avg_frames:
-                        self.get_logger().info(f'Current pose: {centroid_pose.position}')
-                        # self.get_logger().info("Piece (?) detected")
-                        # self.get_logger().info(f"Depth: {self.band_start}, area: {largest_area}")
-                        # self.get_logger().info(f"Pose in camera frame: {centroid_pose}")
-                        # Record the position
+                        # self.get_logger().info(f'Current pose: {centroid_pose.position}')
                         self.piece_x.append(centroid_pose.position.x)
                         self.piece_y.append(centroid_pose.position.y)
                         self.piece_z.append(centroid_pose.position.z)
@@ -442,8 +438,8 @@ class Cam(Node):
                         self.piece_x = []
                         self.piece_y = []
                         self.piece_z = []
-                        self.avg_piece.position.z += self.piece_depth # /2.
-                        self.get_logger().info("Done averaging")
+                        self.avg_piece.position.z += self.piece_depth/2.
+                        self.get_logger().info("Done averaging!")
                         self.get_logger().info(f"Final pose: {self.avg_piece}")
                         self.ct = 0
                         self.piece_pub.publish(self.avg_piece)

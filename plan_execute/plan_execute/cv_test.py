@@ -677,27 +677,30 @@ class Test(Node):
                 self.get_logger().info(f'transform bw base and top:\n{t}')
                 self.tower_top_pose.position.x = t.transform.translation.x
                 self.tower_top_pose.position.y = t.transform.translation.y
-                self.tower_top_pose.position.z = t.transform.translation.z + 0.05
+                self.tower_top_pose.position.z = t.transform.translation.z + 0.03
                 self.get_logger().info(f'TOWER top Pose:\n{self.tower_top_pose}')
                 # publish when found so cv node knows when to stop publishing
                 self.place_pose.position.z = self.tower_top_pose.position.z
                 # assume tower at 45 degree offset
+                # These 3 pieces are where the center of the tower should end up.
                 s = self.piece_width/sqrt(2)
+                offset = 0.03
                 piece_1 = Pose()
-                piece_1.position.x = self.tower_top_pose.position.x + s
-                piece_1.position.y = self.tower_top_pose.position.y - s
+                piece_1.position.x = self.tower_top_pose.position.x + s - offset
+                piece_1.position.y = self.tower_top_pose.position.y - s - offset
                 piece_1.position.z = self.tower_top_pose.position.z
                 self.get_logger().info(f'PIECE1:\n{piece_1}')
                 piece_2 = Pose()
-                piece_2.position.x = self.tower_top_pose.position.x
-                piece_2.position.y = self.tower_top_pose.position.y
+                piece_2.position.x = self.tower_top_pose.position.x - offset
+                piece_2.position.y = self.tower_top_pose.position.y - offset
                 piece_2.position.z = self.tower_top_pose.position.z
                 self.get_logger().info(f'PIECE2:\n{piece_2}')
                 piece_3 = Pose()
-                piece_3.position.x = self.tower_top_pose.position.x - s
-                piece_3.position.y = self.tower_top_pose.position.y + s
+                piece_3.position.x = self.tower_top_pose.position.x - s - offset
+                piece_3.position.y = self.tower_top_pose.position.y + s - offset
                 piece_3.position.z = self.tower_top_pose.position.z
                 self.get_logger().info(f'PIECE3:\n{piece_3}')
+                self.place_pose = piece_1
                 self.state = State.IDLE
             except TransformException:
                 print("couldn't do panda_link0->tower transform")
