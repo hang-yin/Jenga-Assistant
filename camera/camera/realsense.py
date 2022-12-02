@@ -98,7 +98,7 @@ class Cam(Node):
         # Contour area threshold for detecting the table
         self.table_area_threshold = 10000
         # Contour area threshold for detecting a piece sticking out
-        self.piece_area_threshold = 2000
+        self.piece_area_threshold = 1000
         # Little bit less than the area of 1 piece when it's on the top
         self.top_area_threshold = 16000
 
@@ -282,7 +282,7 @@ class Cam(Node):
             drawn_contours = cv2.drawContours(drawn_contours, [box], 0, (255,0,0), 3)
             contour_ratio = largest_area/box_area
             # self.get_logger().info(f"CONTOUR RATIO: {contour_ratio}")
-            if care_about_square and (contour_ratio<0.8):
+            if care_about_square and (contour_ratio<0.7):
                 # The contour is not really a rectangle and therefore doesn't work well
                 largest_area, centroid_pose = None, None
         cv2.imshow('Color', drawn_contours)
@@ -442,7 +442,7 @@ class Cam(Node):
                         self.piece_x = []
                         self.piece_y = []
                         self.piece_z = []
-                        self.avg_piece.position.z += self.piece_depth/2.
+                        self.avg_piece.position.z += self.piece_depth # /2.
                         self.get_logger().info("Done averaging")
                         self.get_logger().info(f"Final pose: {self.avg_piece}")
                         self.ct = 0

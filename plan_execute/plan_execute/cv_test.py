@@ -656,7 +656,7 @@ class Test(Node):
                 # HARDCODED OFFSET LMAO WILL IT WORK?
                 self.get_logger().info(f'y init: {t.transform.translation.y}')
                 if self.goal_pose.position.y < 0:
-                    self.goal_pose.position.y += self.tower_top_pose.position.y
+                    self.goal_pose.position.y -= self.tower_top_pose.position.y
                 else: 
                     self.goal_pose.position.y -= self.tower_top_pose.position.y
                 self.goal_pose.position.z = t.transform.translation.z
@@ -676,9 +676,10 @@ class Test(Node):
                 self.get_logger().info(f'transform bw base and top:\n{t}')
                 self.tower_top_pose.position.x = t.transform.translation.x
                 self.tower_top_pose.position.y = t.transform.translation.y
-                self.tower_top_pose.position.z = t.transform.translation.z + 0.05
+                self.tower_top_pose.position.z = t.transform.translation.z + 0.03
                 self.get_logger().info(f'TOWER top Pose:\n{self.tower_top_pose}')
                 # publish when found so cv node knows when to stop publishing
+                self.place_pose.position.z = self.tower_top_pose.position.z
                 self.state = State.IDLE
             except TransformException:
                 print("couldn't do panda_link0->tower transform")

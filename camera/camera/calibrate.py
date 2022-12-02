@@ -153,7 +153,8 @@ class Calibrate(Node):
         if self.state == State.CALIBRATE:
             # rad = deg_to_rad(180)
             rad = deg_to_rad(90)
-            rad2 = deg_to_rad(90)
+            small = deg_to_rad(20)
+            # rad2 = deg_to_rad(90)
             # rad3 = deg_to_rad(0)
             #create tf between the tag and the rotated frame
             self.rot.header.stamp = self.get_clock().now().to_msg()
