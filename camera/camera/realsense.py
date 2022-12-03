@@ -308,7 +308,7 @@ class Cam(Node):
             self.get_logger().info("Waiting for frames...")
             wait_for = [self.intrinsics, self.depth_frame, self.color_frame]
             if all(w is not None for w in wait_for):
-                self.state = State.PAUSED
+                self.state = State.FINDTOP
 
         elif self.state == State.PAUSED:
             # Just print out the camera data

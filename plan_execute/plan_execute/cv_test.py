@@ -349,7 +349,7 @@ class Test(Node):
         
         elif self.state == State.PREGRAB:
             # go to pre-grab pose
-            offset = math.sin(math.pi/2) * 0.2
+            offset = math.sin(math.pi/2) * 0.1
             pre_grasp = copy.deepcopy(self.goal_pose)
             pre_grasp.position.x = self.goal_pose.position.x - offset
             if self.goal_pose.position.y > 0:
