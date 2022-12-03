@@ -38,6 +38,7 @@ class State(Enum):
     ORIENT2 = auto(),
     PREGRAB = auto(),
     GRAB = auto(),
+    CLOSE = auto(),
     PULL = auto(),
     POSTPULL = auto(),
     REMOVETOWER = auto(),
@@ -318,6 +319,7 @@ class Test(Node):
                                                          self.execute)
             self.prev_state = State.CALIBRATE
             self.state = State.IDLE
+
         elif self.state == State.CARTESIAN:
             self.state = State.IDLE
             offset = math.sin(math.pi/2) * 0.1
@@ -352,7 +354,7 @@ class Test(Node):
         
         elif self.state == State.PREGRAB:
             # go to pre-grab pose
-            offset = math.sin(math.pi/2) * 0.1
+            offset = math.sin(math.pi/2) * 0.1 # 0.125
             pre_grasp = copy.deepcopy(self.goal_pose)
             pre_grasp.position.x = self.goal_pose.position.x - offset
             if self.goal_pose.position.y > 0:
@@ -373,13 +375,17 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    self.goal_pose, 1.2,
                                                                    self.execute)
-            # grab
-            self.future = await self.PlanEx.grab(0.05)
-            time.sleep(4) # maybe change to a counter rather than sleep 
-
-            # go to pull pose
             self.prev_state = State.GRAB
+            self.state = State.CLOSE
+
+        elif self.state == State.CLOSE:
+            # Change the number in grab
+            self.future = await self.PlanEx.grab(0.0495)
+            time.sleep(4) # maybe change to a counter rather than sleep 
+            # go to pull pose
+            self.prev_state = State.CLOSE
             self.state = State.PULL
+
         elif self.state == State.PULL:
             self.prev_state = State.PLACEPLANE
             self.get_logger().info('pulling')
@@ -392,12 +398,15 @@ class Test(Node):
             self.prev_state = State.PULL
             self.get_logger().info(str(self.prev_state))
             self.state = State.POSTPULL
+
         elif self.state == State.POSTPULL:
+            self.get_logger().info('\n\n\nPOOOOOSTPULLLLL\n\n\n')
             postpull_pose = copy.deepcopy(self.pregrasp_pose)
+            # postpull_pose.position.x = 0.5
             postpull_pose.position.z = 0.487
             self.prev_state = State.POSTPULL
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   postpull_pose, 1.2,
+                                                                   postpull_pose, 1.0,
                                                                    self.execute)
             self.state = State.READY
         elif self.state == State.READY:
@@ -420,8 +429,8 @@ class Test(Node):
             self.get_logger().info(str(self.prev_state))
             if self.prev_state == State.POSTPULL:
                 self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                    ready_pose, 1.2,
-                                                                    self.execute)
+                                                                       ready_pose, 1.0,
+                                                                       self.execute)
                 self.get_logger().info('ORIENTING')
                 self.prev_state = State.READY
                 self.state = State.ORIENT2
@@ -445,16 +454,13 @@ class Test(Node):
 
         elif self.state == State.ORIENT2:
             # TODO update with either +45 or -45
-            """
-            if counter < 3: 
-                orient -45 (i think) way we are constructing it currently
-            else: 
-                orient +45
-            """
             self.get_logger().info('ORIENT sencond')
             set_pose = copy.deepcopy(self.goal_pose)
             set_pose.orientation.x = 0.9238795
-            set_pose.orientation.y = 0.3826834
+            if self.place_counter < 3:
+                set_pose.orientation.y = 0.3826834
+            else:
+                set_pose.orientation.y = -0.3826834
             set_pose.orientation.z = 0.0
             set_pose.orientation.w = 0.0
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
@@ -479,7 +485,10 @@ class Test(Node):
             offset = math.sin(math.pi/2) * 0.03
             # Would be a different sign if on the other side
             set_pose.position.x = self.place_pose.position.x - offset
-            set_pose.position.y = self.place_pose.position.y - offset
+            if self.place_counter < 3:
+                set_pose.position.y = self.place_pose.position.y - offset
+            else:
+                set_pose.position.y = self.place_pose.position.y + offset
             # TODO update this with height of tower
             set_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
