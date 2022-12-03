@@ -94,7 +94,8 @@ def generate_launch_description():
         output='screen',
         remappings=[('/image_rect', '/camera/color/image_raw'),
                    ('/camera_info', '/camera/color/camera_info')],
-        parameters=[default_april_config_path]
+        parameters=[default_april_config_path],
+        condition=LaunchConfigurationEquals('calibrate', 'true')
     )
 
     return LaunchDescription([

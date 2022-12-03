@@ -50,6 +50,9 @@ class State(Enum):
     ORIENT4 = auto(),
     PLACEPOKER = auto(),
     POSTPLACEPOKER = auto(),
+    # states for destroy
+    PREDESTROY = auto(),
+    DESTROY = auto()
     # ready 
         # sends pose back to ready default position of robot after any movement or motion
     # calibrate
@@ -97,6 +100,7 @@ class Test(Node):
         self.poke = self.create_service(GoHere, '/poke', self.poke_callback)
         self.cal = self.create_service(Empty, '/calibrate', self.calibrate_callback)
         self.cal = self.create_service(Empty, '/ready', self.ready_callback)
+        self.game_over = self.create_service(Empty, '/destroy', self.destroy_callback)
         self.place = self.create_service(Place, '/place', self.place_callback)
         self.PlanEx = PlanAndExecute(self)
         self.prev_state = State.START
@@ -119,6 +123,7 @@ class Test(Node):
         self.place_pose.position.y = -0.069
         self.place_pose.position.z = 0.380
         self.poke_pose = Pose()
+        self.destroy_pose = Pose()
 
     def go_here_callback(self, request, response):
         """
@@ -188,6 +193,18 @@ class Test(Node):
         response.success = True
         return response
 
+    def destroy_callback(self, request, response):
+        """
+        Call a custom service that takes one Pose of variable length, a regular Pose, and a bool.
+
+        The user can pass a custom start postion to the service and a desired end goal. The boolean
+        indicates whether to plan or execute the path.
+        """
+        self.execute = True
+        self.start_pose = None
+        self.state = State.REMOVETOWER
+        return response
+
     def calibrate_callback(self, request, response):
         self.start_pose = None
         self.execute = True
@@ -225,16 +242,27 @@ class Test(Node):
         plane_pose.orientation.w = 1.0
         await self.PlanEx.place_block(plane_pose, [10.0, 10.0, 0.1], 'plane')
     
-    async def place_tower(self):
+    async def place_tower(self, vision_tower_pose, h):
         tower_pose = Pose()
-        tower_pose.position.x = 0.46
-        tower_pose.position.y = 0.0
-        tower_pose.position.z = 0.12
-        tower_pose.orientation.x = 0.9226898
-        tower_pose.orientation.y = 0.3855431
-        tower_pose.orientation.z = 0.0
-        tower_pose.orientation.w = 0.0
-        await self.PlanEx.place_block(tower_pose, [0.15, 0.15, 0.24], 'tower')
+        tower_pose.position.x = vision_tower_pose.position.x
+        tower_pose.position.y = vision_tower_pose.position.y
+        tower_pose.position.z = vision_tower_pose.position.z
+        tower_pose.orientation.x = vision_tower_pose.orientation.x 
+        tower_pose.orientation.y = vision_tower_pose.orientation.y 
+        tower_pose.orientation.z = vision_tower_pose.orientation.z 
+        tower_pose.orientation.w = vision_tower_pose.orientation.w 
+        await self.PlanEx.place_block(tower_pose, [0.15, 0.15, h], 'tower')
+
+    async def place_camera(self, vision_camera_pose):
+        camera_pose = Pose()
+        camera_pose.position.x = vision_camera_pose.position.x
+        camera_pose.position.y = vision_camera_pose.position.y
+        camera_pose.position.z = vision_camera_pose.position.z
+        camera_pose.orientation.x = vision_camera_pose.orientation.x 
+        camera_pose.orientation.y = vision_camera_pose.orientation.y 
+        camera_pose.orientation.z = vision_camera_pose.orientation.z 
+        camera_pose.orientation.w = vision_camera_pose.orientation.w 
+        await self.PlanEx.place_block(camera_pose, [0.1, 0.15, 0.06], 'camera')
 
     async def timer_callback(self):
         """State maching that dictates which functions from the class are being called."""
@@ -249,7 +277,24 @@ class Test(Node):
         elif self.state == State.PLACEPLANE:
             self.state = State.IDLE
             await self.place_plane()
-            await self.place_tower()
+            camera_pose = Pose()
+            camera_pose.position.x = 0.5690304232559326
+            camera_pose.position.y = 0.003084971991525019
+            camera_pose.position.z = 0.7704838271477458
+            camera_pose.orientation.x = 0.7329464768310298
+            camera_pose.orientation.y = 0.6788123266849486
+            camera_pose.orientation.z = -0.013746853789119589
+            camera_pose.orientation.w = -0.04259473268430952 #delete once vision can find this
+            await self.place_camera(camera_pose)
+            tower_pose = Pose()
+            tower_pose.position.x = 0.46
+            tower_pose.position.y = 0.0
+            tower_pose.position.z = 0.12
+            tower_pose.orientation.x = 0.9226898
+            tower_pose.orientation.y = 0.3855431
+            tower_pose.orientation.z = 0.0
+            tower_pose.orientation.w = 0.0 #delete once vision can find this
+            await self.place_tower(tower_pose, 0.24)
             self.prev_state = State.PLACEPLANE
             # await self.PlanEx.grab()
         elif self.state == State.CALL:
@@ -394,7 +439,7 @@ class Test(Node):
                 self.get_logger().info('ORIENTING')
                 self.prev_state = State.READY
                 self.state = State.ORIENT2
-            elif self.prev_state == State.POSTPUSH:
+            elif self.prev_state == State.POSTPUSH or self.prev_state == State.DESTROY:
                 await self.place_tower()
                 self.future = await self.PlanEx.plan_to_pose(self.start_pose,
                                                                     ready_pose, joint_position,
@@ -426,8 +471,12 @@ class Test(Node):
             self.state = State.REMOVETOWER
         elif self.state == State.REMOVETOWER:
             self.future = await self.PlanEx.removeTower()
+            if self.prev_state == State.ORIENT2:
+                self.state = State.SET
+            else:
+                self.state = State.PREDESTROY
             self.prev_state = State.REMOVETOWER
-            self.state = State.SET
+            
         elif self.state == State.SET:
             # TODO need six positions for the block: left1, center1, right1, left2, center2, right2
             # for now, we will hard code this to be left1
@@ -618,6 +667,38 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    postplacepoker_pose, 0.25,
                                                                    self.execute)
+        
+        elif self.state == State.PREDESTROY:
+            self.goal_pose.position.x = 0.622
+            self.goal_pose.position.y = 0.153
+            self.goal_pose.position.z = 0.149
+            self.goal_pose.orientation.x = 0.687
+            self.goal_pose.orientation.y = 0.09
+            self.goal_pose.orientation.z = 0.179
+            self.goal_pose.orientation.w = 0.698
+            # joint_position = [-0.41734628201340934, 1.1581524200269224, 1.0433443045698418, 
+            #                   -2.112617755844691, -2.878713578149638, 1.397055253859289,
+            #                   1.433553425220326]
+            self.future = await self.PlanEx.plan_to_pose(self.start_pose,
+                                                         self.goal_pose, None,
+                                                         0.01, self.execute)
+            self.state = State.DESTROY
+            self.prev_state = State.PREDESTROY
+        
+        elif self.state == State.DESTROY:
+            self.get_logger().info('Destroying')
+            self.destroy_pose.position.x = 0.622
+            self.destroy_pose.position.y = -0.3
+            self.destroy_pose.position.z = 0.146
+            self.destroy_pose.orientation.x = 0.556
+            self.destroy_pose.orientation.y = 0.436
+            self.destroy_pose.orientation.z = 0.432
+            self.destroy_pose.orientation.w = 0.56
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                   self.destroy_pose, 1.5,
+                                                                   self.execute)
+            self.state = State.READY
+            self.prev_state = State.DESTROY
 
 def test_entry(args=None):
     rclpy.init(args=args)

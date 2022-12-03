@@ -119,7 +119,7 @@ class PlanAndExecute:
         scene = await self.node.planscene.call_async(temp_scene_request)
         scene = scene.scene
         scene.robot_state.joint_state = self.js
-        self.collision_list = self.collision_list[:1]
+        self.collision_list = self.collision_list[:2]
         scene.world.collision_objects = self.collision_list
         self.node.block_pub.publish(scene)
 
@@ -266,7 +266,7 @@ class PlanAndExecute:
 
     def createCartreq(self, start_pose, end_pose):
         """Create an Cartisian message filled with info from the goal pose and orientation."""
-        max_step = 0.0005
+        max_step = 0.001
         points = self.createWaypoints(start_pose, end_pose, max_step)
         self.node.get_logger().info("creating cartisian message")
         constraint = Constraints()
@@ -439,7 +439,8 @@ class PlanAndExecute:
                     point.accelerations[i] *= v
             
             # execute the plan
-            self.node.get_logger().info("\n\n\n cart response \n\n\n")
+            # self.node.get_logger().info("\n\n\n cart response \n\n\n")
+
             # self.printBlock(Cart_response)
             traj_goal = ExecuteTrajectory.Goal(trajectory=Cart_response)
             execute_future = await self.node._execute_client.send_goal_async(traj_goal)
