@@ -1,0 +1,3 @@
+0 empty
+1 block_ready
+2 hand

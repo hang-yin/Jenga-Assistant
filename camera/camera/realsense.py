@@ -13,6 +13,8 @@ from math import sqrt, dist
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 from std_msgs.msg import Bool, Int16
+from keras.models import load_model
+from ament_index_python.packages import get_package_share_path
 
 
 class State(Enum):
@@ -129,6 +131,12 @@ class Cam(Node):
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
         cv2.createTrackbar('band width', 'Color' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
+
+        # load machine learning model
+        model_path = get_package_share_path('camera') / 'keras_model.h5'
+        label_path = get_package_share_path('camera') / 'labels.txt'
+        self.model = load_model(model_path)
+        self.labels = open(label_path, 'r').readlines()
 
     def sqx_trackbar(self, val):
         self.sq_orig[0] = val
@@ -302,6 +310,14 @@ class Cam(Node):
 
         # Every time you need to publish the top of the tower
         self.publish_top()
+
+        # process color_frame to tell us which condition we are in
+        if self.color_frame is not None:
+            image = cv2.resize(self.color_frame, (224, 224), interpolation=cv2.INTER_AREA)
+            image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
+            image = (image / 127.5) - 1
+            probabilities = self.model.predict(image)
+            self.get_logger().info(self.labels[np.argmax(probabilities)])
 
         if self.state == State.WAITING:
             # Pause while we wait for frames
