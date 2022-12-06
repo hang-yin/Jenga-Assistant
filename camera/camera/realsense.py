@@ -32,6 +32,8 @@ class State(Enum):
     PUBLISHPIECE = auto(),
     # Don't scan but still show the screen
     PAUSED = auto()
+    # Waiting for motion to finish
+    WAITINGMOTION = auto()
 
 class Cam(Node):
     def __init__(self):
@@ -55,7 +57,10 @@ class Cam(Node):
                                                         'piece_found',
                                                         self.piece_found_cb,
                                                         10)
-
+        self.finished_place_sub = self.create_subscription(Bool,
+                                                           'finished_place',
+                                                           self.finished_place_cb,
+                                                           10)
         self.piece_pub = self.create_publisher(Pose, 'jenga_piece', 10)
         self.top_pub = self.create_publisher(Int16, 'top_size', 10)
         self.scan = self.create_service(Empty, "scan", self.scan_service_callback)
@@ -139,6 +144,7 @@ class Cam(Node):
         label_path = get_package_share_path('camera') / 'labels.txt'
         self.model = load_model(model_path)
         self.labels = open(label_path, 'r').readlines()
+        self.no_hand_count = 0
 
     def sqx_trackbar(self, val):
         self.sq_orig[0] = val
@@ -188,6 +194,10 @@ class Cam(Node):
     def piece_found_cb(self, d_):
         # Stop publishing tf data!!
         self.get_logger().info('Brick found')
+        self.state = State.PAUSED
+    
+    def finished_place_cb(self, response):
+        self.get_logger().info('Finished placing')
         self.state = State.PAUSED
 
     def calib_service_callback(self, _, response):
@@ -317,15 +327,7 @@ class Cam(Node):
         # Every time you need to publish the top of the tower
         self.publish_top()
 
-        # process color_frame with ML model
-        if self.color_frame is not None:
-            image = cv2.resize(self.color_frame, (224, 224), interpolation=cv2.INTER_AREA)
-            image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
-            image = (image / 127.5) - 1
-            probabilities = self.model.predict(image)
-            # TODO: if argmax(probabilities) is consistently equal to "block ready" for a while
-            # then we can call /scan to grab the block
-            self.get_logger().info(self.labels[np.argmax(probabilities)])
+        
 
         if self.state == State.WAITING:
             # Pause while we wait for frames
@@ -336,6 +338,31 @@ class Cam(Node):
                 self.state = State.FINDTOP
 
         elif self.state == State.PAUSED:
+            # Just print out the camera data
+            largest_area, _ = self.get_mask()
+            # process color_frame with ML model
+            if self.color_frame is not None:
+                image = cv2.resize(self.color_frame, (224, 224), interpolation=cv2.INTER_AREA)
+                image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
+                image = (image / 127.5) - 1
+                probabilities = self.model.predict(image)
+                # TODO: if argmax(probabilities) is consistently equal to "no-hand" for a while
+                # then we can call /scan to grab the block
+                label = np.argmax(probabilities)
+                if self.no_hand_count > 200:
+                    self.no_hand_count = 0
+                    self.get_logger().info("Start scanning!!!\n")
+                    self.state = State.SCANNING
+                else:
+                    self.get_logger().info(f"no_hand_count: {self.no_hand_count}")
+                    self.get_logger().info(f"label: {label}")
+                    if label == 1:
+                        self.no_hand_count += 1
+                    elif label == 0:
+                        self.no_hand_count = 0
+                self.get_logger().info(self.labels[np.argmax(probabilities)])
+        
+        elif self.state == State.WAITINGMOTION:
             # Just print out the camera data
             largest_area, _ = self.get_mask()
 
@@ -443,6 +470,7 @@ class Cam(Node):
             if self.scan_index+1.2*self.band_width > self.table:
                 self.scan_index = self.tower_top +1.2*self.band_width
                 self.get_logger().info("Reset scan")
+                self.state = State.PAUSED
             # Look for piece sticking out in range from top to table
             largest_area, centroid_pose = self.get_mask()
             if largest_area:
