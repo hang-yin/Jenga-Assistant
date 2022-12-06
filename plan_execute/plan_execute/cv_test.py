@@ -478,10 +478,6 @@ class Test(Node):
             # we need an offset for the x and y
             set_pose = copy.deepcopy(self.goal_pose)
             self.place_pose = self.place_locations[self.place_counter]
-            self.place_counter += 1
-            if self.place_counter>=6:
-                self.place_counter = 0
-                # TODO increment all of the zs in self.place_locations
             offset = math.sin(math.pi/2) * 0.03
             # Would be a different sign if on the other side
             set_pose.position.x = self.place_pose.position.x - offset
@@ -539,6 +535,12 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    postpush_pose, 1.2,
                                                                    self.execute)
+            self.place_counter += 1
+            if self.place_counter>=6:
+                self.place_counter = 0
+                for n in range(0,len(self.place_locations)):
+                    self.place_locations[i].position.z += 2*self.piece_height
+                # TODO increment all of the zs in self.place_locations
             self.prev_state = State.POSTPUSH
             self.state = State.READY
         
