@@ -375,6 +375,10 @@ class Cam(Node):
                 # This should not happen. But if it doesn't find anything large in the band:
                 self.scan_index = self.scan_start
                 self.get_logger().info("Didn't find the tower?")
+                self.piece_x = []
+                self.piece_y = []
+                self.piece_z = []
+                self.ct = 0
                 self.state = State.FINDHANDS
 
             largest_area, centroid_pose = self.get_mask()
