@@ -144,7 +144,7 @@ class Test(Node):
         self.piece_height = 0.03
         self.top_positions = None
         self.place_locations = None
-        self.place_counter = 3
+        self.place_counter = 5
 
 
     def piece_cb(self, data):
@@ -478,10 +478,6 @@ class Test(Node):
             # we need an offset for the x and y
             set_pose = copy.deepcopy(self.goal_pose)
             self.place_pose = self.place_locations[self.place_counter]
-            self.place_counter += 1
-            if self.place_counter>=6:
-                self.place_counter = 0
-                # TODO increment all of the zs in self.place_locations
             offset = math.sin(math.pi/2) * 0.03
             # Would be a different sign if on the other side
             set_pose.position.x = self.place_pose.position.x - offset
@@ -550,6 +546,10 @@ class Test(Node):
                                                                    self.execute)
             self.prev_state = State.POSTPUSH
             self.state = State.READY
+            self.place_counter += 1
+            if self.place_counter>=6:
+                self.place_counter = 0
+                # TODO increment all of the zs in self.place_locations
         
         elif self.state == State.PLACEBLOCK:
             self.prev_state = State.PLACEBLOCK

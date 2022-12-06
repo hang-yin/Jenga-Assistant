@@ -56,6 +56,7 @@ class Cam(Node):
 
         self.piece_pub = self.create_publisher(Pose, 'jenga_piece', 10)
         self.top_pub = self.create_publisher(Int16, 'top_size', 10)
+        self.top_ori_pub = self.create_publisher(Int16, 'top_ori', 10)
         self.scan = self.create_service(Empty, "scan", self.scan_service_callback)
         self.stop = self.create_service(Empty, "stop", self.stop_service_callback)
         self.calib = self.create_service(Empty, "findtower", self.calib_service_callback)
@@ -88,6 +89,8 @@ class Cam(Node):
         # depth "bands"
         self.band_start = 570
         self.band_width = 20
+        self.edge_high = 40
+        self.edge_low = 0
         self.tower_top = None
         self.table = None
         self.scan_start = 450
@@ -129,6 +132,8 @@ class Cam(Node):
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
         cv2.createTrackbar('band width', 'Color' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
+        cv2.createTrackbar('edge low', 'Color' , self.edge_low, 200, self.edge_low_tb)
+        cv2.createTrackbar('edge high', 'Color' , self.edge_high, 200, self.edge_high_tb)
 
     def sqx_trackbar(self, val):
         self.sq_orig[0] = val
@@ -154,6 +159,12 @@ class Cam(Node):
 
     def band_start_tb(self, val):
         self.band_start = val
+
+    def edge_low_tb(self, val):
+        self.edge_low = val
+    
+    def edge_high_tb(self, val):
+        self.edge_high = val
 
     def kernel_trackbar(self, val):
         self.kernel = np.ones((val,val),np.uint8)
@@ -271,7 +282,8 @@ class Cam(Node):
             box = np.intp(box)
             # Save original box area to test if the contour is a good fit
             box_area = dist(box[0],box[1])*dist(box[1],box[2])
-
+        
+        
         # Display the images
         color_rect = cv2.rectangle(np.array(self.color_frame),
                                    self.rect[0][0], self.rect[0][2],
@@ -285,6 +297,50 @@ class Cam(Node):
             if care_about_square and (contour_ratio<0.7):
                 # The contour is not really a rectangle and therefore doesn't work well
                 largest_area, centroid_pose = None, None
+
+        # Convert the img to grayscale
+        gray = cv2.cvtColor(color_rect, cv2.COLOR_BGR2GRAY)
+        color_mask = cv2.bitwise_and(gray, gray, mask=box)
+        cv2.imshow('color mask', color_mask)
+        # Apply edge detection method on the image
+        edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
+        # This returns an array of r and theta values
+        lines = cv2.HoughLines(edges, 1, np.pi/180, 200)
+        # try:
+        # if lines != None:
+        # if len(lines) != 0:
+        for r_theta in lines:
+            self.get_logger().info("TRY")
+            arr = np.array(r_theta[0], dtype=np.float64)
+            r, theta = arr
+            # Stores the value of cos(theta) in a
+            a = np.cos(theta)
+            # Stores the value of sin(theta) in b
+            b = np.sin(theta)
+            # x0 stores the value rcos(theta)
+            x0 = a*r
+            # y0 stores the value rsin(theta)
+            y0 = b*r
+            # x1 stores the rounded off value of (rcos(theta)-1000sin(theta))
+            x1 = int(x0 + 1000*(-b))
+            # y1 stores the rounded off value of (rsin(theta)+1000cos(theta))
+            y1 = int(y0 + 1000*(a))
+            # x2 stores the rounded off value of (rcos(theta)+1000sin(theta))
+            x2 = int(x0 - 1000*(-b))
+            # y2 stores the rounded off value of (rsin(theta)-1000cos(theta))
+            y2 = int(y0 - 1000*(a))
+            # cv2.line draws a line in img from the point(x1,y1) to (x2,y2).
+            # (0,0,255) denotes the colour of the line to be
+            # drawn. In this case, it is red.
+            cv2.line(color_rect, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        cv2.imshow('linesDetected.jpg', color_rect)
+            # except:
+            # self.get_logger().info("EXCEPT")
+            # pass
+            # All the changes made in the input image are finally
+            # written on a new image houghlines.jpg
+        
+
         cv2.imshow('Color', drawn_contours)
 
         cv2.waitKey(1)
@@ -381,6 +437,7 @@ class Cam(Node):
                         else:
                             self.get_logger().info("Think 1 piece on top")
                             num_pieces.data = 1
+                        # return the 
                         # Go and find the table
                         self.top_pub.publish(num_pieces)
                         self.state = State.FINDTABLE
