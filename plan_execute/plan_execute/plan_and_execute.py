@@ -397,38 +397,37 @@ class PlanAndExecute:
         """Return MoveGroup action from a start to end pose (position + orientation)."""
         self.node.get_logger().info("Plan to Pose")
         cart_successed = False
-        while not cart_successed:
-            # if not start_pose:
-            start_pose = self.getStartPose()
-            self.master_goal.request.start_state.joint_state = self.js
-            self.fill_constraints(self.js.name, self.js.position, 0.005)
+        # while not cart_successed:
+        # if not start_pose:
+        start_pose = self.getStartPose()
+        self.master_goal.request.start_state.joint_state = self.js
+        self.fill_constraints(self.js.name, self.js.position, 0.005)
+        # else:
+        #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
+        #     request_temp = GetCartesianPath.Request(ik_request=request_start)
+        #     response_start = await self.node.IK.call_async(request_temp)
+        #     self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
+        #     self.node.get_logger().info(response_start)
+        #     self.node.get_logger().info(self.master_goal.request.start_state.joint_state)
+
+        self.master_goal.planning_options.plan_only = not execute
+        self.node.get_logger().info("requesting cartisian message")
+        header, start_state, group_name, link_name, waypoints, max_step, jump_threshold,\
+        prismatic_jump_threshold, revolute_jump_threshold, avoid_collisions,\
+        path_constraints= self.createCartreq(start_pose, end_pose)
+        self.node.get_logger().info("recieved cartesian message")
+        self.node.get_logger().info("calling cartisian service")
+        cart_successed = False
+        Cart_response = await self.callCart(header, start_state, group_name, link_name, waypoints,
+                                            max_step, jump_threshold, prismatic_jump_threshold, 
+                                            revolute_jump_threshold, avoid_collisions,
+                                            path_constraints)
+            # if len(Cart_response.joint_trajectory.points) > 1:
+            #     cart_successed = True
             # else:
-            #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
-            #     request_temp = GetCartesianPath.Request(ik_request=request_start)
-            #     response_start = await self.node.IK.call_async(request_temp)
-            #     self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
-            #     self.node.get_logger().info(response_start)
-            #     self.node.get_logger().info(self.master_goal.request.start_state.joint_state)
-
-            self.master_goal.planning_options.plan_only = not execute
-            self.node.get_logger().info("requesting cartisian message")
-            header, start_state, group_name, link_name, waypoints, max_step, jump_threshold,\
-            prismatic_jump_threshold, revolute_jump_threshold, avoid_collisions,\
-            path_constraints= self.createCartreq(start_pose, end_pose)
-            self.node.get_logger().info("recieved cartesian message")
-            self.node.get_logger().info("calling cartisian service")
-            cart_successed = False
-            Cart_response = await self.callCart(header, start_state, group_name, link_name, waypoints,
-                                                max_step, jump_threshold, prismatic_jump_threshold, 
-                                                revolute_jump_threshold, avoid_collisions,
-                                                path_constraints)
-            if len(Cart_response.joint_trajectory.points) > 1:
-                cart_successed = True
-            else:
-                self.node.get_logger().info("cartisian service failed, trying again")
-                # add a random offset to the end_pose
-                end_pose.position.x += random.uniform(-0.01, 0.01)
-
+            #     self.node.get_logger().info("cartisian service failed, trying again")
+            #     # add a random offset to the end_pose
+            #     end_pose.position.x += random.uniform(-0.01, 0.01)
         self.node.get_logger().info("finished cartstian service")
         # if Cart_response:
             # Create a plan off current joint states
