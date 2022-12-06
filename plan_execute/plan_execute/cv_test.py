@@ -518,7 +518,7 @@ class Test(Node):
             self.state = State.PUSH
         elif self.state == State.PUSH:
             push_pose = copy.deepcopy(self.goal_pose)
-            offset = math.sin(math.pi/2) * 0.03
+            offset = math.sin(math.pi/2) * 0.025 # 0.03
             push_pose.position.x = self.place_pose.position.x - offset
             push_pose.position.y = self.place_pose.position.y - offset
             push_pose.position.z = self.place_pose.position.z
@@ -684,11 +684,12 @@ class Test(Node):
                 self.goal_pose.position.y = t.transform.translation.y
                 # HARDCODED OFFSET LMAO WILL IT WORK?
                 self.get_logger().info(f'y init: {t.transform.translation.y}')
-                if self.goal_pose.position.y < 0:
-                    self.goal_pose.position.y -= self.tower_top_pose.position.y
-                else: 
-                    self.goal_pose.position.y -= self.tower_top_pose.position.y
-                self.goal_pose.position.z = t.transform.translation.z
+                self.goal_pose.position.y -= 2*self.tower_top_pose.position.y
+                # if self.goal_pose.position.y < 0:
+                #     self.goal_pose.position.y -= self.tower_top_pose.position.y
+                # else: 
+                #     self.goal_pose.position.y -= self.tower_top_pose.position.y
+                self.goal_pose.position.z = t.transform.translation.z - 0.005
                 self.goal_pose.orientation.x = t.transform.rotation.x
                 self.goal_pose.orientation.y = t.transform.rotation.y
                 self.goal_pose.orientation.z = t.transform.rotation.z

@@ -349,7 +349,7 @@ class Cam(Node):
                 # TODO: if argmax(probabilities) is consistently equal to "no-hand" for a while
                 # then we can call /scan to grab the block
                 label = np.argmax(probabilities)
-                if self.no_hand_count > 200:
+                if self.no_hand_count > 80:
                     self.no_hand_count = 0
                     self.get_logger().info("Start scanning!!!\n")
                     self.state = State.SCANNING
