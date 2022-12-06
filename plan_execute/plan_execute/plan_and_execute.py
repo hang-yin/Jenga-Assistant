@@ -574,7 +574,7 @@ class PlanAndExecute:
         grasp_goal = Grasp.Goal()
         grasp_goal.width = width
         grasp_goal.speed = 0.03
-        grasp_goal.force = 80.0
+        grasp_goal.force = 100.0
         await self.node._gripper_client.send_goal_async(grasp_goal)
         self.node.get_logger().info("grabbed")
     

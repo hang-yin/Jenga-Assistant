@@ -109,8 +109,6 @@ class Test(Node):
         self.cart_go_here = self.create_service(GoHere, '/cartesian_here', self.cart_callback)
         self.jenga = self.create_service(GoHere, '/jenga_time', self.jenga_callback)
         self.poke = self.create_service(GoHere, '/poke', self.poke_callback)
-        self.jenga = self.create_service(GoHere, '/jenga_time', self.jenga_callback)
-        self.poke = self.create_service(GoHere, '/poke', self.poke_callback)
         self.cal = self.create_service(Empty, '/calibrate', self.calibrate_callback)
         self.cal = self.create_service(Empty, '/ready', self.ready_callback)
         self.cal = self.create_service(Empty, '/release', self.release_callback)
@@ -135,6 +133,7 @@ class Test(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.piece_found_pub = self.create_publisher(Bool, 'piece_found', 10)
+        self.motion_complete_pub = self.create_publisher(Bool, 'finished_place', 10)
         self.tower_top_pose = Pose()
         # added these so it won't rely on service calls to run
         self.start_pose = None
@@ -443,6 +442,7 @@ class Test(Node):
                 self.get_logger().info('IDLE')
                 self.prev_state = State.READY
                 self.state = State.IDLE
+                self.motion_complete_pub.publish(Bool())
             else:
                 self.future = await self.PlanEx.plan_to_pose(self.start_pose,
                                                                     ready_pose, joint_position,
@@ -478,6 +478,7 @@ class Test(Node):
             # we need an offset for the x and y
             set_pose = copy.deepcopy(self.goal_pose)
             self.place_pose = self.place_locations[self.place_counter]
+            
             offset = math.sin(math.pi/2) * 0.03
             # Would be a different sign if on the other side
             set_pose.position.x = self.place_pose.position.x - offset
@@ -538,9 +539,9 @@ class Test(Node):
             self.place_counter += 1
             if self.place_counter>=6:
                 self.place_counter = 0
-                for n in range(0,len(self.place_locations)):
-                    self.place_locations[n].position.z += 2*self.piece_height
                 # TODO increment all of the zs in self.place_locations
+                for i in range(0, len(self.place_locations)):
+                    self.place_locations[i].position.z += 2.0*self.piece_height
             self.prev_state = State.POSTPUSH
             self.state = State.READY
         
@@ -567,7 +568,7 @@ class Test(Node):
             pickup_pose.position.y = 0.293
             pickup_pose.position.z = 0.038
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pickup_pose, 0.8,
+                                                                   pickup_pose, 1.0,
                                                                    self.execute)
             self.future = await self.PlanEx.grab(0.025)
             time.sleep(4)
@@ -671,7 +672,7 @@ class Test(Node):
             postplacepoker_pose.position.y = 0.293
             postplacepoker_pose.position.z = 0.487
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   postplacepoker_pose, 0.25,
+                                                                   postplacepoker_pose, 1.0,
                                                                    self.execute)
 
         elif self.state == State.FINDPIECE:
