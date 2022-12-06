@@ -539,7 +539,7 @@ class Test(Node):
             if self.place_counter>=6:
                 self.place_counter = 0
                 for n in range(0,len(self.place_locations)):
-                    self.place_locations[i].position.z += 2*self.piece_height
+                    self.place_locations[n].position.z += 2*self.piece_height
                 # TODO increment all of the zs in self.place_locations
             self.prev_state = State.POSTPUSH
             self.state = State.READY
