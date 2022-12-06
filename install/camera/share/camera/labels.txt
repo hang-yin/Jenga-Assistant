@@ -1,2 +1,0 @@
-0 hand
-1 no-hand
