@@ -126,13 +126,13 @@ class Cam(Node):
         # cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
         
         cv2.namedWindow('Color')
-        """
+        
         cv2.createTrackbar('origin x', 'Color', self.sq_orig[0], 1000, self.sqx_trackbar)
         cv2.createTrackbar('origin y', 'Color' , self.sq_orig[1], 1000, self.sqy_trackbar)
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
         cv2.createTrackbar('band width', 'Color' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
-        """
+        
 
         # load machine learning model
         model_path = get_package_share_path('camera') / 'keras_model.h5'
