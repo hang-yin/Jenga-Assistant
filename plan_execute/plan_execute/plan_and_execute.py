@@ -266,7 +266,7 @@ class PlanAndExecute:
 
     def createCartreq(self, start_pose, end_pose):
         """Create an Cartisian message filled with info from the goal pose and orientation."""
-        max_step = 0.005 #0.001
+        max_step = 0.001
         points = self.createWaypoints(start_pose, end_pose, max_step)
         self.node.get_logger().info("creating cartisian message")
         constraint = Constraints()
@@ -398,7 +398,7 @@ class PlanAndExecute:
         # if not start_pose:
         start_pose = self.getStartPose()
         self.master_goal.request.start_state.joint_state = self.js
-        self.fill_constraints(self.js.name, self.js.position, 0.01)
+        self.fill_constraints(self.js.name, self.js.position, 0.001)
         # else:
         #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
         #     request_temp = GetCartesianPath.Request(ik_request=request_start)
@@ -418,8 +418,6 @@ class PlanAndExecute:
                                             max_step, jump_threshold, prismatic_jump_threshold, 
                                             revolute_jump_threshold, avoid_collisions,
                                             path_constraints)
-        self.node.get_logger().info("\n\n\nOriginal Cart Response!!!\n\n\n")
-        self.printBlock(Cart_response)
         self.node.get_logger().info("finished cartstian service")
         # if Cart_response:
             # Create a plan off current joint states
@@ -442,8 +440,7 @@ class PlanAndExecute:
             
             # execute the plan
             # self.node.get_logger().info("\n\n\n cart response \n\n\n")
-            self.node.get_logger().info("\n\n\nModified Cart Response!!!\n\n\n")
-            # self.node.get_logger().info("Cart Response:")
+            self.node.get_logger().info("Cart Response:")
             self.printBlock(Cart_response)
             traj_goal = ExecuteTrajectory.Goal(trajectory=Cart_response)
             execute_future = await self.node._execute_client.send_goal_async(traj_goal)

@@ -144,7 +144,7 @@ class Test(Node):
         self.piece_height = 0.03
         self.top_positions = None
         self.place_locations = None
-        self.place_counter = 3
+        self.place_counter = 0
 
 
     def piece_cb(self, data):
@@ -507,10 +507,7 @@ class Test(Node):
             
             offset = math.sin(math.pi/2) * 0.08
             prepush_pose.position.x = self.place_pose.position.x - offset
-            if self.place_counter < 3:
-                prepush_pose.position.y = self.place_pose.position.y - offset
-            else:
-                prepush_pose.position.y = self.place_pose.position.y + offset
+            prepush_pose.position.y = self.place_pose.position.y - offset
             prepush_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    prepush_pose, 1.2,
@@ -526,10 +523,7 @@ class Test(Node):
             push_pose = copy.deepcopy(self.goal_pose)
             offset = math.sin(math.pi/2) * 0.03
             push_pose.position.x = self.place_pose.position.x - offset
-            if self.place_counter < 3:
-                push_pose.position.y = self.place_pose.position.y - offset
-            else:
-                push_pose.position.y = self.place_pose.position.y + offset
+            push_pose.position.y = self.place_pose.position.y - offset
             push_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    push_pose, 0.25,
@@ -540,10 +534,7 @@ class Test(Node):
             postpush_pose = copy.deepcopy(self.goal_pose)
             offset = math.sin(math.pi/2) * 0.08
             postpush_pose.position.x = self.place_pose.position.x - offset
-            if self.place_counter < 3:
-                postpush_pose.position.y = self.place_pose.position.y - offset
-            else:
-                postpush_pose.position.y = self.place_pose.position.y + offset
+            postpush_pose.position.y = self.place_pose.position.y - offset
             postpush_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    postpush_pose, 1.2,
@@ -736,17 +727,17 @@ class Test(Node):
                 self.get_logger().info(f'PIECE3:\n{piece_3}')
                 piece_4 = Pose()
                 piece_4.position.x = self.tower_top_pose.position.x + s - offset
-                piece_4.position.y = self.tower_top_pose.position.y + s + offset
+                piece_4.position.y = self.tower_top_pose.position.y + s - offset
                 piece_4.position.z = self.tower_top_pose.position.z + self.piece_height
                 self.get_logger().info(f'PIECE4:\n{piece_4}')
                 piece_5 = Pose()
                 piece_5.position.x = self.tower_top_pose.position.x - offset
-                piece_5.position.y = self.tower_top_pose.position.y + offset
+                piece_5.position.y = self.tower_top_pose.position.y - offset
                 piece_5.position.z = self.tower_top_pose.position.z + self.piece_height
                 self.get_logger().info(f'PIECE5:\n{piece_5}')
                 piece_6 = Pose()
                 piece_6.position.x = self.tower_top_pose.position.x - s - offset
-                piece_6.position.y = self.tower_top_pose.position.y - s + offset
+                piece_6.position.y = self.tower_top_pose.position.y - s - offset
                 piece_6.position.z = self.tower_top_pose.position.z + self.piece_height
                 self.get_logger().info(f'PIECE6:\n{piece_6}')
                 self.place_locations = [piece_1, piece_2, piece_3, piece_4, piece_5, piece_6]
