@@ -1,0 +1,25 @@
+[0.901s] Invoking command in '/home/yh6917/ME495/src/hw3group-jengabells/plan_execute': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../build/plan_execute build --build-base /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/build install --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute --record /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/install.log --single-version-externally-managed
+[1.202s] running egg_info
+[1.202s] writing ../build/plan_execute/plan_execute.egg-info/PKG-INFO
+[1.203s] writing dependency_links to ../build/plan_execute/plan_execute.egg-info/dependency_links.txt
+[1.203s] writing entry points to ../build/plan_execute/plan_execute.egg-info/entry_points.txt
+[1.203s] writing requirements to ../build/plan_execute/plan_execute.egg-info/requires.txt
+[1.203s] writing top-level names to ../build/plan_execute/plan_execute.egg-info/top_level.txt
+[1.205s] reading manifest file '../build/plan_execute/plan_execute.egg-info/SOURCES.txt'
+[1.206s] writing manifest file '../build/plan_execute/plan_execute.egg-info/SOURCES.txt'
+[1.206s] running build
+[1.206s] running build_py
+[1.206s] copying plan_execute/simple_move.py -> /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/build/lib/plan_execute
+[1.207s] running install
+[1.207s] running install_lib
+[1.208s] copying /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/build/lib/plan_execute/simple_move.py -> /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages/plan_execute
+[1.209s] byte-compiling /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages/plan_execute/simple_move.py to simple_move.cpython-310.pyc
+[1.211s] running install_data
+[1.212s] running install_egg_info
+[1.214s] removing '/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages/plan_execute-0.0.0-py3.10.egg-info' (and everything under it)
+[1.214s] Copying ../build/plan_execute/plan_execute.egg-info to /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages/plan_execute-0.0.0-py3.10.egg-info
+[1.215s] running install_scripts
+[1.236s] Installing cv_test script to /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/plan_execute
+[1.236s] Installing simple_move script to /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/plan_execute
+[1.236s] writing list of installed files to '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/install.log'
+[1.266s] Invoked command in '/home/yh6917/ME495/src/hw3group-jengabells/plan_execute' returned '0': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../build/plan_execute build --build-base /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/build install --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute --record /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/install.log --single-version-externally-managed

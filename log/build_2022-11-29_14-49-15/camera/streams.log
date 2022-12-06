@@ -1,0 +1,23 @@
+[1.085s] Invoking command in '/home/yh6917/ME495/src/hw3group-jengabells/camera': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../build/camera build --build-base /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build install --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/camera --record /home/yh6917/ME495/src/hw3group-jengabells/build/camera/install.log --single-version-externally-managed
+[1.427s] running egg_info
+[1.428s] writing ../build/camera/camera.egg-info/PKG-INFO
+[1.428s] writing dependency_links to ../build/camera/camera.egg-info/dependency_links.txt
+[1.428s] writing entry points to ../build/camera/camera.egg-info/entry_points.txt
+[1.429s] writing requirements to ../build/camera/camera.egg-info/requires.txt
+[1.429s] writing top-level names to ../build/camera/camera.egg-info/top_level.txt
+[1.430s] reading manifest file '../build/camera/camera.egg-info/SOURCES.txt'
+[1.431s] writing manifest file '../build/camera/camera.egg-info/SOURCES.txt'
+[1.431s] running build
+[1.432s] running build_py
+[1.432s] running install
+[1.432s] running install_lib
+[1.434s] running install_data
+[1.435s] running install_egg_info
+[1.437s] removing '/home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera-0.0.0-py3.10.egg-info' (and everything under it)
+[1.437s] Copying ../build/camera/camera.egg-info to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera-0.0.0-py3.10.egg-info
+[1.438s] running install_scripts
+[1.461s] Installing broadcast script to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/camera
+[1.461s] Installing cali script to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/camera
+[1.461s] Installing cam script to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/camera
+[1.461s] writing list of installed files to '/home/yh6917/ME495/src/hw3group-jengabells/build/camera/install.log'
+[1.489s] Invoked command in '/home/yh6917/ME495/src/hw3group-jengabells/camera' returned '0': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../build/camera build --build-base /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build install --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/camera --record /home/yh6917/ME495/src/hw3group-jengabells/build/camera/install.log --single-version-externally-managed

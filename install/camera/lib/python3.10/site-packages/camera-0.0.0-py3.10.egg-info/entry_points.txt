@@ -1,0 +1,5 @@
+[console_scripts]
+broadcast = camera.broadcast_transform:main
+cali = camera.calibrate:main
+cam = camera.realsense:main
+
