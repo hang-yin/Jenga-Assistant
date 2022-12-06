@@ -1,0 +1,53 @@
+[0.636s] Invoking command in '/home/yh6917/ME495/src/hw3group-jengabells/camera': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../build/camera build --build-base /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build install --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/camera --record /home/yh6917/ME495/src/hw3group-jengabells/build/camera/install.log --single-version-externally-managed
+[0.814s] running egg_info
+[0.814s] creating ../build/camera/camera.egg-info
+[0.815s] writing ../build/camera/camera.egg-info/PKG-INFO
+[0.815s] writing dependency_links to ../build/camera/camera.egg-info/dependency_links.txt
+[0.815s] writing entry points to ../build/camera/camera.egg-info/entry_points.txt
+[0.815s] writing requirements to ../build/camera/camera.egg-info/requires.txt
+[0.815s] writing top-level names to ../build/camera/camera.egg-info/top_level.txt
+[0.815s] writing manifest file '../build/camera/camera.egg-info/SOURCES.txt'
+[0.816s] reading manifest file '../build/camera/camera.egg-info/SOURCES.txt'
+[0.817s] writing manifest file '../build/camera/camera.egg-info/SOURCES.txt'
+[0.817s] running build
+[0.817s] running build_py
+[0.817s] creating /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build
+[0.817s] creating /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib
+[0.817s] creating /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera
+[0.817s] copying camera/__init__.py -> /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera
+[0.817s] copying camera/test.py -> /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera
+[0.817s] copying camera/realsense.py -> /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera
+[0.817s] copying camera/broadcast_transform.py -> /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera
+[0.817s] copying camera/calibrate.py -> /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera
+[0.818s] running install
+[0.818s] running install_lib
+[0.818s] creating /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera
+[0.818s] copying /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera/__init__.py -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera
+[0.818s] copying /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera/test.py -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera
+[0.818s] copying /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera/realsense.py -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera
+[0.819s] copying /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera/broadcast_transform.py -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera
+[0.819s] copying /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build/lib/camera/calibrate.py -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera
+[0.819s] byte-compiling /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera/__init__.py to __init__.cpython-310.pyc
+[0.819s] byte-compiling /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera/test.py to test.cpython-310.pyc
+[0.819s] byte-compiling /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera/realsense.py to realsense.cpython-310.pyc
+[0.822s] byte-compiling /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera/broadcast_transform.py to broadcast_transform.cpython-310.pyc
+[0.822s] byte-compiling /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera/calibrate.py to calibrate.cpython-310.pyc
+[0.823s] running install_data
+[0.823s] creating /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/ament_index
+[0.823s] creating /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/ament_index/resource_index
+[0.823s] creating /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/ament_index/resource_index/packages
+[0.823s] copying resource/camera -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/ament_index/resource_index/packages
+[0.824s] copying package.xml -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/camera
+[0.824s] copying launch/jenga_vision.launch.py -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/camera
+[0.824s] copying launch/cv.launch.py -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/camera
+[0.824s] copying config/april.rviz -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/camera
+[0.824s] copying config/april.yaml -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/camera
+[0.824s] copying config/tf.yaml -> /home/yh6917/ME495/src/hw3group-jengabells/install/camera/share/camera
+[0.824s] running install_egg_info
+[0.825s] Copying ../build/camera/camera.egg-info to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera-0.0.0-py3.10.egg-info
+[0.825s] running install_scripts
+[0.840s] Installing broadcast script to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/camera
+[0.840s] Installing cali script to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/camera
+[0.840s] Installing cam script to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/camera
+[0.840s] writing list of installed files to '/home/yh6917/ME495/src/hw3group-jengabells/build/camera/install.log'
+[0.860s] Invoked command in '/home/yh6917/ME495/src/hw3group-jengabells/camera' returned '0': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../build/camera build --build-base /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build install --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/camera --record /home/yh6917/ME495/src/hw3group-jengabells/build/camera/install.log --single-version-externally-managed

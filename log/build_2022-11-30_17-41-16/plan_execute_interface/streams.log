@@ -1,0 +1,34 @@
+[0.374s] Invoking command in '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute_interface': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/yh6917/ME495/src/hw3group-jengabells/install/camera:/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute:/opt/ros/humble /usr/bin/cmake /home/yh6917/ME495/src/hw3group-jengabells/plan_execute_interface -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute_interface
+[0.386s] -- Found ament_cmake: 1.3.2 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.490s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.501s] -- Found geometry_msgs: 4.2.2 (/opt/ros/humble/share/geometry_msgs/cmake)
+[0.529s] -- Found rosidl_generator_c: 3.1.3 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[0.531s] -- Found rosidl_adapter: 3.1.3 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[0.537s] -- Found rosidl_generator_cpp: 3.1.3 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[0.547s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.560s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[0.647s] -- Found rosidl_default_generators: 1.2.0 (/opt/ros/humble/share/rosidl_default_generators/cmake)
+[0.866s] -- Found ament_cmake_ros: 0.10.0 (/opt/ros/humble/share/ament_cmake_ros/cmake)
+[1.153s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.257s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.272s] -- Found python_cmake_module: 0.10.0 (/opt/ros/humble/share/python_cmake_module/cmake)
+[1.287s] -- Using PYTHON_EXECUTABLE: /usr/bin/python3
+[1.287s] -- Using PYTHON_INCLUDE_DIRS: /usr/include/python3.10
+[1.287s] -- Using PYTHON_LIBRARIES: /usr/lib/x86_64-linux-gnu/libpython3.10.so
+[1.312s] -- Found ament_lint_auto: 0.12.4 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[1.323s] -- Added test 'lint_cmake' to check CMake code style
+[1.324s] -- Added test 'xmllint' to check XML markup files
+[1.327s] -- Configuring done
+[1.350s] -- Generating done
+[1.352s] -- Build files have been written to: /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute_interface
+[1.357s] Invoked command in '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute_interface' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/yh6917/ME495/src/hw3group-jengabells/install/camera:/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute:/opt/ros/humble /usr/bin/cmake /home/yh6917/ME495/src/hw3group-jengabells/plan_execute_interface -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute_interface
+[1.358s] Invoking command in '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute_interface': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/yh6917/ME495/src/hw3group-jengabells/install/camera:/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute:/opt/ros/humble /usr/bin/cmake --build /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute_interface -- -j8 -l8
+[1.381s] [35m[1mConsolidate compiler generated dependencies of target plan_execute_interface__rosidl_generator_c[0m
+[1.386s] failed to create symbolic link '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute_interface/ament_cmake_python/plan_execute_interface/plan_execute_interface' because existing path cannot be removed: Is a directory
+[1.386s] gmake[2]: *** [CMakeFiles/ament_cmake_python_symlink_plan_execute_interface.dir/build.make:70: CMakeFiles/ament_cmake_python_symlink_plan_execute_interface] Error 1
+[1.387s] gmake[1]: *** [CMakeFiles/Makefile2:421: CMakeFiles/ament_cmake_python_symlink_plan_execute_interface.dir/all] Error 2
+[1.387s] gmake[1]: *** Waiting for unfinished jobs....
+[1.387s] [  2%] Built target plan_execute_interface__cpp
+[1.388s] [ 12%] Built target plan_execute_interface__rosidl_generator_c
+[1.389s] gmake: *** [Makefile:146: all] Error 2
+[1.390s] Invoked command in '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute_interface' returned '2': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/yh6917/ME495/src/hw3group-jengabells/install/camera:/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute:/opt/ros/humble /usr/bin/cmake --build /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute_interface -- -j8 -l8

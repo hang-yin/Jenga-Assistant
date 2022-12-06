@@ -1,0 +1,7 @@
+{
+  "package_name": "plan_execute_interface",
+  "non_idl_tuples": [
+    "/home/yh6917/ME495/src/hw3group-jengabells/plan_execute_interface:srv/GoHere.srv",
+    "/home/yh6917/ME495/src/hw3group-jengabells/plan_execute_interface:srv/Place.srv"
+  ]
+}

@@ -126,11 +126,13 @@ class Cam(Node):
         # cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
         
         cv2.namedWindow('Color')
+        """
         cv2.createTrackbar('origin x', 'Color', self.sq_orig[0], 1000, self.sqx_trackbar)
         cv2.createTrackbar('origin y', 'Color' , self.sq_orig[1], 1000, self.sqy_trackbar)
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
         cv2.createTrackbar('band width', 'Color' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
+        """
 
         # load machine learning model
         model_path = get_package_share_path('camera') / 'keras_model.h5'
@@ -224,6 +226,7 @@ class Cam(Node):
         self.depth_frame = current_frame
 
     def get_mask(self, care_about_square = True, get_lines = False):
+        
         # Do this in case the subscriber somehow updates in the middle of the function?
         depth_cpy = np.array(self.depth_frame)
         # Only keep stuff that's within the appropriate depth band.
@@ -279,11 +282,13 @@ class Cam(Node):
             box = np.intp(box)
             # Save original box area to test if the contour is a good fit
             box_area = dist(box[0],box[1])*dist(box[1],box[2])
-
+        
         # Display the images
         color_rect = cv2.rectangle(np.array(self.color_frame),
                                    self.rect[0][0], self.rect[0][2],
                                    (255,0,0), 2)
+        
+
         drawn_contours = cv2.drawContours(color_rect, large_contours, -1, (0,255,0), 3)
         if max_centroid is not None:
             drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0,0,255), 5)
@@ -293,6 +298,7 @@ class Cam(Node):
             if care_about_square and (contour_ratio<0.7):
                 # The contour is not really a rectangle and therefore doesn't work well
                 largest_area, centroid_pose = None, None
+
         cv2.imshow('Color', drawn_contours)
 
         cv2.waitKey(1)
@@ -311,12 +317,14 @@ class Cam(Node):
         # Every time you need to publish the top of the tower
         self.publish_top()
 
-        # process color_frame to tell us which condition we are in
+        # process color_frame with ML model
         if self.color_frame is not None:
             image = cv2.resize(self.color_frame, (224, 224), interpolation=cv2.INTER_AREA)
             image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
             image = (image / 127.5) - 1
             probabilities = self.model.predict(image)
+            # TODO: if argmax(probabilities) is consistently equal to "block ready" for a while
+            # then we can call /scan to grab the block
             self.get_logger().info(self.labels[np.argmax(probabilities)])
 
         if self.state == State.WAITING:

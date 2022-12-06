@@ -1,0 +1,4 @@
+[console_scripts]
+cv_test = plan_execute.cv_test:test_entry
+simple_move = plan_execute.simple_move:test_entry
+

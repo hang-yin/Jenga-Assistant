@@ -1,0 +1,19 @@
+[0.646s] Invoking command in '/home/yh6917/ME495/src/hw3group-jengabells/build/camera': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py develop --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/camera --editable --build-directory /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build --no-deps install_data --install-dir /home/yh6917/ME495/src/hw3group-jengabells/install/camera
+[0.843s] running develop
+[0.966s] running egg_info
+[0.966s] writing camera.egg-info/PKG-INFO
+[0.966s] writing dependency_links to camera.egg-info/dependency_links.txt
+[0.966s] writing entry points to camera.egg-info/entry_points.txt
+[0.966s] writing requirements to camera.egg-info/requires.txt
+[0.966s] writing top-level names to camera.egg-info/top_level.txt
+[0.968s] reading manifest file 'camera.egg-info/SOURCES.txt'
+[0.969s] writing manifest file 'camera.egg-info/SOURCES.txt'
+[0.970s] running build_ext
+[0.970s] Creating /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages/camera.egg-link (link to .)
+[0.970s] Installing broadcast script to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/camera
+[0.971s] Installing cali script to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/camera
+[0.971s] Installing cam script to /home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/camera
+[0.971s] 
+[0.971s] Installed /home/yh6917/ME495/src/hw3group-jengabells/build/camera
+[0.971s] running install_data
+[1.010s] Invoked command in '/home/yh6917/ME495/src/hw3group-jengabells/build/camera' returned '0': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/camera/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py develop --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/camera --editable --build-directory /home/yh6917/ME495/src/hw3group-jengabells/build/camera/build --no-deps install_data --install-dir /home/yh6917/ME495/src/hw3group-jengabells/install/camera

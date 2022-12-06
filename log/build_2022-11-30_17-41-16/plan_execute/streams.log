@@ -1,0 +1,18 @@
+[0.639s] Invoking command in '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py develop --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute --editable --build-directory /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/build --no-deps install_data --install-dir /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute
+[0.834s] running develop
+[0.957s] running egg_info
+[0.957s] writing plan_execute.egg-info/PKG-INFO
+[0.957s] writing dependency_links to plan_execute.egg-info/dependency_links.txt
+[0.957s] writing entry points to plan_execute.egg-info/entry_points.txt
+[0.957s] writing requirements to plan_execute.egg-info/requires.txt
+[0.957s] writing top-level names to plan_execute.egg-info/top_level.txt
+[0.958s] reading manifest file 'plan_execute.egg-info/SOURCES.txt'
+[0.959s] writing manifest file 'plan_execute.egg-info/SOURCES.txt'
+[0.960s] running build_ext
+[0.960s] Creating /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages/plan-execute.egg-link (link to .)
+[0.961s] Installing cv_test script to /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/plan_execute
+[0.961s] Installing simple_move script to /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/plan_execute
+[0.961s] 
+[0.961s] Installed /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute
+[0.961s] running install_data
+[0.989s] Invoked command in '/home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute' returned '0': PYTHONPATH=/home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py develop --prefix /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute --editable --build-directory /home/yh6917/ME495/src/hw3group-jengabells/build/plan_execute/build --no-deps install_data --install-dir /home/yh6917/ME495/src/hw3group-jengabells/install/plan_execute
