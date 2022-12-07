@@ -130,6 +130,7 @@ class Test(Node):
 
         self.piece_sub = self.create_subscription(Pose, 'jenga_piece', self.piece_cb, 10)
         self.top_sub = self.create_subscription(Int16, 'top_size', self.top_cb, 10)
+        self.top_ori_sub = self.create_subscription(Int16, 'top_ori', self.top_ori_cb, 10)
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.piece_found_pub = self.create_publisher(Bool, 'piece_found', 10)
@@ -145,6 +146,7 @@ class Test(Node):
         self.place_locations = None
         self.place_counter = 0
         self.tilt = False
+        self.top_ori = None
 
 
     def piece_cb(self, data):
@@ -164,6 +166,10 @@ class Test(Node):
         """
         self.get_logger().info(f'NUMBER OF PIECES ON TOP:\n{data}')
         self.state = State.FINDTOP
+
+    def top_ori_cb(self, data):
+        self.get_logger().info(f'ORIENTATION OF TOP:\n{data}')
+        self.top_ori = data
 
     def go_here_callback(self, request, response):
         """
@@ -783,6 +789,7 @@ class Test(Node):
                 # These 3 pieces are where the center of the tower should end up.
                 s = self.piece_width/sqrt(2)
                 offset = 0.03
+                # Use self.top_ori to determine which one. +1 = Normal (below). -1: opposite
                 piece_1 = Pose()
                 piece_1.position.x = self.tower_top_pose.position.x + s - offset
                 piece_1.position.y = self.tower_top_pose.position.y - s - offset
