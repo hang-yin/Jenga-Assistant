@@ -142,10 +142,8 @@ class Cam(Node):
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
         cv2.createTrackbar('band width', 'Color' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
-<<<<<<< HEAD
         cv2.createTrackbar('edge low', 'Color' , self.edge_low, 200, self.edge_low_tb)
         cv2.createTrackbar('edge high', 'Color' , self.edge_high, 200, self.edge_high_tb)
-=======
         
 
         # load machine learning model
@@ -154,7 +152,6 @@ class Cam(Node):
         self.model = load_model(model_path)
         self.labels = open(label_path, 'r').readlines()
         self.no_hand_count = 0
->>>>>>> main
 
     def sqx_trackbar(self, val):
         self.sq_orig[0] = val

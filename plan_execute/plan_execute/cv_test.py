@@ -143,11 +143,7 @@ class Test(Node):
         self.piece_height = 0.03
         self.top_positions = None
         self.place_locations = None
-<<<<<<< HEAD
-        self.place_counter = 5
-=======
         self.place_counter = 0
->>>>>>> main
 
 
     def piece_cb(self, data):
@@ -522,10 +518,7 @@ class Test(Node):
             # we need an offset for the x and y
             set_pose = copy.deepcopy(self.goal_pose)
             self.place_pose = self.place_locations[self.place_counter]
-<<<<<<< HEAD
-=======
             
->>>>>>> main
             offset = math.sin(math.pi/2) * 0.03
             # Would be a different sign if on the other side
             set_pose.position.x = self.place_pose.position.x - offset
