@@ -61,6 +61,10 @@ class Cam(Node):
                                                            'finished_place',
                                                            self.finished_place_cb,
                                                            10)
+        self.layer_added_sub = self.create_subscription(Bool,
+                                                        'layer_added',
+                                                        self.layer_added_cb,
+                                                        10)
         self.piece_pub = self.create_publisher(Pose, 'jenga_piece', 10)
         self.top_pub = self.create_publisher(Int16, 'top_size', 10)
         self.top_ori_pub = self.create_publisher(Int16, 'top_ori', 10)
@@ -207,14 +211,20 @@ class Cam(Node):
         self.get_logger().info("Pause Scanning")
         return response
     
-    def piece_found_cb(self, d_):
+    def piece_found_cb(self, _):
         # Stop publishing tf data!!
         self.get_logger().info('Brick found')
         self.state = State.WAITINGMOTION
     
-    def finished_place_cb(self, response):
+    def finished_place_cb(self, _):
         self.get_logger().info('Finished placing')
         self.state = State.FINDHANDS
+
+    def layer_added_cb(self, _):
+        self.get_logger().info('Layer added')
+        # Decrease the scan start by piece height
+        # self.piece_depth
+        self.scan_start -= self.piece_depth
 
     def calib_service_callback(self, _, response):
         """ Re caluclate the height of the tower """
@@ -384,7 +394,7 @@ class Cam(Node):
                 # Cropping the depth_mask so that only what is within the square remains.
                 # depth_mask = cv2.bitwise_and(depth_mask, depth_mask, mask=square)
                 color_mask = cv2.bitwise_and(gray, gray, mask=square_new)
-                cv2.imshow('color mask', color_mask)
+                # cv2.imshow('color mask', color_mask)
                 # Apply edge detection method on the image
                 edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
                 # image = (gray, edges)
@@ -396,58 +406,23 @@ class Cam(Node):
                 # if lines != None:
                 # if len(lines) != 0:
                 if lines is not None:
-                    self.r_list = []
-                    self.theta_list = []
                     num_negative = 0
                     num_positive = 0
                     for r_theta in lines:
                         # self.get_logger().info("TRY")
                         arr = np.array(r_theta[0], dtype=np.float64)
-                        r, theta = arr
-                        self.r_list.append(r)
-                        self.theta_list.append(theta)
+                        r, _ = arr
                         if r<0:
                             num_negative += 1
                         else:
                             num_positive +=1
-                        # Stores the value of cos(theta) in a
-                        a = np.cos(theta)
-                        # Stores the value of sin(theta) in b
-                        b = np.sin(theta)
-                        # x0 stores the value rcos(theta)
-                        x0 = a*r
-                        # y0 stores the value rsin(theta)
-                        y0 = b*r
-                        # x1 stores the rounded off value of (rcos(theta)-1000sin(theta))
-                        x1 = int(x0 + 1000*(-b))
-                        # y1 stores the rounded off value of (rsin(theta)+1000cos(theta))
-                        y1 = int(y0 + 1000*(a))
-                        # x2 stores the rounded off value of (rcos(theta)+1000sin(theta))
-                        x2 = int(x0 - 1000*(-b))
-                        # y2 stores the rounded off value of (rsin(theta)-1000cos(theta))
-                        y2 = int(y0 - 1000*(a))
-                        point1 = [x1, y1]
-                        point2 = [x2, y2]
-                        # cv2.line draws a line in img from the point(x1,y1) to (x2,y2).
-                        # (0,0,255) denotes the colour of the line to be
-                        # drawn. In this case, it is red.
-                        cv2.line(color_mask, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                        r_val = np.median(self.r_list)
-                        color = 10
-                        # drawn_contours = cv2.circle(drawn_contours, point1, 5, (0,0,color), 5)
-                        # drawn_contours = cv2.circle(drawn_contours, point2, 5, (0,0,color), 5)
-                        color += 20
-                        if r_val > 0: 
-                            self.top_ori = 1
-                        else:
-                            self.top_ori = -1
                     self.get_logger().info(f"Negative: {num_negative}, Positive: {num_positive}")
                     if num_negative > num_positive:
                         line_direction = -1
                     else:
                         line_direction = 1
                     
-                cv2.imshow('linesDetected.jpg', color_mask)
+                # cv2.imshow('linesDetected.jpg', color_mask)
                 # except:
                 # self.get_logger().info("EXCEPT")
                 # pass
@@ -499,6 +474,8 @@ class Cam(Node):
                 if self.no_hand_count > 80:
                     self.no_hand_count = 0
                     self.get_logger().info("Start scanning!!!\n")
+                    self.scan_index = self.scan_start
+                    self.band_start = self.scan_start
                     self.state = State.SCANNING
                 else:
                     # self.get_logger().info(f"no_hand_count: {self.no_hand_count}")
@@ -554,6 +531,7 @@ class Cam(Node):
                                             f"area: {largest_area}\n")
                         self.get_logger().info(f"Centroid pose in cam frame:\n{avg_x},{avg_y},{avg_z}")
                         self.tower_top = self.band_start+self.band_width
+                        self.scan_start = self.tower_top + self.band_width # Maybe don't include +
                         # This will begin publishing to the tf tree
                         if self.starting_top is None:
                             self.starting_top = TransformStamped()
@@ -617,8 +595,8 @@ class Cam(Node):
                     self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
                                            f"area: {largest_area}\n")
                     self.table = self.band_start
-                    self.scan_index = self.tower_top + self.band_width
-                    self.band_start = self.tower_top + self.band_width
+                    self.scan_index = self.scan_start
+                    self.band_start = self.scan_start
                     self.state = State.FINDHANDS
 
         elif self.state == State.SCANNING:
@@ -627,7 +605,7 @@ class Cam(Node):
             self.scan_index += self.scan_step
             # Reset scan if too big.
             if self.scan_index+1.2*self.band_width > self.table:
-                self.scan_index = self.tower_top +1.2*self.band_width
+                self.scan_index = self.scan_start
                 self.get_logger().info("Reset scan")
                 self.state = State.FINDHANDS
             else:

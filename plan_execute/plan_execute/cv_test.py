@@ -135,6 +135,7 @@ class Test(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.piece_found_pub = self.create_publisher(Bool, 'piece_found', 10)
         self.motion_complete_pub = self.create_publisher(Bool, 'finished_place', 10)
+        self.layer_added_pub = self.create_publisher(Bool, 'layer_added', 10)
         self.tower_top_pose = Pose()
         # added these so it won't rely on service calls to run
         self.start_pose = None
@@ -599,6 +600,10 @@ class Test(Node):
                                                                    self.execute)
             time.sleep(2)
             self.place_counter += 1
+            if (self.place_counter == 3) or (self.place_counter == 6):
+                # Publish something
+                self.layer_added_pub.publish(Bool())
+                pass
             if self.place_counter>=6:
                 self.place_counter = 0
                 # TODO increment all of the zs in self.place_locations
