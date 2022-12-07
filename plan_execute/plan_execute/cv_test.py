@@ -511,10 +511,16 @@ class Test(Node):
             set_pose.orientation.z = 0.18137
             """
             set_pose.orientation.x = 0.9238795
-            if self.place_counter < 3:
-                set_pose.orientation.y = 0.3826834
+            if self.top_ori == 1:
+                if self.place_counter < 3:
+                    set_pose.orientation.y = 0.3826834
+                else:
+                    set_pose.orientation.y = -0.3826834
             else:
-                set_pose.orientation.y = -0.3826834
+                if self.place_counter < 3:
+                    set_pose.orientation.y = -0.3826834
+                else:
+                    set_pose.orientation.y = +0.3826834
             set_pose.orientation.z = 0.0
             set_pose.orientation.w = 0.0
             
@@ -538,10 +544,16 @@ class Test(Node):
             offset = math.sin(math.pi/2) * 0.03
             # Would be a different sign if on the other side
             set_pose.position.x = self.place_pose.position.x - offset
-            if self.place_counter < 3:
-                set_pose.position.y = self.place_pose.position.y - offset
+            if self.top_ori == 1:
+                if self.place_counter < 3:
+                    set_pose.position.y = self.place_pose.position.y - offset
+                else:
+                    set_pose.position.y = self.place_pose.position.y + offset
             else:
-                set_pose.position.y = self.place_pose.position.y + offset
+                if self.place_counter < 3:
+                    set_pose.position.y = self.place_pose.position.y + offset
+                else:
+                    set_pose.position.y = self.place_pose.position.y - offset
             # TODO update this with height of tower
             set_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
@@ -561,10 +573,16 @@ class Test(Node):
             
             offset = math.sin(math.pi/2) * 0.08
             prepush_pose.position.x = self.place_pose.position.x - offset
-            if self.place_counter < 3:
-                prepush_pose.position.y = self.place_pose.position.y - offset
+            if self.top_ori == 1:
+                if self.place_counter < 3:
+                    prepush_pose.position.y = self.place_pose.position.y - offset
+                else:
+                    prepush_pose.position.y = self.place_pose.position.y + offset
             else:
-                prepush_pose.position.y = self.place_pose.position.y + offset
+                if self.place_counter < 3:
+                    prepush_pose.position.y = self.place_pose.position.y + offset
+                else:
+                    prepush_pose.position.y = self.place_pose.position.y - offset
             # prepush_pose.position.y = self.place_pose.position.y - offset
             prepush_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
@@ -582,10 +600,16 @@ class Test(Node):
             push_pose = copy.deepcopy(self.goal_pose)
             offset = math.sin(math.pi/2) * 0.02 # 0.03
             push_pose.position.x = self.place_pose.position.x - offset
-            if self.place_counter < 3:
-                push_pose.position.y = self.place_pose.position.y - offset
+            if self.top_ori == 1:
+                if self.place_counter < 3:
+                    push_pose.position.y = self.place_pose.position.y - offset
+                else:
+                    push_pose.position.y = self.place_pose.position.y + offset
             else:
-                push_pose.position.y = self.place_pose.position.y + offset
+                if self.place_counter < 3:
+                    push_pose.position.y = self.place_pose.position.y + offset
+                else:
+                    push_pose.position.y = self.place_pose.position.y - offset
             push_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    push_pose, 0.25,
@@ -597,10 +621,16 @@ class Test(Node):
             postpush_pose = copy.deepcopy(self.goal_pose)
             offset = math.sin(math.pi/2) * 0.08
             postpush_pose.position.x = self.place_pose.position.x - offset
-            if self.place_counter < 3:
-                postpush_pose.position.y = self.place_pose.position.y - offset
+            if self.top_ori == 1:
+                if self.place_counter < 3:
+                    postpush_pose.position.y = self.place_pose.position.y - offset
+                else:
+                    postpush_pose.position.y = self.place_pose.position.y + offset
             else:
-                postpush_pose.position.y = self.place_pose.position.y + offset
+                if self.place_counter < 3:
+                    postpush_pose.position.y = self.place_pose.position.y + offset
+                else:
+                    postpush_pose.position.y = self.place_pose.position.y - offset
             postpush_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    postpush_pose, 1.2,
@@ -610,7 +640,6 @@ class Test(Node):
             if (self.place_counter == 3) or (self.place_counter == 6):
                 # Publish something
                 self.layer_added_pub.publish(Bool())
-                pass
             if self.place_counter>=6:
                 self.place_counter = 0
                 # TODO increment all of the zs in self.place_locations
@@ -618,10 +647,6 @@ class Test(Node):
                     self.place_locations[i].position.z += 2.0*self.piece_height
             self.prev_state = State.POSTPUSH
             self.state = State.READY
-            self.place_counter += 1
-            if self.place_counter>=6:
-                self.place_counter = 0
-                # TODO increment all of the zs in self.place_locations
         
         elif self.state == State.PLACEBLOCK:
             self.prev_state = State.PLACEBLOCK
@@ -778,6 +803,7 @@ class Test(Node):
                 # HARDCODED OFFSET LMAO WILL IT WORK?
                 self.get_logger().info(f'y init: {t.transform.translation.y}')
                 if self.goal_pose.position.y > 0:
+                    self.goal_pose.position.x += 0.012
                     self.goal_pose.position.y -= 1.95*self.tower_top_pose.position.y
                 else:
                     self.goal_pose.position.x += 0.012
@@ -815,38 +841,71 @@ class Test(Node):
                 s = self.piece_width/sqrt(2)
                 offset = 0.03
                 # Use self.top_ori to determine which one. +1 = Normal (below). -1: opposite
-                piece_1 = Pose()
-                piece_1.position.x = self.tower_top_pose.position.x + s - offset
-                piece_1.position.y = self.tower_top_pose.position.y - s - offset
-                piece_1.position.z = self.tower_top_pose.position.z
-                self.get_logger().info(f'PIECE1:\n{piece_1}')
-                piece_2 = Pose()
-                piece_2.position.x = self.tower_top_pose.position.x - offset
-                piece_2.position.y = self.tower_top_pose.position.y - offset
-                piece_2.position.z = self.tower_top_pose.position.z
-                self.get_logger().info(f'PIECE2:\n{piece_2}')
-                piece_3 = Pose()
-                piece_3.position.x = self.tower_top_pose.position.x - s - offset
-                piece_3.position.y = self.tower_top_pose.position.y + s - offset
-                piece_3.position.z = self.tower_top_pose.position.z
-                self.get_logger().info(f'PIECE3:\n{piece_3}')
-                piece_4 = Pose()
-                piece_4.position.x = self.tower_top_pose.position.x + s - offset
-                piece_4.position.y = self.tower_top_pose.position.y + s + offset
-                piece_4.position.z = self.tower_top_pose.position.z + self.piece_height
-                self.get_logger().info(f'PIECE4:\n{piece_4}')
-                piece_5 = Pose()
-                piece_5.position.x = self.tower_top_pose.position.x - offset
-                piece_5.position.y = self.tower_top_pose.position.y + offset
-                piece_5.position.z = self.tower_top_pose.position.z + self.piece_height
-                self.get_logger().info(f'PIECE5:\n{piece_5}')
-                piece_6 = Pose()
-                piece_6.position.x = self.tower_top_pose.position.x - s - offset
-                piece_6.position.y = self.tower_top_pose.position.y + s - offset
-                piece_6.position.z = self.tower_top_pose.position.z + self.piece_height
-                self.get_logger().info(f'PIECE6:\n{piece_6}')
-                self.place_locations = [piece_1, piece_2, piece_3, piece_4, piece_5, piece_6]
-                self.place_pose = piece_1
+                if self.top_ori == 1:
+                    piece_1 = Pose()
+                    piece_1.position.x = self.tower_top_pose.position.x + s - offset
+                    piece_1.position.y = self.tower_top_pose.position.y - s - offset
+                    piece_1.position.z = self.tower_top_pose.position.z
+                    self.get_logger().info(f'PIECE1:\n{piece_1}')
+                    piece_2 = Pose()
+                    piece_2.position.x = self.tower_top_pose.position.x - offset
+                    piece_2.position.y = self.tower_top_pose.position.y - offset
+                    piece_2.position.z = self.tower_top_pose.position.z
+                    self.get_logger().info(f'PIECE2:\n{piece_2}')
+                    piece_3 = Pose()
+                    piece_3.position.x = self.tower_top_pose.position.x - s - offset
+                    piece_3.position.y = self.tower_top_pose.position.y + s - offset
+                    piece_3.position.z = self.tower_top_pose.position.z
+                    self.get_logger().info(f'PIECE3:\n{piece_3}')
+                    piece_4 = Pose()
+                    piece_4.position.x = self.tower_top_pose.position.x + s - offset
+                    piece_4.position.y = self.tower_top_pose.position.y + s + offset
+                    piece_4.position.z = self.tower_top_pose.position.z + self.piece_height
+                    self.get_logger().info(f'PIECE4:\n{piece_4}')
+                    piece_5 = Pose()
+                    piece_5.position.x = self.tower_top_pose.position.x - offset
+                    piece_5.position.y = self.tower_top_pose.position.y + offset
+                    piece_5.position.z = self.tower_top_pose.position.z + self.piece_height
+                    self.get_logger().info(f'PIECE5:\n{piece_5}')
+                    piece_6 = Pose()
+                    piece_6.position.x = self.tower_top_pose.position.x - s - offset
+                    piece_6.position.y = self.tower_top_pose.position.y + s - offset
+                    piece_6.position.z = self.tower_top_pose.position.z + self.piece_height
+                    self.get_logger().info(f'PIECE6:\n{piece_6}')
+                    self.place_locations = [piece_1, piece_2, piece_3, piece_4, piece_5, piece_6]
+                else:
+                    # The opposite. Piece 1 ~ Piece 4, but without z offset
+                    piece_1 = Pose()
+                    piece_1.position.x = self.tower_top_pose.position.x + s - offset
+                    piece_1.position.y = self.tower_top_pose.position.y + s + offset
+                    piece_1.position.z = self.tower_top_pose.position.z
+                    self.get_logger().info(f'PIECE1:\n{piece_1}')
+                    piece_2 = Pose()
+                    piece_2.position.x = self.tower_top_pose.position.x - offset
+                    piece_2.position.y = self.tower_top_pose.position.y + offset
+                    piece_2.position.z = self.tower_top_pose.position.z
+                    self.get_logger().info(f'PIECE2:\n{piece_2}')
+                    piece_3 = Pose()
+                    piece_3.position.x = self.tower_top_pose.position.x - s - offset
+                    piece_3.position.y = self.tower_top_pose.position.y + s - offset
+                    piece_3.position.z = self.tower_top_pose.position.z
+                    self.get_logger().info(f'PIECE3:\n{piece_3}')
+                    piece_4 = Pose()
+                    piece_4.position.x = self.tower_top_pose.position.x + s - offset
+                    piece_4.position.y = self.tower_top_pose.position.y - s - offset
+                    piece_4.position.z = self.tower_top_pose.position.z + self.piece_height
+                    self.get_logger().info(f'PIECE4:\n{piece_4}')
+                    piece_5 = Pose()
+                    piece_5.position.x = self.tower_top_pose.position.x - offset
+                    piece_5.position.y = self.tower_top_pose.position.y - offset
+                    piece_5.position.z = self.tower_top_pose.position.z + self.piece_height
+                    self.get_logger().info(f'PIECE5:\n{piece_5}')
+                    piece_6 = Pose()
+                    piece_6.position.x = self.tower_top_pose.position.x - s - offset
+                    piece_6.position.y = self.tower_top_pose.position.y + s - offset
+                    piece_6.position.z = self.tower_top_pose.position.z + self.piece_height
+                    self.get_logger().info(f'PIECE6:\n{piece_6}')
+                    self.place_locations = [piece_1, piece_2, piece_3, piece_4, piece_5, piece_6]
                 self.state = State.IDLE
             except TransformException:
                 print("couldn't do panda_link0->tower transform")
