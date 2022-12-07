@@ -169,7 +169,8 @@ class Test(Node):
 
     def top_ori_cb(self, data):
         self.get_logger().info(f'ORIENTATION OF TOP:\n{data}')
-        self.top_ori = data
+        self.top_ori = data.data
+        self.get_logger().info(f'self.top_ori\n{self.top_ori}')
 
     def go_here_callback(self, request, response):
         """
@@ -520,7 +521,7 @@ class Test(Node):
                 if self.place_counter < 3:
                     set_pose.orientation.y = -0.3826834
                 else:
-                    set_pose.orientation.y = +0.3826834
+                    set_pose.orientation.y = 0.3826834
             set_pose.orientation.z = 0.0
             set_pose.orientation.w = 0.0
             
@@ -639,6 +640,7 @@ class Test(Node):
             self.place_counter += 1
             if (self.place_counter == 3) or (self.place_counter == 6):
                 # Publish something
+                self.get_logger().info("ADD A LAYER!!!")
                 self.layer_added_pub.publish(Bool())
             if self.place_counter>=6:
                 self.place_counter = 0

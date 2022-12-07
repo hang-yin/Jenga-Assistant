@@ -324,20 +324,6 @@ class Cam(Node):
             # bound a smaller area to look for lines
             # self.centroid_origin = ([centroid_deprojected[0], centroid_deprojected[1]])
             # self.get_logger().info(self.centroid_origin)
-            length = (dist(box[0], box[1]))
-            # self.get_logger().info(int(length))
-            line_rect = np.array([[[max_centroid[0], max_centroid[1]-20],
-                                   [max_centroid[0]-20, max_centroid[1]],
-                                   [max_centroid[0], max_centroid[1]+20],
-                                   [max_centroid[0]+20, max_centroid[1]]]],
-                                   dtype=np.int32)
-            # self.get_logger().info(line_rect)
-            # Creating a square over the area defined in self.rect
-            self.line_square = cv2.fillPoly(bounding_mask, [line_rect], 255)
-            # Blacking out everything that is not within square
-            self.line_square = cv2.inRange(self.line_square, 1, 255)
-            color_mask = cv2.bitwise_and(color_mask, color_mask, mask=self.line_square)
-            cv2.imshow("color mask", color_mask)
             
 
         
