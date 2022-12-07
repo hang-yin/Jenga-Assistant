@@ -335,7 +335,7 @@ class Test(Node):
             self.get_logger().info('ORIENT STATE')
             orientation_pose = copy.deepcopy(self.goal_pose)
             # Turn to either +/- 45 degrees depending on piece position.
-            """
+            
             orientation_pose.orientation.x = 0.9238795
             if self.goal_pose.position.y > 0:
                 orientation_pose.orientation.y = -0.3826834
@@ -353,7 +353,7 @@ class Test(Node):
                 orientation_pose.orientation.y = 0.3826834
                 orientation_pose.orientation.w = -0.10439
                 orientation_pose.orientation.z = 0.18137
-            
+            """
             self.get_logger().info('PLAN')
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 orientation_pose, 0.02,
@@ -475,7 +475,7 @@ class Test(Node):
             # TODO update with either +45 or -45
             self.get_logger().info('ORIENT sencond')
             set_pose = copy.deepcopy(self.goal_pose)
-            
+            """
             set_pose.orientation.x = 0.9238795
             if self.place_counter < 3:
                 set_pose.orientation.y = 0.3826834
@@ -492,7 +492,7 @@ class Test(Node):
                 else:
                     set_pose.orientation.z = 0.18137
                     set_pose.orientation.w = 0.05847
-            """
+            
             set_pose.orientation.x = 0.9238795
             if self.place_counter < 3:
                 set_pose.orientation.y = 0.3826834
@@ -502,6 +502,14 @@ class Test(Node):
                 set_pose.orientation.w = 0.05847
             set_pose.orientation.z = 0.18137
             """
+            set_pose.orientation.x = 0.9238795
+            if self.place_counter < 3:
+                set_pose.orientation.y = 0.3826834
+            else:
+                set_pose.orientation.y = -0.3826834
+            set_pose.orientation.z = 0.0
+            set_pose.orientation.w = 0.0
+            
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 set_pose, 0.02,
                                                                 self.execute)
@@ -564,7 +572,7 @@ class Test(Node):
             self.state = State.PUSH
         elif self.state == State.PUSH:
             push_pose = copy.deepcopy(self.goal_pose)
-            offset = math.sin(math.pi/2) * 0.0275 # 0.03
+            offset = math.sin(math.pi/2) * 0.02 # 0.03
             push_pose.position.x = self.place_pose.position.x - offset
             if self.place_counter < 3:
                 push_pose.position.y = self.place_pose.position.y - offset
@@ -744,15 +752,28 @@ class Test(Node):
                 self.get_logger().info(f'transform bw base and brick:\n{t}')
                 self.get_logger().info('Go to orient')
                 self.goal_pose.position.x = t.transform.translation.x
+                """
+                if self.goal_pose.position.y > 0:
+                    self.goal_pose.position.y = t.transform.translation.y + 0.008
+                else:
+                    self.goal_pose.position.y = t.transform.translation.y - 0.008
+                """
                 self.goal_pose.position.y = t.transform.translation.y
                 # HARDCODED OFFSET LMAO WILL IT WORK?
                 self.get_logger().info(f'y init: {t.transform.translation.y}')
-                self.goal_pose.position.y -= 1.8*self.tower_top_pose.position.y
+                if self.goal_pose.position.y > 0:
+                    self.goal_pose.position.y -= 1.95*self.tower_top_pose.position.y
+                else:
+                    self.goal_pose.position.x += 0.012
+                    self.goal_pose.position.y -= 2.3*self.tower_top_pose.position.y
                 # if self.goal_pose.position.y < 0:
                 #     self.goal_pose.position.y -= self.tower_top_pose.position.y
                 # else: 
                 #     self.goal_pose.position.y -= self.tower_top_pose.position.y
-                self.goal_pose.position.z = t.transform.translation.z + 0.008
+                if self.goal_pose.position.y > 0:
+                    self.goal_pose.position.z = t.transform.translation.z + 0.008
+                else:
+                    self.goal_pose.position.z = t.transform.translation.z - 0.006
                 self.goal_pose.orientation.x = t.transform.rotation.x
                 self.goal_pose.orientation.y = t.transform.rotation.y
                 self.goal_pose.orientation.z = t.transform.rotation.z
@@ -768,8 +789,8 @@ class Test(Node):
                 t = self.tf_buffer.lookup_transform('panda_link0', 'starting_top', rclpy.time.Time())
                 self.get_logger().info(f'transform bw base and top:\n{t}')
                 self.tower_top_pose.position.x = t.transform.translation.x
-                self.tower_top_pose.position.y = t.transform.translation.y
-                self.tower_top_pose.position.z = t.transform.translation.z + 0.02
+                self.tower_top_pose.position.y = t.transform.translation.y + 0.005
+                self.tower_top_pose.position.z = t.transform.translation.z + 0.024
                 self.get_logger().info(f'TOWER top Pose:\n{self.tower_top_pose}')
                 # publish when found so cv node knows when to stop publishing
                 self.place_pose.position.z = self.tower_top_pose.position.z
