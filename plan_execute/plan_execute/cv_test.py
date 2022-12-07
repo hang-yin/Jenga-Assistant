@@ -335,6 +335,7 @@ class Test(Node):
             self.get_logger().info('ORIENT STATE')
             orientation_pose = copy.deepcopy(self.goal_pose)
             # Turn to either +/- 45 degrees depending on piece position.
+            """
             orientation_pose.orientation.x = 0.9238795
             if self.goal_pose.position.y > 0:
                 orientation_pose.orientation.y = -0.3826834
@@ -342,7 +343,17 @@ class Test(Node):
                 orientation_pose.orientation.y = 0.3826834
             orientation_pose.orientation.z = 0.0
             orientation_pose.orientation.w = 0.0
-
+            """
+            orientation_pose.orientation.x = 0.9238795
+            if self.goal_pose.position.y > 0:
+                orientation_pose.orientation.y = -0.3826834
+                orientation_pose.orientation.z = 0.0
+                orientation_pose.orientation.w = 0.0
+            else:
+                orientation_pose.orientation.y = 0.3826834
+                orientation_pose.orientation.w = -0.10439
+                orientation_pose.orientation.z = 0.18137
+            
             self.get_logger().info('PLAN')
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 orientation_pose, 0.02,
@@ -464,13 +475,33 @@ class Test(Node):
             # TODO update with either +45 or -45
             self.get_logger().info('ORIENT sencond')
             set_pose = copy.deepcopy(self.goal_pose)
+            
             set_pose.orientation.x = 0.9238795
             if self.place_counter < 3:
                 set_pose.orientation.y = 0.3826834
             else:
                 set_pose.orientation.y = -0.3826834
-            set_pose.orientation.z = 0.0
-            set_pose.orientation.w = 0.0
+
+            if self.goal_pose.position.y > 0:
+                set_pose.orientation.z = 0.0
+                set_pose.orientation.w = 0.0
+            else:
+                if self.place_counter < 3:
+                    set_pose.orientation.z = 0.18137
+                    set_pose.orientation.w = -0.10439
+                else:
+                    set_pose.orientation.z = 0.18137
+                    set_pose.orientation.w = 0.05847
+            """
+            set_pose.orientation.x = 0.9238795
+            if self.place_counter < 3:
+                set_pose.orientation.y = 0.3826834
+                set_pose.orientation.w = -0.10439
+            else:
+                set_pose.orientation.y = -0.3826834
+                set_pose.orientation.w = 0.05847
+            set_pose.orientation.z = 0.18137
+            """
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 set_pose, 0.02,
                                                                 self.execute)
@@ -721,7 +752,7 @@ class Test(Node):
                 #     self.goal_pose.position.y -= self.tower_top_pose.position.y
                 # else: 
                 #     self.goal_pose.position.y -= self.tower_top_pose.position.y
-                self.goal_pose.position.z = t.transform.translation.z
+                self.goal_pose.position.z = t.transform.translation.z + 0.008
                 self.goal_pose.orientation.x = t.transform.rotation.x
                 self.goal_pose.orientation.y = t.transform.rotation.y
                 self.goal_pose.orientation.z = t.transform.rotation.z
@@ -738,7 +769,7 @@ class Test(Node):
                 self.get_logger().info(f'transform bw base and top:\n{t}')
                 self.tower_top_pose.position.x = t.transform.translation.x
                 self.tower_top_pose.position.y = t.transform.translation.y
-                self.tower_top_pose.position.z = t.transform.translation.z + 0.03
+                self.tower_top_pose.position.z = t.transform.translation.z + 0.02
                 self.get_logger().info(f'TOWER top Pose:\n{self.tower_top_pose}')
                 # publish when found so cv node knows when to stop publishing
                 self.place_pose.position.z = self.tower_top_pose.position.z
