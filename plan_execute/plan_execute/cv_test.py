@@ -130,10 +130,12 @@ class Test(Node):
 
         self.piece_sub = self.create_subscription(Pose, 'jenga_piece', self.piece_cb, 10)
         self.top_sub = self.create_subscription(Int16, 'top_size', self.top_cb, 10)
+        self.top_ori_sub = self.create_subscription(Int16, 'top_ori', self.top_ori_cb, 10)
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.piece_found_pub = self.create_publisher(Bool, 'piece_found', 10)
         self.motion_complete_pub = self.create_publisher(Bool, 'finished_place', 10)
+        self.layer_added_pub = self.create_publisher(Bool, 'layer_added', 10)
         self.tower_top_pose = Pose()
         # added these so it won't rely on service calls to run
         self.start_pose = None
@@ -144,6 +146,7 @@ class Test(Node):
         self.top_positions = None
         self.place_locations = None
         self.place_counter = 0
+        self.top_ori = None
 
 
     def piece_cb(self, data):
@@ -163,6 +166,10 @@ class Test(Node):
         """
         self.get_logger().info(f'NUMBER OF PIECES ON TOP:\n{data}')
         self.state = State.FINDTOP
+
+    def top_ori_cb(self, data):
+        self.get_logger().info(f'ORIENTATION OF TOP:\n{data}')
+        self.top_ori = data
 
     def go_here_callback(self, request, response):
         """
@@ -344,15 +351,16 @@ class Test(Node):
             orientation_pose.orientation.z = 0.0
             orientation_pose.orientation.w = 0.0
             """
+            self.tilt = not (self.goal_pose.position.y > 0)
             orientation_pose.orientation.x = 0.9238795
-            if self.goal_pose.position.y > 0:
+            if not self.tilt:
                 orientation_pose.orientation.y = -0.3826834
                 orientation_pose.orientation.z = 0.0
                 orientation_pose.orientation.w = 0.0
             else:
                 orientation_pose.orientation.y = 0.3826834
-                orientation_pose.orientation.w = -0.10439
                 orientation_pose.orientation.z = 0.18137
+                orientation_pose.orientation.w = -0.10439
             """
             self.get_logger().info('PLAN')
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
@@ -482,7 +490,7 @@ class Test(Node):
             else:
                 set_pose.orientation.y = -0.3826834
 
-            if self.goal_pose.position.y > 0:
+            if not self.tilt:
                 set_pose.orientation.z = 0.0
                 set_pose.orientation.w = 0.0
             else:
@@ -599,6 +607,10 @@ class Test(Node):
                                                                    self.execute)
             time.sleep(2)
             self.place_counter += 1
+            if (self.place_counter == 3) or (self.place_counter == 6):
+                # Publish something
+                self.layer_added_pub.publish(Bool())
+                pass
             if self.place_counter>=6:
                 self.place_counter = 0
                 # TODO increment all of the zs in self.place_locations
@@ -606,6 +618,10 @@ class Test(Node):
                     self.place_locations[i].position.z += 2.0*self.piece_height
             self.prev_state = State.POSTPUSH
             self.state = State.READY
+            self.place_counter += 1
+            if self.place_counter>=6:
+                self.place_counter = 0
+                # TODO increment all of the zs in self.place_locations
         
         elif self.state == State.PLACEBLOCK:
             self.prev_state = State.PLACEBLOCK
@@ -798,6 +814,7 @@ class Test(Node):
                 # These 3 pieces are where the center of the tower should end up.
                 s = self.piece_width/sqrt(2)
                 offset = 0.03
+                # Use self.top_ori to determine which one. +1 = Normal (below). -1: opposite
                 piece_1 = Pose()
                 piece_1.position.x = self.tower_top_pose.position.x + s - offset
                 piece_1.position.y = self.tower_top_pose.position.y - s - offset
