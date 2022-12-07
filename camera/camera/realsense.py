@@ -9,7 +9,7 @@ import pyrealsense2 as rs2
 from enum import Enum, auto
 from std_srvs.srv import Empty
 from geometry_msgs.msg import Pose
-from math import sqrt, dist
+from math import dist
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 from std_msgs.msg import Bool, Int16
@@ -38,9 +38,12 @@ class State(Enum):
 class Cam(Node):
     def __init__(self):
         super().__init__('cam')
+        # set timer frequency
         self.freq = 60.
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
 
+        # create subscriptions: camera color, camera depth, camera aligned color and depth,
+        # piece found, finished place, layer added
         self.color_sub = self.create_subscription(Image,
                                                   "/camera/color/image_raw",
                                                   self.color_callback,
@@ -65,17 +68,24 @@ class Cam(Node):
                                                         'layer_added',
                                                         self.layer_added_cb,
                                                         10)
+        # create publishers: jenga piece, top size, top ori
         self.piece_pub = self.create_publisher(Pose, 'jenga_piece', 10)
         self.top_pub = self.create_publisher(Int16, 'top_size', 10)
         self.top_ori_pub = self.create_publisher(Int16, 'top_ori', 10)
+
+        # create services: scan, stop, findtower
         self.scan = self.create_service(Empty, "scan", self.scan_service_callback)
         self.stop = self.create_service(Empty, "stop", self.stop_service_callback)
         self.calib = self.create_service(Empty, "findtower", self.calib_service_callback)
+
+        # create cv bridge
         self.br = CvBridge()
 
         # Initialize the transform broadcaster
         self.tf_broadcaster = TransformBroadcaster(self)
         self.brick = TransformStamped()
+
+        # create frames
         self.frame_brick = "brick"
         self.frame_camera ='camera_link'
 
@@ -100,8 +110,6 @@ class Cam(Node):
         # depth "bands"
         self.band_start = 570
         self.band_width = 20
-        self.edge_high = 75
-        self.edge_low = 66
         self.tower_top = None
         self.table = None
         self.scan_start = 450
@@ -109,6 +117,10 @@ class Cam(Node):
         self.max_scan = 1000
         self.scan_step = 0.5
         self.centroid_origin = None
+
+        # thresholds for line detection
+        self.edge_high = 75
+        self.edge_low = 66
 
         # Contour area threshold for detecting the table
         self.table_area_threshold = 10000
@@ -139,11 +151,7 @@ class Cam(Node):
         # For finding the orientation of the tower
         self.top_ori = 0
 
-        # cv2.namedWindow('Mask')
-        # cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
-        
         cv2.namedWindow('Color')
-        
         cv2.createTrackbar('origin x', 'Color', self.sq_orig[0], 1000, self.sqx_trackbar)
         cv2.createTrackbar('origin y', 'Color' , self.sq_orig[1], 1000, self.sqy_trackbar)
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
@@ -151,7 +159,6 @@ class Cam(Node):
         cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
         cv2.createTrackbar('edge low', 'Color' , self.edge_low, 200, self.edge_low_tb)
         cv2.createTrackbar('edge high', 'Color' , self.edge_high, 200, self.edge_high_tb)
-        
 
         # load machine learning model
         model_path = get_package_share_path('camera') / 'keras_model.h5'
@@ -160,6 +167,7 @@ class Cam(Node):
         self.labels = open(label_path, 'r').readlines()
         self.no_hand_count = 0
 
+    # TRACKBAR FUNCTIONS
     def sqx_trackbar(self, val):
         self.sq_orig[0] = val
         self.update_rect()
@@ -171,13 +179,6 @@ class Cam(Node):
     def sqw_trackbar(self, val):
         self.sq_sz = val
         self.update_rect()
-
-    def update_rect(self):
-        self.rect = np.array([[self.sq_orig,
-                               [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]],
-                               [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]+self.sq_sz],
-                               [self.sq_orig[0], self.sq_orig[1]+self.sq_sz]]],
-                               dtype=np.int32)
 
     def band_width_tb(self, val):
         self.band_width = val
@@ -193,6 +194,13 @@ class Cam(Node):
 
     def kernel_trackbar(self, val):
         self.kernel = np.ones((val,val),np.uint8)
+
+    def update_rect(self):
+        self.rect = np.array([[self.sq_orig,
+                               [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]],
+                               [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]+self.sq_sz],
+                               [self.sq_orig[0], self.sq_orig[1]+self.sq_sz]]],
+                               dtype=np.int32)
 
     def scan_service_callback(self, _, response):
         """ Make the camera scan for pieces sticking out """
@@ -262,7 +270,6 @@ class Cam(Node):
         self.depth_frame = current_frame
 
     def get_mask(self, care_about_square = True, get_lines = False):
-        
         # Do this in case the subscriber somehow updates in the middle of the function?
         depth_cpy = np.array(self.depth_frame)
         color_cpy = np.array(self.color_frame)
@@ -321,12 +328,6 @@ class Cam(Node):
             # Save original box area to test if the contour is a good fit
             box_area = dist(box[0],box[1])*dist(box[1],box[2])
 
-            # bound a smaller area to look for lines
-            # self.centroid_origin = ([centroid_deprojected[0], centroid_deprojected[1]])
-            # self.get_logger().info(self.centroid_origin)
-            
-
-        
         # Display the images
         color_rect = cv2.rectangle(np.array(self.color_frame),
                                    self.rect[0][0], self.rect[0][2],
@@ -344,23 +345,15 @@ class Cam(Node):
                 largest_area, centroid_pose = None, None
 
         
-        ## DRAW LINES IN THE IMAGE TO FIND THE ORIENTATION OF THE TOP OF THE TOWER
-        # Convert the img to grayscale
-        # if self.line_square is not None:
-        # circle = cv2.circle(color_rect,max_centroid, 10, (255,0,255), 3)
-        # drawn_contours = cv2.drawContours(color_rect, circle, 0, (255,0,0), 3)
+        # draw lines on the image to get the orientation of the top of the tower
         line_direction = None
         if get_lines:
+            # make the image gray scale
             gray = cv2.cvtColor(color_cpy, cv2.COLOR_BGR2GRAY)
+            # create a new bounding mask
             bounding_mask_new = np.zeros((self.intrinsics.height,self.intrinsics.width), np.int8)
-            # Creating a square over the area defined in self.rect
-            # self.get_logger().info(f"Rect:{self.rect}")
-            # self.get_logger().info(f"box:{box}")
             if box is not None:
-                # min_rect = cv2.minAreaRect(max_contour)
-                # box = cv2.boxPoints(min_rect)
-                # box = np.intp(box)
-                # self.get_logger().info(f"Min_rect:{min_rect}")
+                # generate a smaller box to crop the area where we look for lines
                 scale = 0.8
                 new_w = scale*min_rect[1][0]
                 new_h = scale*min_rect[1][1]
@@ -371,31 +364,22 @@ class Cam(Node):
                         [int(new_box[2][0]),int(new_box[2][1])],
                         [int(new_box[3][0]),int(new_box[3][1])]]
                 new_box = np.array(new_box)
-                # self.get_logger().info(f"new box:{new_box}")
-                # self.get_logger().info(f"new box type:{type(new_box)}")
-                # self.get_logger().info(f"rect type:{type(self.rect)}")
                 square_new = cv2.fillPoly(bounding_mask_new, [new_box], 255)
                 # Blacking out everything that is not within square
                 square_new = cv2.inRange(square_new, 1, 255)
                 # Cropping the depth_mask so that only what is within the square remains.
-                # depth_mask = cv2.bitwise_and(depth_mask, depth_mask, mask=square)
                 color_mask = cv2.bitwise_and(gray, gray, mask=square_new)
-                # cv2.imshow('color mask', color_mask)
                 # Apply edge detection method on the image
                 edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
-                # image = (gray, edges)
-                # edges = 
                 # This returns an array of r and theta values
                 lines = cv2.HoughLines(edges, rho=1, theta=np.pi/180, threshold=100)
                 cv2.imshow('edges', edges)
-                # try:
-                # if lines != None:
-                # if len(lines) != 0:
                 if lines is not None:
                     num_negative = 0
                     num_positive = 0
+                    # store the r value of each line
                     for r_theta in lines:
-                        # self.get_logger().info("TRY")
+                        # count the number of positive and negative r's
                         arr = np.array(r_theta[0], dtype=np.float64)
                         r, _ = arr
                         if r<0:
@@ -403,21 +387,13 @@ class Cam(Node):
                         else:
                             num_positive +=1
                     self.get_logger().info(f"Negative: {num_negative}, Positive: {num_positive}")
+                    # determine the orientation based on which there are more of
                     if num_negative > num_positive:
                         line_direction = -1
                     else:
                         line_direction = 1
-                    
-                # cv2.imshow('linesDetected.jpg', color_mask)
-                # except:
-                # self.get_logger().info("EXCEPT")
-                # pass
-                # All the changes made in the input image are finally
-                # written on a new image houghlines.jpg
-        
 
         cv2.imshow('Color', drawn_contours)
-
         cv2.waitKey(1)
         return largest_area, centroid_pose, line_direction
 
@@ -430,11 +406,8 @@ class Cam(Node):
             self.tf_broadcaster.sendTransform(self.current_top)
 
     def timer_callback(self):
-
         # Every time you need to publish the top of the tower
         self.publish_top()
-
-        
 
         if self.state == State.WAITING:
             # Pause while we wait for frames
@@ -443,7 +416,6 @@ class Cam(Node):
             if all(w is not None for w in wait_for):
                 self.get_logger().info("Searching for tower top!!")
                 self.state = State.FINDTOP
-                # self.state = State.WAITINGMOTION
 
         elif self.state == State.FINDHANDS:
             # Just print out the camera data
@@ -454,9 +426,8 @@ class Cam(Node):
                 image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
                 image = (image / 127.5) - 1
                 probabilities = self.model.predict(image)
-                # TODO: if argmax(probabilities) is consistently equal to "no-hand" for a while
-                # then we can call /scan to grab the block
                 label = np.argmax(probabilities)
+                # if no hand has been detected for 80 frames then scan for a piece
                 if self.no_hand_count > 80:
                     self.no_hand_count = 0
                     self.get_logger().info("Start scanning!!!\n")
@@ -465,13 +436,11 @@ class Cam(Node):
                     self.state = State.SCANNING
                 else:
                     self.get_logger().info(f"no_hand_count: {self.no_hand_count}")
-                    # self.get_logger().info(f"label: {label}")
                     if label == 1:
                         self.no_hand_count += 1
                     elif label == 0:
                         self.no_hand_count = 0
-                # self.get_logger().info(self.labels[np.argmax(probabilities)])
-        
+
         elif self.state == State.WAITINGMOTION:
             # Just print out the camera data
             largest_area, _, _ = self.get_mask()
@@ -490,13 +459,10 @@ class Cam(Node):
                 self.piece_z = []
                 self.ct = 0
                 self.state = State.FINDHANDS
-
             largest_area, centroid_pose, line_direction = self.get_mask(get_lines=True)
             if largest_area:
-                # self.get_logger().info(f"Largest area {largest_area}")
                 if largest_area > self.top_area_threshold:
                     if self.ct < self.avg_frames:
-                        # self.get_logger().info(f'Current pose: {centroid_pose.position}')
                         # Record the position
                         self.piece_x.append(centroid_pose.position.x)
                         self.piece_y.append(centroid_pose.position.y)
@@ -517,7 +483,7 @@ class Cam(Node):
                                             f"area: {largest_area}\n")
                         self.get_logger().info(f"Centroid pose in cam frame:\n{avg_x},{avg_y},{avg_z}")
                         self.tower_top = self.band_start+self.band_width
-                        self.scan_start = self.tower_top + self.band_width # Maybe don't include +
+                        self.scan_start = self.tower_top + self.band_width
                         # This will begin publishing to the tf tree
                         if self.starting_top is None:
                             self.starting_top = TransformStamped()
@@ -533,8 +499,7 @@ class Cam(Node):
                             self.current_top.transform.translation.x = avg_x
                             self.current_top.transform.translation.y = avg_y
                             self.current_top.transform.translation.z = avg_z
-                        # Go down past the top pieces, or else this will also be detected as table.
-                        # UNCOMMENT THESE LATER
+                        # Go down past the top pieces, or else this will also be detected as table
                         self.scan_index = self.tower_top + self.band_width
                         self.band_start = self.tower_top + self.band_width
                         num_pieces = Int16()
@@ -547,21 +512,16 @@ class Cam(Node):
                         else:
                             self.get_logger().info("Think 1 piece on top")
                             num_pieces.data = 1
-                        # return the 
-                        # Go and find the table
+                        # publish the orientation of the tower and the number of blocks present
                         ori = Int16()
                         ori.data = line_direction
                         self.top_ori_pub.publish(ori)
-                        # self.get_logger().info(f"top ori: {self.top_ori}")
-                        # self.get_logger().info(f"r ist: {self.r_list}")
-                        # self.get_logger().info(f"theta ist: {self.theta_list}")
                         self.top_pub.publish(num_pieces)
                         self.state = State.FINDTABLE
                         self.get_logger().info(f"Top orientation is: {line_direction}")
                         self.get_logger().info("Searching for table!")
 
         elif self.state == State.FINDTABLE:
-            # Basically same logic as findtop.
             # Keep scanning downwards
             self.band_start = self.scan_index
             self.scan_index += self.scan_step
@@ -600,7 +560,6 @@ class Cam(Node):
                 if largest_area:
                     if largest_area > self.piece_area_threshold:
                         if self.ct < self.avg_frames:
-                            # self.get_logger().info(f'Current pose: {centroid_pose.position}')
                             self.piece_x.append(centroid_pose.position.x)
                             self.piece_y.append(centroid_pose.position.y)
                             self.piece_z.append(centroid_pose.position.z)
@@ -629,8 +588,8 @@ class Cam(Node):
                             self.brick.transform.rotation.y = self.avg_piece.orientation.y
                             self.brick.transform.rotation.z = self.avg_piece.orientation.z
                             self.brick.transform.rotation.w = self.avg_piece.orientation.w
-                            # self.avg_piece = Pose()
                             self.state = State.PUBLISHPIECE
+
         elif self.state == State.PUBLISHPIECE:
             # Continue to publish camera image
             _, _, _ = self.get_mask()

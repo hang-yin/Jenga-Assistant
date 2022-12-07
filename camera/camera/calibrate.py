@@ -1,18 +1,15 @@
 import rclpy
 import math
 import yaml
-import os
+import numpy as np
 from enum import Enum, auto
 from rclpy.node import Node
-from geometry_msgs.msg import Quaternion
-from ament_index_python.packages import get_package_share_path
-from ament_index_python.packages import get_package_share_directory
-import numpy as np
-from tf2_ros import TransformBroadcaster
-# np.set_printoptions(threshold=sys.maxsize)
 from tf2_ros.buffer import Buffer
-from tf2_ros.transform_listener import TransformListener
+from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
+from tf2_ros.transform_listener import TransformListener
+from ament_index_python.packages import get_package_share_path
+
 
 class State(Enum):
     """
@@ -26,6 +23,17 @@ class State(Enum):
     DONE = auto()
 
 def quaternion_from_euler(ai, aj, ak): # I STOLE THIS FROM THE ROS DOCS
+    """
+    Changes euler corrdinates into a quaternian.
+
+    Input
+    :param ai: a roll value
+    :param aj: a pitch value
+    :param aj: a yaw value
+
+    Output
+    :quaternian: a quaternian (x, y, z, w)
+    """
     ai /= 2.0
     aj /= 2.0
     ak /= 2.0
@@ -51,14 +59,13 @@ def quaternion_from_euler(ai, aj, ak): # I STOLE THIS FROM THE ROS DOCS
 def quaternion_multiply(Q0,Q1): # I STOLE THIS FROM AUTOMATIC ADDISON
     """
     Multiplies two quaternions.
- 
+
     Input
     :param Q0: A 4 element array containing the first quaternion (q01,q11,q21,q31) 
     :param Q1: A 4 element array containing the second quaternion (q02,q12,q22,q32) 
- 
+
     Output
     :return: A 4 element array containing the final quaternion (q03,q13,q23,q33) 
- 
     """
     # Extract the values from Q0
     w0 = Q0[0]
@@ -85,6 +92,15 @@ def quaternion_multiply(Q0,Q1): # I STOLE THIS FROM AUTOMATIC ADDISON
     return final_quaternion
 
 def deg_to_rad(deg):
+    """
+    Changes degrees to radians
+
+    Input
+    :deg: An integer value of degrees
+
+    Output
+    :rad: An integer value of radians
+    """
     rad = math.pi/180*deg
     return rad
 
@@ -100,7 +116,6 @@ class Calibrate(Node):
         # Create a listener
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        
 
         # Define frames
         self.frame_camera = "camera_color_optical_frame"
@@ -109,14 +124,14 @@ class Calibrate(Node):
         self.frame_ee = "panda_hand_tcp"
         self.frame_base = "panda_link0"
 
+        # initalize variables
         self.rot = TransformStamped()
         self.t = TransformStamped()
         self.rot_base = TransformStamped()
         self.state = State.LISTEN
         self.listen = 0
-        self.calibrate = 0
-        self.write = 0
 
+        # variables to average the transform
         self.count = 0
         self.avg_trans_x = []
         self.avg_trans_y = []
@@ -127,7 +142,6 @@ class Calibrate(Node):
         self.avg_rot_w = []
 
     def timer_callback(self):
-        # self.get_logger().info(str(self.state))
         if self.state == State.LISTEN:
             #listener for the camera to tag
             try:
@@ -137,7 +151,6 @@ class Calibrate(Node):
                     rclpy.time.Time())
                 self.og_q = np.array([r.transform.rotation.x, r.transform.rotation.y,
                                 r.transform.rotation.z, r.transform.rotation.w])
-                # self.get_logger().info(f"t: {r}")
             except:
                 self.get_logger().info(
                     f'Could not transform {self.frame_camera} to {self.frame_tag}')
@@ -149,46 +162,36 @@ class Calibrate(Node):
                     self.frame_ee,
                     self.frame_base,
                     rclpy.time.Time())
-                # self.get_logger().info(f"s: {s}")
             except:
                 self.get_logger().info(
                     f'Could not transform {self.frame_ee} to {self.frame_base}')
                 return
             if self.listen < 300:
+                # Wait for all the frames to be published
                 self.listen += 1
             else:
                 self.state = State.CALIBRATE
 
         if self.state == State.CALIBRATE:
-            # Get the quaternian between the tag and the end effector
-            # multiply the tag by the ende eggector quaternian
-                
-            # rad = deg_to_rad(180)
             rad = deg_to_rad(90)
-            rad2 = deg_to_rad(180)
-            # rad3 = deg_to_rad(0)
-            #create tf between the tag and the rotated frame
+            # Create tf between the tag and the rotated frame
             self.rot.header.stamp = self.get_clock().now().to_msg()
             self.rot.header.frame_id = self.frame_tag
             self.rot.child_frame_id = self.frame_rotate
             self.rot.transform.translation.x = 0.0
             self.rot.transform.translation.y = 0.0
             self.rot.transform.translation.z = 0.0
-            # calculate the rotations with quaternians
-            # z_rot = quaternion_from_euler(0.0, rad, 0.0)
+            # Get the quaternian between the tag and the end effector
+            # Multiply the tag by the ende effector quaternian
             z_rot = quaternion_from_euler(0.0, 0.0, rad)
             qz_rot = quaternion_multiply(self.og_q, z_rot)
-
-            # y_rot = quaternion_from_euler(0.0, 0.0, rad2)
             y_rot = quaternion_from_euler(-rad, 0.0, 0.0)
             q_final = quaternion_multiply(qz_rot, y_rot)
-
-            # tiny_rot = quaternion_from_euler(rad3, 0.0, 0.0)
-            # q_final = quaternion_multiply(tiny_rot, q_new)
             self.rot.transform.rotation.x = q_final[0]
             self.rot.transform.rotation.y = q_final[1]
             self.rot.transform.rotation.z = q_final[2]
             self.rot.transform.rotation.w = q_final[3]
+            # Broadcast the transform
             self.tf_broadcaster.sendTransform(self.rot)
 
             # create a tf between the rotated frame and panda_link0
@@ -196,8 +199,6 @@ class Calibrate(Node):
             self.rot_base.header.stamp = self.get_clock().now().to_msg()
             self.rot_base.header.frame_id = self.frame_rotate
             self.rot_base.child_frame_id = self.frame_base
-            # self.rot_base.transform.translation.x = -.33575
-            # self.rot_base.transform.translation.y = -.23575
             self.tf_broadcaster.sendTransform(self.rot_base)
 
 
@@ -207,6 +208,8 @@ class Calibrate(Node):
                     self.frame_camera,
                     self.frame_base,
                     rclpy.time.Time())
+                # Average the values of the transformation for the translations and rotations over
+                # 200 frames
                 if self.count < 200:
                     self.get_logger().info(f"COUNT:{self.count}")
                     self.avg_trans_x.append(cam_base.transform.translation.x)
@@ -218,7 +221,6 @@ class Calibrate(Node):
                     self.avg_rot_w.append(cam_base.transform.rotation.w)
                     self.count += 1
                 else:
-                    # self.get_logger().info(f"cam_base: {cam_base}")
                     self.dump = {'/**':{'ros__parameters': {'x_trans': float(np.mean(self.avg_trans_x)),
                                                     'y_trans': float(np.mean(self.avg_trans_y)),
                                                     'z_trans': float(np.mean(self.avg_trans_z)),
@@ -233,7 +235,6 @@ class Calibrate(Node):
                 return
 
         if self.state == State.WRITE:
-
             # Write the transform information to the tf.yaml in the share directory
             # Must be done each time the robot is being reset
             camera_path = get_package_share_path('camera')
@@ -243,8 +244,8 @@ class Calibrate(Node):
             self.state = State.DONE
     
         if self.state == State.DONE:
+            # Print message when done calibrating
             self.get_logger().info("Done calibrating!")
-        
 
 def main(args=None):
     """Start and spin the node."""

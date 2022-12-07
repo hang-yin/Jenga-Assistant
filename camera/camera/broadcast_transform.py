@@ -10,6 +10,7 @@ from geometry_msgs.msg import TransformStamped
 class Broadcast(Node):
     def __init__(self):
         super().__init__('broadcast')
+        # Import parameters from tf.yaml
         self.declare_parameters(
             namespace='',
             parameters=[
@@ -22,6 +23,7 @@ class Broadcast(Node):
                 ('z_trans', 0.0)
             ])
 
+        # Assign parameter values
         self.rw = self.get_parameter("w_rot").get_parameter_value().double_value
         self.rx = self.get_parameter("x_rot").get_parameter_value().double_value
         self.ry = self.get_parameter("y_rot").get_parameter_value().double_value
@@ -30,6 +32,7 @@ class Broadcast(Node):
         self.ty = self.get_parameter("y_trans").get_parameter_value().double_value
         self.tz = self.get_parameter("z_trans").get_parameter_value().double_value
 
+        # Set timer frequence
         self.freq = 60.
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
 
@@ -39,19 +42,16 @@ class Broadcast(Node):
         # Create a listener
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        
 
         # Define frames
         self.frame_camera = "camera_link"
         self.frame_base = "panda_link0"
-
         self.cam_to_base = TransformStamped()
 
 
     def timer_callback(self):
         #create tf between the tag and the rotated frame
         self.cam_to_base.header.stamp = self.get_clock().now().to_msg()
-        # self.get_logger().info("BROADCAST")
         self.cam_to_base.header.frame_id = self.frame_camera
         self.cam_to_base.child_frame_id = self.frame_base
         self.cam_to_base.transform.translation.x = self.tx
