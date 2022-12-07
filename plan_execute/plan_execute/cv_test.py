@@ -109,8 +109,6 @@ class Test(Node):
         self.cart_go_here = self.create_service(GoHere, '/cartesian_here', self.cart_callback)
         self.jenga = self.create_service(GoHere, '/jenga_time', self.jenga_callback)
         self.poke = self.create_service(GoHere, '/poke', self.poke_callback)
-        self.jenga = self.create_service(GoHere, '/jenga_time', self.jenga_callback)
-        self.poke = self.create_service(GoHere, '/poke', self.poke_callback)
         self.cal = self.create_service(Empty, '/calibrate', self.calibrate_callback)
         self.cal = self.create_service(Empty, '/ready', self.ready_callback)
         self.cal = self.create_service(Empty, '/release', self.release_callback)
@@ -135,6 +133,7 @@ class Test(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.piece_found_pub = self.create_publisher(Bool, 'piece_found', 10)
+        self.motion_complete_pub = self.create_publisher(Bool, 'finished_place', 10)
         self.tower_top_pose = Pose()
         # added these so it won't rely on service calls to run
         self.start_pose = None
@@ -144,7 +143,11 @@ class Test(Node):
         self.piece_height = 0.03
         self.top_positions = None
         self.place_locations = None
+<<<<<<< HEAD
         self.place_counter = 5
+=======
+        self.place_counter = 0
+>>>>>>> main
 
 
     def piece_cb(self, data):
@@ -336,6 +339,7 @@ class Test(Node):
             self.get_logger().info('ORIENT STATE')
             orientation_pose = copy.deepcopy(self.goal_pose)
             # Turn to either +/- 45 degrees depending on piece position.
+            """
             orientation_pose.orientation.x = 0.9238795
             if self.goal_pose.position.y > 0:
                 orientation_pose.orientation.y = -0.3826834
@@ -343,12 +347,23 @@ class Test(Node):
                 orientation_pose.orientation.y = 0.3826834
             orientation_pose.orientation.z = 0.0
             orientation_pose.orientation.w = 0.0
-
+            """
+            orientation_pose.orientation.x = 0.9238795
+            if self.goal_pose.position.y > 0:
+                orientation_pose.orientation.y = -0.3826834
+                orientation_pose.orientation.z = 0.0
+                orientation_pose.orientation.w = 0.0
+            else:
+                orientation_pose.orientation.y = 0.3826834
+                orientation_pose.orientation.w = -0.10439
+                orientation_pose.orientation.z = 0.18137
+            
             self.get_logger().info('PLAN')
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 orientation_pose, 0.02,
                                                                 self.execute)
             self.get_logger().info('DONE')
+            time.sleep(2)
             self.prev_state = State.ORIENT
             self.state = State.PREGRAB
         
@@ -365,6 +380,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    pre_grasp, 1.2,
                                                                    self.execute)
+            time.sleep(2)
             self.prev_state = State.PREGRAB
             self.state = State.GRAB
 
@@ -375,6 +391,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    self.goal_pose, 1.2,
                                                                    self.execute)
+            time.sleep(2)
             self.prev_state = State.GRAB
             self.state = State.CLOSE
 
@@ -395,6 +412,10 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    pull_pose, 0.25,
                                                                    self.execute)
+            time.sleep(2)
+            d = math.sqrt(pull_pose.position.x**2+pull_pose.position.y**2)
+            self.get_logger().info('\n\n\ndistance\n\n\n')
+            self.get_logger().info(str(d))
             self.prev_state = State.PULL
             self.get_logger().info(str(self.prev_state))
             self.state = State.POSTPULL
@@ -408,6 +429,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    postpull_pose, 1.0,
                                                                    self.execute)
+            time.sleep(2)
             self.state = State.READY
         elif self.state == State.READY:
             self.get_logger().info('State.Ready')
@@ -443,6 +465,7 @@ class Test(Node):
                 self.get_logger().info('IDLE')
                 self.prev_state = State.READY
                 self.state = State.IDLE
+                self.motion_complete_pub.publish(Bool())
             else:
                 self.future = await self.PlanEx.plan_to_pose(self.start_pose,
                                                                     ready_pose, joint_position,
@@ -450,22 +473,43 @@ class Test(Node):
                 self.get_logger().info('IDLE')
                 self.prev_state = State.READY
                 self.state = State.IDLE
-
+            time.sleep(2)
 
         elif self.state == State.ORIENT2:
             # TODO update with either +45 or -45
             self.get_logger().info('ORIENT sencond')
             set_pose = copy.deepcopy(self.goal_pose)
+            
             set_pose.orientation.x = 0.9238795
             if self.place_counter < 3:
                 set_pose.orientation.y = 0.3826834
             else:
                 set_pose.orientation.y = -0.3826834
-            set_pose.orientation.z = 0.0
-            set_pose.orientation.w = 0.0
+
+            if self.goal_pose.position.y > 0:
+                set_pose.orientation.z = 0.0
+                set_pose.orientation.w = 0.0
+            else:
+                if self.place_counter < 3:
+                    set_pose.orientation.z = 0.18137
+                    set_pose.orientation.w = -0.10439
+                else:
+                    set_pose.orientation.z = 0.18137
+                    set_pose.orientation.w = 0.05847
+            """
+            set_pose.orientation.x = 0.9238795
+            if self.place_counter < 3:
+                set_pose.orientation.y = 0.3826834
+                set_pose.orientation.w = -0.10439
+            else:
+                set_pose.orientation.y = -0.3826834
+                set_pose.orientation.w = 0.05847
+            set_pose.orientation.z = 0.18137
+            """
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 set_pose, 0.02,
                                                                 self.execute)
+            time.sleep(2)
             self.prev_state = State.ORIENT2
             self.state = State.REMOVETOWER
         elif self.state == State.REMOVETOWER:
@@ -478,6 +522,10 @@ class Test(Node):
             # we need an offset for the x and y
             set_pose = copy.deepcopy(self.goal_pose)
             self.place_pose = self.place_locations[self.place_counter]
+<<<<<<< HEAD
+=======
+            
+>>>>>>> main
             offset = math.sin(math.pi/2) * 0.03
             # Would be a different sign if on the other side
             set_pose.position.x = self.place_pose.position.x - offset
@@ -490,6 +538,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    set_pose, 1.2,
                                                                    self.execute)
+            time.sleep(2)
             self.prev_state = State.SET            
             self.state = State.RELEASE
         elif self.state == State.RELEASE:
@@ -507,10 +556,12 @@ class Test(Node):
                 prepush_pose.position.y = self.place_pose.position.y - offset
             else:
                 prepush_pose.position.y = self.place_pose.position.y + offset
+            # prepush_pose.position.y = self.place_pose.position.y - offset
             prepush_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    prepush_pose, 1.2,
                                                                    self.execute)
+            time.sleep(2)
             self.prev_state = State.PREPUSH            
             self.state = State.PREPUSHFINGER
         elif self.state == State.PREPUSHFINGER:
@@ -520,7 +571,7 @@ class Test(Node):
             self.state = State.PUSH
         elif self.state == State.PUSH:
             push_pose = copy.deepcopy(self.goal_pose)
-            offset = math.sin(math.pi/2) * 0.03
+            offset = math.sin(math.pi/2) * 0.0275 # 0.03
             push_pose.position.x = self.place_pose.position.x - offset
             if self.place_counter < 3:
                 push_pose.position.y = self.place_pose.position.y - offset
@@ -530,6 +581,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    push_pose, 0.25,
                                                                    self.execute)
+            time.sleep(2)
             self.prev_state = State.PUSH
             self.state = State.POSTPUSH
         elif self.state == State.POSTPUSH:
@@ -544,6 +596,13 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    postpush_pose, 1.2,
                                                                    self.execute)
+            time.sleep(2)
+            self.place_counter += 1
+            if self.place_counter>=6:
+                self.place_counter = 0
+                # TODO increment all of the zs in self.place_locations
+                for i in range(0, len(self.place_locations)):
+                    self.place_locations[i].position.z += 2.0*self.piece_height
             self.prev_state = State.POSTPUSH
             self.state = State.READY
             self.place_counter += 1
@@ -556,6 +615,7 @@ class Test(Node):
             self.state = State.IDLE
             # place block
             await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.3], 'block')
+            time.sleep(3)
         elif self.state == State.PREPICKUP:
             self.prev_state = State.PREPICKUP
             self.state = State.PICKUP
@@ -566,6 +626,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    prepickup_pose, 1.2,
                                                                    self.execute)
+            time.sleep(2)
         elif self.state == State.PICKUP:
             self.prev_state = State.PICKUP
             self.state = State.LIFT
@@ -574,7 +635,7 @@ class Test(Node):
             pickup_pose.position.y = 0.293
             pickup_pose.position.z = 0.038
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   pickup_pose, 0.8,
+                                                                   pickup_pose, 1.0,
                                                                    self.execute)
             self.future = await self.PlanEx.grab(0.025)
             time.sleep(4)
@@ -588,6 +649,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    lift_pose, 0.8,
                                                                    self.execute)
+            time.sleep(2)
         
         elif self.state == State.PREPOKE:
             self.prev_state = State.PREPOKE
@@ -603,6 +665,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    prepoke_pose, 0.8,
                                                                    self.execute)
+            time.sleep(2)
         
         elif self.state == State.ORIENT3:
             self.prev_state = State.ORIENT3
@@ -618,6 +681,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 orient_pose, 0.02,
                                                                 self.execute)
+            time.sleep(3)
 
         elif self.state == State.POKE:
             self.prev_state = State.POKE
@@ -630,6 +694,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    poke_pose, 0.25,
                                                                    self.execute)
+            time.sleep(3)
         
         elif self.state == State.POSTPOKE:
             self.prev_state = State.POSTPOKE
@@ -641,6 +706,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    postpoke_pose, 0.25,
                                                                    self.execute)
+            time.sleep(3)
         
         elif self.state == State.ORIENT4:
             self.prev_state = State.ORIENT4
@@ -656,6 +722,7 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
                                                                 orient_pose, 0.02,
                                                                 self.execute)
+            time.sleep(2)
         
         elif self.state == State.PLACEPOKER:
             self.prev_state = State.PLACEPOKER
@@ -678,8 +745,9 @@ class Test(Node):
             postplacepoker_pose.position.y = 0.293
             postplacepoker_pose.position.z = 0.487
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
-                                                                   postplacepoker_pose, 0.25,
+                                                                   postplacepoker_pose, 1.0,
                                                                    self.execute)
+            time.sleep(3)
 
         elif self.state == State.FINDPIECE:
             try:
@@ -690,11 +758,12 @@ class Test(Node):
                 self.goal_pose.position.y = t.transform.translation.y
                 # HARDCODED OFFSET LMAO WILL IT WORK?
                 self.get_logger().info(f'y init: {t.transform.translation.y}')
-                if self.goal_pose.position.y < 0:
-                    self.goal_pose.position.y -= self.tower_top_pose.position.y
-                else: 
-                    self.goal_pose.position.y -= self.tower_top_pose.position.y
-                self.goal_pose.position.z = t.transform.translation.z
+                self.goal_pose.position.y -= 1.8*self.tower_top_pose.position.y
+                # if self.goal_pose.position.y < 0:
+                #     self.goal_pose.position.y -= self.tower_top_pose.position.y
+                # else: 
+                #     self.goal_pose.position.y -= self.tower_top_pose.position.y
+                self.goal_pose.position.z = t.transform.translation.z + 0.008
                 self.goal_pose.orientation.x = t.transform.rotation.x
                 self.goal_pose.orientation.y = t.transform.rotation.y
                 self.goal_pose.orientation.z = t.transform.rotation.z
@@ -711,7 +780,7 @@ class Test(Node):
                 self.get_logger().info(f'transform bw base and top:\n{t}')
                 self.tower_top_pose.position.x = t.transform.translation.x
                 self.tower_top_pose.position.y = t.transform.translation.y
-                self.tower_top_pose.position.z = t.transform.translation.z + 0.03
+                self.tower_top_pose.position.z = t.transform.translation.z + 0.02
                 self.get_logger().info(f'TOWER top Pose:\n{self.tower_top_pose}')
                 # publish when found so cv node knows when to stop publishing
                 self.place_pose.position.z = self.tower_top_pose.position.z
@@ -746,7 +815,7 @@ class Test(Node):
                 self.get_logger().info(f'PIECE5:\n{piece_5}')
                 piece_6 = Pose()
                 piece_6.position.x = self.tower_top_pose.position.x - s - offset
-                piece_6.position.y = self.tower_top_pose.position.y - s + offset
+                piece_6.position.y = self.tower_top_pose.position.y + s - offset
                 piece_6.position.z = self.tower_top_pose.position.z + self.piece_height
                 self.get_logger().info(f'PIECE6:\n{piece_6}')
                 self.place_locations = [piece_1, piece_2, piece_3, piece_4, piece_5, piece_6]

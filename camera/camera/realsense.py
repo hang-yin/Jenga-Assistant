@@ -13,6 +13,8 @@ from math import sqrt, dist
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 from std_msgs.msg import Bool, Int16
+from keras.models import load_model
+from ament_index_python.packages import get_package_share_path
 
 
 class State(Enum):
@@ -29,7 +31,9 @@ class State(Enum):
     # Publish frame of found jenga piece
     PUBLISHPIECE = auto(),
     # Don't scan but still show the screen
-    PAUSED = auto()
+    FINDHANDS = auto()
+    # Waiting for motion to finish
+    WAITINGMOTION = auto()
 
 class Cam(Node):
     def __init__(self):
@@ -53,7 +57,10 @@ class Cam(Node):
                                                         'piece_found',
                                                         self.piece_found_cb,
                                                         10)
-
+        self.finished_place_sub = self.create_subscription(Bool,
+                                                           'finished_place',
+                                                           self.finished_place_cb,
+                                                           10)
         self.piece_pub = self.create_publisher(Pose, 'jenga_piece', 10)
         self.top_pub = self.create_publisher(Int16, 'top_size', 10)
         self.top_ori_pub = self.create_publisher(Int16, 'top_ori', 10)
@@ -129,13 +136,25 @@ class Cam(Node):
         # cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
         
         cv2.namedWindow('Color')
+        
         cv2.createTrackbar('origin x', 'Color', self.sq_orig[0], 1000, self.sqx_trackbar)
         cv2.createTrackbar('origin y', 'Color' , self.sq_orig[1], 1000, self.sqy_trackbar)
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
         cv2.createTrackbar('band width', 'Color' , self.band_width, 100, self.band_width_tb)
         cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
+<<<<<<< HEAD
         cv2.createTrackbar('edge low', 'Color' , self.edge_low, 200, self.edge_low_tb)
         cv2.createTrackbar('edge high', 'Color' , self.edge_high, 200, self.edge_high_tb)
+=======
+        
+
+        # load machine learning model
+        model_path = get_package_share_path('camera') / 'keras_model.h5'
+        label_path = get_package_share_path('camera') / 'labels.txt'
+        self.model = load_model(model_path)
+        self.labels = open(label_path, 'r').readlines()
+        self.no_hand_count = 0
+>>>>>>> main
 
     def sqx_trackbar(self, val):
         self.sq_orig[0] = val
@@ -184,14 +203,18 @@ class Cam(Node):
 
     def stop_service_callback(self, _, response):
         """ Stop conitnously scanning """
-        self.state = State.PAUSED
+        self.state = State.WAITINGMOTION
         self.get_logger().info("Pause Scanning")
         return response
     
     def piece_found_cb(self, d_):
         # Stop publishing tf data!!
         self.get_logger().info('Brick found')
-        self.state = State.PAUSED
+        self.state = State.WAITINGMOTION
+    
+    def finished_place_cb(self, response):
+        self.get_logger().info('Finished placing')
+        self.state = State.FINDHANDS
 
     def calib_service_callback(self, _, response):
         """ Re caluclate the height of the tower """
@@ -229,6 +252,7 @@ class Cam(Node):
         self.depth_frame = current_frame
 
     def get_mask(self, care_about_square = True, get_lines = False):
+        
         # Do this in case the subscriber somehow updates in the middle of the function?
         depth_cpy = np.array(self.depth_frame)
         color_cpy = np.array(self.color_frame)
@@ -311,6 +335,8 @@ class Cam(Node):
         color_rect = cv2.rectangle(np.array(self.color_frame),
                                    self.rect[0][0], self.rect[0][2],
                                    (255,0,0), 2)
+        
+
         drawn_contours = cv2.drawContours(color_rect, large_contours, -1, (0,255,0), 3)
         if max_centroid is not None:
             drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0,0,255), 5)
@@ -388,6 +414,8 @@ class Cam(Node):
         # Every time you need to publish the top of the tower
         self.publish_top()
 
+        
+
         if self.state == State.WAITING:
             # Pause while we wait for frames
             self.get_logger().info("Waiting for frames...")
@@ -396,7 +424,32 @@ class Cam(Node):
                 self.get_logger().info("Searching for tower top!!")
                 self.state = State.FINDTOP
 
-        elif self.state == State.PAUSED:
+        elif self.state == State.FINDHANDS:
+            # Just print out the camera data
+            largest_area, _ = self.get_mask()
+            # process color_frame with ML model
+            if self.color_frame is not None:
+                image = cv2.resize(self.color_frame, (224, 224), interpolation=cv2.INTER_AREA)
+                image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
+                image = (image / 127.5) - 1
+                probabilities = self.model.predict(image)
+                # TODO: if argmax(probabilities) is consistently equal to "no-hand" for a while
+                # then we can call /scan to grab the block
+                label = np.argmax(probabilities)
+                if self.no_hand_count > 80:
+                    self.no_hand_count = 0
+                    self.get_logger().info("Start scanning!!!\n")
+                    self.state = State.SCANNING
+                else:
+                    self.get_logger().info(f"no_hand_count: {self.no_hand_count}")
+                    self.get_logger().info(f"label: {label}")
+                    if label == 1:
+                        self.no_hand_count += 1
+                    elif label == 0:
+                        self.no_hand_count = 0
+                self.get_logger().info(self.labels[np.argmax(probabilities)])
+        
+        elif self.state == State.WAITINGMOTION:
             # Just print out the camera data
             largest_area, _ = self.get_mask()
 
@@ -409,7 +462,11 @@ class Cam(Node):
                 # This should not happen. But if it doesn't find anything large in the band:
                 self.scan_index = self.scan_start
                 self.get_logger().info("Didn't find the tower?")
-                self.state = State.PAUSED
+                self.piece_x = []
+                self.piece_y = []
+                self.piece_z = []
+                self.ct = 0
+                self.state = State.FINDHANDS
 
             largest_area, centroid_pose = self.get_mask()
             if largest_area:
@@ -482,7 +539,7 @@ class Cam(Node):
                 # This should not happen. But if it doesn't find anything large in the band:
                 self.scan_index = self.scan_start
                 self.get_logger().info("Didn't find the table?")
-                self.state = State.PAUSED
+                self.state = State.FINDHANDS
 
             # The contour of the table will not be a square.
             largest_area, _ = self.get_mask(care_about_square=False)
@@ -495,7 +552,7 @@ class Cam(Node):
                     self.table = self.band_start
                     self.scan_index = self.tower_top + self.band_width
                     self.band_start = self.tower_top + self.band_width
-                    self.state = State.PAUSED
+                    self.state = State.FINDHANDS
 
         elif self.state == State.SCANNING:
             # Keep scanning downwards
@@ -505,42 +562,44 @@ class Cam(Node):
             if self.scan_index+1.2*self.band_width > self.table:
                 self.scan_index = self.tower_top +1.2*self.band_width
                 self.get_logger().info("Reset scan")
-            # Look for piece sticking out in range from top to table
-            largest_area, centroid_pose = self.get_mask()
-            if largest_area:
-                if largest_area > self.piece_area_threshold:
-                    if self.ct < self.avg_frames:
-                        # self.get_logger().info(f'Current pose: {centroid_pose.position}')
-                        self.piece_x.append(centroid_pose.position.x)
-                        self.piece_y.append(centroid_pose.position.y)
-                        self.piece_z.append(centroid_pose.position.z)
-                        self.ct += 1
-                        # Stay at same scan level
-                        self.scan_index -= self.scan_step
-                    else:
-                        # take median to avoid weird jumping behavior
-                        self.avg_piece.position.x = np.median(self.piece_x)
-                        self.avg_piece.position.y = np.median(self.piece_y)
-                        self.avg_piece.position.z = np.median(self.piece_z)
-                        self.piece_x = []
-                        self.piece_y = []
-                        self.piece_z = []
-                        self.avg_piece.position.z += self.piece_depth/2.
-                        self.get_logger().info("Done averaging!")
-                        self.get_logger().info(f"Final pose: {self.avg_piece}")
-                        self.ct = 0
-                        self.piece_pub.publish(self.avg_piece)
-                        # This used to be centroid_pose now it is the averaged centroid pose
-                        self.brick.transform.translation.x = self.avg_piece.position.x
-                        self.brick.transform.translation.y = self.avg_piece.position.y
-                        self.brick.transform.translation.z = self.avg_piece.position.z
-                        # calculate the rotations with quaternians
-                        self.brick.transform.rotation.x = self.avg_piece.orientation.x
-                        self.brick.transform.rotation.y = self.avg_piece.orientation.y
-                        self.brick.transform.rotation.z = self.avg_piece.orientation.z
-                        self.brick.transform.rotation.w = self.avg_piece.orientation.w
-                        # self.avg_piece = Pose()
-                        self.state = State.PUBLISHPIECE
+                self.state = State.FINDHANDS
+            else:
+                # Look for piece sticking out in range from top to table
+                largest_area, centroid_pose = self.get_mask()
+                if largest_area:
+                    if largest_area > self.piece_area_threshold:
+                        if self.ct < self.avg_frames:
+                            # self.get_logger().info(f'Current pose: {centroid_pose.position}')
+                            self.piece_x.append(centroid_pose.position.x)
+                            self.piece_y.append(centroid_pose.position.y)
+                            self.piece_z.append(centroid_pose.position.z)
+                            self.ct += 1
+                            # Stay at same scan level
+                            self.scan_index -= self.scan_step
+                        else:
+                            # take median to avoid weird jumping behavior
+                            self.avg_piece.position.x = np.median(self.piece_x)
+                            self.avg_piece.position.y = np.median(self.piece_y)
+                            self.avg_piece.position.z = np.median(self.piece_z)
+                            self.piece_x = []
+                            self.piece_y = []
+                            self.piece_z = []
+                            self.avg_piece.position.z += self.piece_depth/2.
+                            self.get_logger().info("Done averaging!")
+                            self.get_logger().info(f"Final pose: {self.avg_piece}")
+                            self.ct = 0
+                            self.piece_pub.publish(self.avg_piece)
+                            # This used to be centroid_pose now it is the averaged centroid pose
+                            self.brick.transform.translation.x = self.avg_piece.position.x
+                            self.brick.transform.translation.y = self.avg_piece.position.y
+                            self.brick.transform.translation.z = self.avg_piece.position.z
+                            # calculate the rotations with quaternians
+                            self.brick.transform.rotation.x = self.avg_piece.orientation.x
+                            self.brick.transform.rotation.y = self.avg_piece.orientation.y
+                            self.brick.transform.rotation.z = self.avg_piece.orientation.z
+                            self.brick.transform.rotation.w = self.avg_piece.orientation.w
+                            # self.avg_piece = Pose()
+                            self.state = State.PUBLISHPIECE
         elif self.state == State.PUBLISHPIECE:
             # Continue to publish camera image
             _, _ = self.get_mask()

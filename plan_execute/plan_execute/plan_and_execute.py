@@ -17,6 +17,7 @@ from shape_msgs.msg import SolidPrimitive
 from std_msgs.msg import Header
 import math
 import copy
+import random
 
 
 class PlanAndExecute:
@@ -266,7 +267,7 @@ class PlanAndExecute:
 
     def createCartreq(self, start_pose, end_pose):
         """Create an Cartisian message filled with info from the goal pose and orientation."""
-        max_step = 0.005 #0.001
+        max_step = 0.005
         points = self.createWaypoints(start_pose, end_pose, max_step)
         self.node.get_logger().info("creating cartisian message")
         constraint = Constraints()
@@ -395,10 +396,12 @@ class PlanAndExecute:
     async def plan_to_cartisian_pose(self, start_pose, end_pose, v, execute):
         """Return MoveGroup action from a start to end pose (position + orientation)."""
         self.node.get_logger().info("Plan to Pose")
+        cart_successed = False
+        # while not cart_successed:
         # if not start_pose:
         start_pose = self.getStartPose()
         self.master_goal.request.start_state.joint_state = self.js
-        self.fill_constraints(self.js.name, self.js.position, 0.01)
+        self.fill_constraints(self.js.name, self.js.position, 0.005)
         # else:
         #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
         #     request_temp = GetCartesianPath.Request(ik_request=request_start)
@@ -414,12 +417,17 @@ class PlanAndExecute:
         path_constraints= self.createCartreq(start_pose, end_pose)
         self.node.get_logger().info("recieved cartesian message")
         self.node.get_logger().info("calling cartisian service")
+        cart_successed = False
         Cart_response = await self.callCart(header, start_state, group_name, link_name, waypoints,
                                             max_step, jump_threshold, prismatic_jump_threshold, 
                                             revolute_jump_threshold, avoid_collisions,
                                             path_constraints)
-        self.node.get_logger().info("\n\n\nOriginal Cart Response!!!\n\n\n")
-        self.printBlock(Cart_response)
+            # if len(Cart_response.joint_trajectory.points) > 1:
+            #     cart_successed = True
+            # else:
+            #     self.node.get_logger().info("cartisian service failed, trying again")
+            #     # add a random offset to the end_pose
+            #     end_pose.position.x += random.uniform(-0.01, 0.01)
         self.node.get_logger().info("finished cartstian service")
         # if Cart_response:
             # Create a plan off current joint states
@@ -442,9 +450,8 @@ class PlanAndExecute:
             
             # execute the plan
             # self.node.get_logger().info("\n\n\n cart response \n\n\n")
-            self.node.get_logger().info("\n\n\nModified Cart Response!!!\n\n\n")
-            # self.node.get_logger().info("Cart Response:")
-            self.printBlock(Cart_response)
+            self.node.get_logger().info(f"Cart Response Len: {len(Cart_response.joint_trajectory.points)}")
+            # self.printBlock(Cart_response)
             traj_goal = ExecuteTrajectory.Goal(trajectory=Cart_response)
             execute_future = await self.node._execute_client.send_goal_async(traj_goal)
             execute_result = await execute_future.get_result_async()
@@ -577,7 +584,7 @@ class PlanAndExecute:
         grasp_goal = Grasp.Goal()
         grasp_goal.width = width
         grasp_goal.speed = 0.03
-        grasp_goal.force = 80.0
+        grasp_goal.force = 100.0
         await self.node._gripper_client.send_goal_async(grasp_goal)
         self.node.get_logger().info("grabbed")
     
