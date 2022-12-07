@@ -231,8 +231,10 @@ class Cam(Node):
     def get_mask(self, care_about_square = True, get_lines = False):
         # Do this in case the subscriber somehow updates in the middle of the function?
         depth_cpy = np.array(self.depth_frame)
+        color_cpy = np.array(self.color_frame)
         # Only keep stuff that's within the appropriate depth band.
         depth_mask = cv2.inRange(np.array(depth_cpy), self.band_start, self.band_start+self.band_width)
+        color_mask = cv2.inRange(np.array(color_cpy), 1, 225)
         # This operation helps to remove "dots" on the depth image.
         # Kernel higher dimensional = smoother. It's also less important if camera is farther away.
         depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, self.kernel)
@@ -288,16 +290,20 @@ class Cam(Node):
             # bound a smaller area to look for lines
             # self.centroid_origin = ([centroid_deprojected[0], centroid_deprojected[1]])
             # self.get_logger().info(self.centroid_origin)
-            # length = (dist(box[0], box[2])*3/8)*10
-            # line_rect = np.array([[[max_centroid[0], max_centroid[1]-length],
-            #                        [max_centroid[0]-length, max_centroid[1]],
-            #                        [max_centroid[0], max_centroid[1]+length],
-            #                        [max_centroid[0]+length, max_centroid[1]]]],
-            #                        dtype=np.int32)
-            # # Creating a square over the area defined in self.rect
-            # self.line_square = cv2.fillPoly(bounding_mask, [line_rect], 255)
-            # # Blacking out everything that is not within square
-            # self.line_square = cv2.inRange(self.line_square, 1, 255)
+            length = (dist(box[0], box[1]))
+            # self.get_logger().info(int(length))
+            line_rect = np.array([[[max_centroid[0], max_centroid[1]-20],
+                                   [max_centroid[0]-20, max_centroid[1]],
+                                   [max_centroid[0], max_centroid[1]+20],
+                                   [max_centroid[0]+20, max_centroid[1]]]],
+                                   dtype=np.int32)
+            # self.get_logger().info(line_rect)
+            # Creating a square over the area defined in self.rect
+            self.line_square = cv2.fillPoly(bounding_mask, [line_rect], 255)
+            # Blacking out everything that is not within square
+            self.line_square = cv2.inRange(self.line_square, 1, 255)
+            color_mask = cv2.bitwise_and(color_mask, color_mask, mask=self.line_square)
+            cv2.imshow("color mask", color_mask)
             
 
         
@@ -306,54 +312,9 @@ class Cam(Node):
                                    self.rect[0][0], self.rect[0][2],
                                    (255,0,0), 2)
         drawn_contours = cv2.drawContours(color_rect, large_contours, -1, (0,255,0), 3)
-        circle_contours = cv2.drawContours(color_rect, large_contours, -1, (0,255,0), 3)
         if max_centroid is not None:
             drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0,0,255), 5)
             drawn_contours = cv2.drawContours(drawn_contours, [box], 0, (255,0,0), 3)
-            circle_contours = cv2.circle(circle_contours, max_centroid, 80, (255,0,255), 3)
-            # circle_contours = cv2.drawContours(circle_contours, [box], 0, (255,0,0), 3)
-            # circle_mask = cv2.inRange(circle_contours, 1, 255)
-            # cv2.imshow("circle mask", circle_contours)
-            # circle = cv2.fillPoly(bounding_mask, circle_contours, 255)
-            # circle = cv2.inRange(circle_contours, 1, 255)
-            
-            # gray = cv2.cvtColor(color_rect, cv2.COLOR_BGR2GRAY)
-            # color_mask = cv2.bitwise_and(gray, gray, mask=circle)
-            # cv2.imshow('color mask', color_mask)
-            # edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
-            # # This returns an array of r and theta values
-            # lines = cv2.HoughLines(edges, 1, np.pi/180, 200)
-            # # try:
-            # # if lines != None:
-            # # if len(lines) != 0:
-            # if lines is not None:
-            #     self.get_logger().info("Lines supposedly")
-            #     for r_theta in lines:
-            #         # self.get_logger().info("TRY")
-            #         arr = np.array(r_theta[0], dtype=np.float64)
-            #         r, theta = arr
-            #         # Stores the value of cos(theta) in a
-            #         a = np.cos(theta)
-            #         # Stores the value of sin(theta) in b
-            #         b = np.sin(theta)
-            #         # x0 stores the value rcos(theta)
-            #         x0 = a*r
-            #         # y0 stores the value rsin(theta)
-            #         y0 = b*r
-            #         # x1 stores the rounded off value of (rcos(theta)-1000sin(theta))
-            #         x1 = int(x0 + 1000*(-b))
-            #         # y1 stores the rounded off value of (rsin(theta)+1000cos(theta))
-            #         y1 = int(y0 + 1000*(a))
-            #         # x2 stores the rounded off value of (rcos(theta)+1000sin(theta))
-            #         x2 = int(x0 - 1000*(-b))
-            #         # y2 stores the rounded off value of (rsin(theta)-1000cos(theta))
-            #         y2 = int(y0 - 1000*(a))
-            #         # cv2.line draws a line in img from the point(x1,y1) to (x2,y2).
-            #         # (0,0,255) denotes the colour of the line to be
-            #         # drawn. In this case, it is red.
-            #         cv2.line(color_mask, (x1, y1), (x2, y2), (0, 0, 255), 2)
-            # cv2.imshow('linesDetected.jpg', color_rect)
-            # circle_contours = cv2.drawContours(circle_contours, [box], 0, (255,0,255), 3)
             contour_ratio = largest_area/box_area
             # self.get_logger().info(f"CONTOUR RATIO: {contour_ratio}")
             if care_about_square and (contour_ratio<0.7):
@@ -364,13 +325,44 @@ class Cam(Node):
         ## DRAW LINES IN THE IMAGE TO FIND THE ORIENTATION OF THE TOP OF THE TOWER
         # Convert the img to grayscale
         # if self.line_square is not None:
-        #     circle = cv2.circle(color_rect,max_centroid, 10, (255,0,255), 3)
-        #     drawn_contours = cv2.drawContours(color_rect, circle, 1, (255,0,0), 3)
-        #     gray = cv2.cvtColor(color_rect, cv2.COLOR_BGR2GRAY)
-        #     color_mask = cv2.bitwise_and(gray, gray, mask=self.line_square)
-        #     cv2.imshow('color mask', color_mask)
-        #     # Apply edge detection method on the image
-            
+        # circle = cv2.circle(color_rect,max_centroid, 10, (255,0,255), 3)
+        # drawn_contours = cv2.drawContours(color_rect, circle, 0, (255,0,0), 3)
+        gray = cv2.cvtColor(color_rect, cv2.COLOR_BGR2GRAY)
+        color_mask = cv2.bitwise_and(gray, gray, mask=square)
+        cv2.imshow('color mask', color_mask)
+        # Apply edge detection method on the image
+        edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
+        # This returns an array of r and theta values
+        lines = cv2.HoughLines(edges, 1, np.pi/180, 200)
+        # try:
+        # if lines != None:
+        # if len(lines) != 0:
+        if lines is not None:
+            for r_theta in lines:
+                # self.get_logger().info("TRY")
+                arr = np.array(r_theta[0], dtype=np.float64)
+                r, theta = arr
+                # Stores the value of cos(theta) in a
+                a = np.cos(theta)
+                # Stores the value of sin(theta) in b
+                b = np.sin(theta)
+                # x0 stores the value rcos(theta)
+                x0 = a*r
+                # y0 stores the value rsin(theta)
+                y0 = b*r
+                # x1 stores the rounded off value of (rcos(theta)-1000sin(theta))
+                x1 = int(x0 + 1000*(-b))
+                # y1 stores the rounded off value of (rsin(theta)+1000cos(theta))
+                y1 = int(y0 + 1000*(a))
+                # x2 stores the rounded off value of (rcos(theta)+1000sin(theta))
+                x2 = int(x0 - 1000*(-b))
+                # y2 stores the rounded off value of (rsin(theta)-1000cos(theta))
+                y2 = int(y0 - 1000*(a))
+                # cv2.line draws a line in img from the point(x1,y1) to (x2,y2).
+                # (0,0,255) denotes the colour of the line to be
+                # drawn. In this case, it is red.
+                cv2.line(color_mask, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        cv2.imshow('linesDetected.jpg', color_mask)
             # except:
             # self.get_logger().info("EXCEPT")
             # pass
