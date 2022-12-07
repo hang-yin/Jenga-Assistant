@@ -359,7 +359,7 @@ class Cam(Node):
         # Apply edge detection method on the image
         edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
         # image = (gray, edges)
-        
+        edges = 
         # This returns an array of r and theta values
         lines = cv2.HoughLines(edges, rho=1, theta=np.pi/180, threshold=100)
         cv2.imshow('edges', edges)

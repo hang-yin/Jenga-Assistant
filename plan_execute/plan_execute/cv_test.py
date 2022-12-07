@@ -144,6 +144,7 @@ class Test(Node):
         self.top_positions = None
         self.place_locations = None
         self.place_counter = 0
+        self.tilt = False
 
 
     def piece_cb(self, data):
@@ -344,15 +345,16 @@ class Test(Node):
             orientation_pose.orientation.z = 0.0
             orientation_pose.orientation.w = 0.0
             """
+            self.tilt = not (self.goal_pose.position.y > 0)
             orientation_pose.orientation.x = 0.9238795
-            if self.goal_pose.position.y > 0:
+            if not self.tilt:
                 orientation_pose.orientation.y = -0.3826834
                 orientation_pose.orientation.z = 0.0
                 orientation_pose.orientation.w = 0.0
             else:
                 orientation_pose.orientation.y = 0.3826834
-                orientation_pose.orientation.w = -0.10439
                 orientation_pose.orientation.z = 0.18137
+                orientation_pose.orientation.w = -0.10439
             
             self.get_logger().info('PLAN')
             self.future = await self.PlanEx.plan_to_orientation(self.start_pose,
@@ -482,7 +484,7 @@ class Test(Node):
             else:
                 set_pose.orientation.y = -0.3826834
 
-            if self.goal_pose.position.y > 0:
+            if not self.tilt:
                 set_pose.orientation.z = 0.0
                 set_pose.orientation.w = 0.0
             else:
