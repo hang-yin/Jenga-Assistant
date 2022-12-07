@@ -96,8 +96,8 @@ class Cam(Node):
         # depth "bands"
         self.band_start = 570
         self.band_width = 20
-        self.edge_high = 200
-        self.edge_low = 190
+        self.edge_high = 75
+        self.edge_low = 66
         self.tower_top = None
         self.table = None
         self.scan_start = 450
@@ -353,71 +353,112 @@ class Cam(Node):
         # if self.line_square is not None:
         # circle = cv2.circle(color_rect,max_centroid, 10, (255,0,255), 3)
         # drawn_contours = cv2.drawContours(color_rect, circle, 0, (255,0,0), 3)
-        gray = cv2.cvtColor(color_cpy, cv2.COLOR_BGR2GRAY)
-        color_mask = cv2.bitwise_and(gray, gray, mask=square)
-        cv2.imshow('color mask', color_mask)
-        # Apply edge detection method on the image
-        edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
-        # image = (gray, edges)
-        edges = 
-        # This returns an array of r and theta values
-        lines = cv2.HoughLines(edges, rho=1, theta=np.pi/180, threshold=100)
-        cv2.imshow('edges', edges)
-        # try:
-        # if lines != None:
-        # if len(lines) != 0:
-        if lines is not None:
-            self.r_list = []
-            self.theta_list = []
-            for r_theta in lines:
-                # self.get_logger().info("TRY")
-                arr = np.array(r_theta[0], dtype=np.float64)
-                r, theta = arr
-                self.r_list.append(r)
-                self.theta_list.append(theta)
-                # Stores the value of cos(theta) in a
-                a = np.cos(theta)
-                # Stores the value of sin(theta) in b
-                b = np.sin(theta)
-                # x0 stores the value rcos(theta)
-                x0 = a*r
-                # y0 stores the value rsin(theta)
-                y0 = b*r
-                # x1 stores the rounded off value of (rcos(theta)-1000sin(theta))
-                x1 = int(x0 + 1000*(-b))
-                # y1 stores the rounded off value of (rsin(theta)+1000cos(theta))
-                y1 = int(y0 + 1000*(a))
-                # x2 stores the rounded off value of (rcos(theta)+1000sin(theta))
-                x2 = int(x0 - 1000*(-b))
-                # y2 stores the rounded off value of (rsin(theta)-1000cos(theta))
-                y2 = int(y0 - 1000*(a))
-                point1 = [x1, y1]
-                point2 = [x2, y2]
-                # cv2.line draws a line in img from the point(x1,y1) to (x2,y2).
-                # (0,0,255) denotes the colour of the line to be
-                # drawn. In this case, it is red.
-                cv2.line(color_mask, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                r_val = np.median(self.r_list)
-                color = 10
-                drawn_contours = cv2.circle(drawn_contours, point1, 5, (0,0,color), 5)
-                drawn_contours = cv2.circle(drawn_contours, point2, 5, (0,0,color), 5)
-                color += 20
-                if r_val > 0: 
-                    self.top_ori = 1
-                else:
-                    self.top_ori = -1
-        cv2.imshow('linesDetected.jpg', color_mask)
-            # except:
-            # self.get_logger().info("EXCEPT")
-            # pass
-            # All the changes made in the input image are finally
-            # written on a new image houghlines.jpg
+        line_direction = None
+        if get_lines:
+            gray = cv2.cvtColor(color_cpy, cv2.COLOR_BGR2GRAY)
+            bounding_mask_new = np.zeros((self.intrinsics.height,self.intrinsics.width), np.int8)
+            # Creating a square over the area defined in self.rect
+            # self.get_logger().info(f"Rect:{self.rect}")
+            # self.get_logger().info(f"box:{box}")
+            if box is not None:
+                # min_rect = cv2.minAreaRect(max_contour)
+                # box = cv2.boxPoints(min_rect)
+                # box = np.intp(box)
+                # self.get_logger().info(f"Min_rect:{min_rect}")
+                scale = 0.8
+                new_w = scale*min_rect[1][0]
+                new_h = scale*min_rect[1][1]
+                new_rect = ((min_rect[0][0], min_rect[0][1]), (new_w, new_h), min_rect[2])
+                new_box = cv2.boxPoints(new_rect)
+                new_box = [[int(new_box[0][0]),int(new_box[0][1])],
+                        [int(new_box[1][0]),int(new_box[1][1])],
+                        [int(new_box[2][0]),int(new_box[2][1])],
+                        [int(new_box[3][0]),int(new_box[3][1])]]
+                new_box = np.array(new_box)
+                # self.get_logger().info(f"new box:{new_box}")
+                # self.get_logger().info(f"new box type:{type(new_box)}")
+                # self.get_logger().info(f"rect type:{type(self.rect)}")
+                square_new = cv2.fillPoly(bounding_mask_new, [new_box], 255)
+                # Blacking out everything that is not within square
+                square_new = cv2.inRange(square_new, 1, 255)
+                # Cropping the depth_mask so that only what is within the square remains.
+                # depth_mask = cv2.bitwise_and(depth_mask, depth_mask, mask=square)
+                color_mask = cv2.bitwise_and(gray, gray, mask=square_new)
+                cv2.imshow('color mask', color_mask)
+                # Apply edge detection method on the image
+                edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
+                # image = (gray, edges)
+                # edges = 
+                # This returns an array of r and theta values
+                lines = cv2.HoughLines(edges, rho=1, theta=np.pi/180, threshold=100)
+                cv2.imshow('edges', edges)
+                # try:
+                # if lines != None:
+                # if len(lines) != 0:
+                if lines is not None:
+                    self.r_list = []
+                    self.theta_list = []
+                    num_negative = 0
+                    num_positive = 0
+                    for r_theta in lines:
+                        # self.get_logger().info("TRY")
+                        arr = np.array(r_theta[0], dtype=np.float64)
+                        r, theta = arr
+                        self.r_list.append(r)
+                        self.theta_list.append(theta)
+                        if r<0:
+                            num_negative += 1
+                        else:
+                            num_positive +=1
+                        # Stores the value of cos(theta) in a
+                        a = np.cos(theta)
+                        # Stores the value of sin(theta) in b
+                        b = np.sin(theta)
+                        # x0 stores the value rcos(theta)
+                        x0 = a*r
+                        # y0 stores the value rsin(theta)
+                        y0 = b*r
+                        # x1 stores the rounded off value of (rcos(theta)-1000sin(theta))
+                        x1 = int(x0 + 1000*(-b))
+                        # y1 stores the rounded off value of (rsin(theta)+1000cos(theta))
+                        y1 = int(y0 + 1000*(a))
+                        # x2 stores the rounded off value of (rcos(theta)+1000sin(theta))
+                        x2 = int(x0 - 1000*(-b))
+                        # y2 stores the rounded off value of (rsin(theta)-1000cos(theta))
+                        y2 = int(y0 - 1000*(a))
+                        point1 = [x1, y1]
+                        point2 = [x2, y2]
+                        # cv2.line draws a line in img from the point(x1,y1) to (x2,y2).
+                        # (0,0,255) denotes the colour of the line to be
+                        # drawn. In this case, it is red.
+                        cv2.line(color_mask, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        r_val = np.median(self.r_list)
+                        color = 10
+                        # drawn_contours = cv2.circle(drawn_contours, point1, 5, (0,0,color), 5)
+                        # drawn_contours = cv2.circle(drawn_contours, point2, 5, (0,0,color), 5)
+                        color += 20
+                        if r_val > 0: 
+                            self.top_ori = 1
+                        else:
+                            self.top_ori = -1
+                    self.get_logger().info(f"Negative: {num_negative}, Positive: {num_positive}")
+                    if num_negative > num_positive:
+                        line_direction = -1
+                    else:
+                        line_direction = 1
+                    
+                cv2.imshow('linesDetected.jpg', color_mask)
+                # except:
+                # self.get_logger().info("EXCEPT")
+                # pass
+                # All the changes made in the input image are finally
+                # written on a new image houghlines.jpg
         
 
         cv2.imshow('Color', drawn_contours)
 
         cv2.waitKey(1)
-        return largest_area, centroid_pose
+        return largest_area, centroid_pose, line_direction
 
     def publish_top(self):
         if self.starting_top is not None:
@@ -441,10 +482,11 @@ class Cam(Node):
             if all(w is not None for w in wait_for):
                 self.get_logger().info("Searching for tower top!!")
                 self.state = State.FINDTOP
+                # self.state = State.WAITINGMOTION
 
         elif self.state == State.FINDHANDS:
             # Just print out the camera data
-            largest_area, _ = self.get_mask()
+            largest_area, _, _ = self.get_mask()
             # process color_frame with ML model
             if self.color_frame is not None:
                 image = cv2.resize(self.color_frame, (224, 224), interpolation=cv2.INTER_AREA)
@@ -469,7 +511,7 @@ class Cam(Node):
         
         elif self.state == State.WAITINGMOTION:
             # Just print out the camera data
-            largest_area, _ = self.get_mask()
+            largest_area, _, _ = self.get_mask()
 
         elif self.state == State.FINDTOP:
             # Begin scanning downwards.
@@ -486,7 +528,7 @@ class Cam(Node):
                 self.ct = 0
                 self.state = State.FINDHANDS
 
-            largest_area, centroid_pose = self.get_mask()
+            largest_area, centroid_pose, line_direction = self.get_mask(get_lines=True)
             if largest_area:
                 # self.get_logger().info(f"Largest area {largest_area}")
                 if largest_area > self.top_area_threshold:
@@ -543,12 +585,16 @@ class Cam(Node):
                             num_pieces.data = 1
                         # return the 
                         # Go and find the table
-                        self.get_logger().info(f"top ori: {self.top_ori}")
-                        self.get_logger().info(f"r ist: {self.r_list}")
-                        self.get_logger().info(f"theta ist: {self.theta_list}")
+                        ori = Int16()
+                        ori.data = line_direction
+                        self.top_ori_pub.publish(ori)
+                        # self.get_logger().info(f"top ori: {self.top_ori}")
+                        # self.get_logger().info(f"r ist: {self.r_list}")
+                        # self.get_logger().info(f"theta ist: {self.theta_list}")
                         self.top_pub.publish(num_pieces)
                         self.state = State.FINDTABLE
-                        self.get_logger().info("Searching for table PAUSE")
+                        self.get_logger().info(f"Top orientation is: {line_direction}")
+                        self.get_logger().info("Searching for table!")
 
         elif self.state == State.FINDTABLE:
             # Basically same logic as findtop.
@@ -563,7 +609,7 @@ class Cam(Node):
                 self.state = State.FINDHANDS
 
             # The contour of the table will not be a square.
-            largest_area, _ = self.get_mask(care_about_square=False)
+            largest_area, _, _ = self.get_mask(care_about_square=False)
             if largest_area:
                 if largest_area > self.table_area_threshold:
                     # We believe there is an object at this depth
@@ -586,7 +632,7 @@ class Cam(Node):
                 self.state = State.FINDHANDS
             else:
                 # Look for piece sticking out in range from top to table
-                largest_area, centroid_pose = self.get_mask()
+                largest_area, centroid_pose, _ = self.get_mask()
                 if largest_area:
                     if largest_area > self.piece_area_threshold:
                         if self.ct < self.avg_frames:
@@ -623,7 +669,7 @@ class Cam(Node):
                             self.state = State.PUBLISHPIECE
         elif self.state == State.PUBLISHPIECE:
             # Continue to publish camera image
-            _, _ = self.get_mask()
+            _, _, _ = self.get_mask()
             # Create tf between the tag and the rotated frame using avg_piece
             self.brick.header.stamp = self.get_clock().now().to_msg()
             self.brick.header.frame_id = self.frame_camera
