@@ -478,7 +478,7 @@ class Cam(Node):
                     self.band_start = self.scan_start
                     self.state = State.SCANNING
                 else:
-                    # self.get_logger().info(f"no_hand_count: {self.no_hand_count}")
+                    self.get_logger().info(f"no_hand_count: {self.no_hand_count}")
                     # self.get_logger().info(f"label: {label}")
                     if label == 1:
                         self.no_hand_count += 1
