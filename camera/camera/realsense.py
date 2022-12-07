@@ -96,8 +96,8 @@ class Cam(Node):
         # depth "bands"
         self.band_start = 570
         self.band_width = 20
-        self.edge_high = 40
-        self.edge_low = 0
+        self.edge_high = 200
+        self.edge_low = 190
         self.tower_top = None
         self.table = None
         self.scan_start = 450
@@ -131,6 +131,9 @@ class Cam(Node):
         self.starting_top = None
         self.current_top = None
         self.line_square = None
+
+        # For finding the orientation of the tower
+        self.top_ori = 0
 
         # cv2.namedWindow('Mask')
         # cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
@@ -350,21 +353,28 @@ class Cam(Node):
         # if self.line_square is not None:
         # circle = cv2.circle(color_rect,max_centroid, 10, (255,0,255), 3)
         # drawn_contours = cv2.drawContours(color_rect, circle, 0, (255,0,0), 3)
-        gray = cv2.cvtColor(color_rect, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(color_cpy, cv2.COLOR_BGR2GRAY)
         color_mask = cv2.bitwise_and(gray, gray, mask=square)
         cv2.imshow('color mask', color_mask)
         # Apply edge detection method on the image
         edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
+        # image = (gray, edges)
+        
         # This returns an array of r and theta values
-        lines = cv2.HoughLines(edges, 1, np.pi/180, 200)
+        lines = cv2.HoughLines(edges, rho=1, theta=np.pi/180, threshold=100)
+        cv2.imshow('edges', edges)
         # try:
         # if lines != None:
         # if len(lines) != 0:
         if lines is not None:
+            self.r_list = []
+            self.theta_list = []
             for r_theta in lines:
                 # self.get_logger().info("TRY")
                 arr = np.array(r_theta[0], dtype=np.float64)
                 r, theta = arr
+                self.r_list.append(r)
+                self.theta_list.append(theta)
                 # Stores the value of cos(theta) in a
                 a = np.cos(theta)
                 # Stores the value of sin(theta) in b
@@ -381,10 +391,21 @@ class Cam(Node):
                 x2 = int(x0 - 1000*(-b))
                 # y2 stores the rounded off value of (rsin(theta)-1000cos(theta))
                 y2 = int(y0 - 1000*(a))
+                point1 = [x1, y1]
+                point2 = [x2, y2]
                 # cv2.line draws a line in img from the point(x1,y1) to (x2,y2).
                 # (0,0,255) denotes the colour of the line to be
                 # drawn. In this case, it is red.
                 cv2.line(color_mask, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                r_val = np.median(self.r_list)
+                color = 10
+                drawn_contours = cv2.circle(drawn_contours, point1, 5, (0,0,color), 5)
+                drawn_contours = cv2.circle(drawn_contours, point2, 5, (0,0,color), 5)
+                color += 20
+                if r_val > 0: 
+                    self.top_ori = 1
+                else:
+                    self.top_ori = -1
         cv2.imshow('linesDetected.jpg', color_mask)
             # except:
             # self.get_logger().info("EXCEPT")
@@ -438,13 +459,13 @@ class Cam(Node):
                     self.get_logger().info("Start scanning!!!\n")
                     self.state = State.SCANNING
                 else:
-                    self.get_logger().info(f"no_hand_count: {self.no_hand_count}")
-                    self.get_logger().info(f"label: {label}")
+                    # self.get_logger().info(f"no_hand_count: {self.no_hand_count}")
+                    # self.get_logger().info(f"label: {label}")
                     if label == 1:
                         self.no_hand_count += 1
                     elif label == 0:
                         self.no_hand_count = 0
-                self.get_logger().info(self.labels[np.argmax(probabilities)])
+                # self.get_logger().info(self.labels[np.argmax(probabilities)])
         
         elif self.state == State.WAITINGMOTION:
             # Just print out the camera data
@@ -522,6 +543,9 @@ class Cam(Node):
                             num_pieces.data = 1
                         # return the 
                         # Go and find the table
+                        self.get_logger().info(f"top ori: {self.top_ori}")
+                        self.get_logger().info(f"r ist: {self.r_list}")
+                        self.get_logger().info(f"theta ist: {self.theta_list}")
                         self.top_pub.publish(num_pieces)
                         self.state = State.FINDTABLE
                         self.get_logger().info("Searching for table PAUSE")
