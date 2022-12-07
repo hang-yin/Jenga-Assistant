@@ -117,6 +117,15 @@ class Calibrate(Node):
         self.calibrate = 0
         self.write = 0
 
+        self.count = 0
+        self.avg_trans_x = []
+        self.avg_trans_y = []
+        self.avg_trans_z = []
+        self.avg_rot_x = []
+        self.avg_rot_y = []
+        self.avg_rot_z = []
+        self.avg_rot_w = []
+
     def timer_callback(self):
         # self.get_logger().info(str(self.state))
         if self.state == State.LISTEN:
@@ -198,23 +207,30 @@ class Calibrate(Node):
                     self.frame_camera,
                     self.frame_base,
                     rclpy.time.Time())
-                # self.get_logger().info(f"cam_base: {cam_base}")
-                self.dump = {'/**':{'ros__parameters': {'x_trans': cam_base.transform.translation.x,
-                                                'y_trans': cam_base.transform.translation.y,
-                                                'z_trans': cam_base.transform.translation.z,
-                                                'x_rot': cam_base.transform.rotation.x,
-                                                'y_rot': cam_base.transform.rotation.y,
-                                                'z_rot': cam_base.transform.rotation.z,
-                                                'w_rot': cam_base.transform.rotation.w}}}
+                if self.count < 200:
+                    self.get_logger().info(f"COUNT:{self.count}")
+                    self.avg_trans_x.append(cam_base.transform.translation.x)
+                    self.avg_trans_y.append(cam_base.transform.translation.y)
+                    self.avg_trans_z.append(cam_base.transform.translation.z)
+                    self.avg_rot_x.append(cam_base.transform.rotation.x)
+                    self.avg_rot_y.append(cam_base.transform.rotation.y)
+                    self.avg_rot_z.append(cam_base.transform.rotation.z)
+                    self.avg_rot_w.append(cam_base.transform.rotation.w)
+                    self.count += 1
+                else:
+                    # self.get_logger().info(f"cam_base: {cam_base}")
+                    self.dump = {'/**':{'ros__parameters': {'x_trans': float(np.mean(self.avg_trans_x)),
+                                                    'y_trans': float(np.mean(self.avg_trans_y)),
+                                                    'z_trans': float(np.mean(self.avg_trans_z)),
+                                                    'x_rot': float(np.mean(self.avg_rot_x)),
+                                                    'y_rot': float(np.mean(self.avg_rot_y)),
+                                                    'z_rot': float(np.mean(self.avg_rot_z)),
+                                                    'w_rot': float(np.mean(self.avg_rot_w))}}}
+                    self.state = State.WRITE
             except:
                 self.get_logger().info(
                     f'Could not transform {self.frame_camera} to {self.frame_base}')
                 return
-
-            if self.calibrate < 300:
-                self.calibrate += 1
-            else:
-                self.state = State.WRITE
 
         if self.state == State.WRITE:
 

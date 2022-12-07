@@ -374,7 +374,7 @@ class Test(Node):
         
         elif self.state == State.PREGRAB:
             # go to pre-grab pose
-            offset = math.sin(math.pi/2) * 0.1 # 0.125
+            offset = math.sin(math.pi/2) * 0.15
             pre_grasp = copy.deepcopy(self.goal_pose)
             pre_grasp.position.x = self.goal_pose.position.x - offset
             if self.goal_pose.position.y > 0:
@@ -542,7 +542,7 @@ class Test(Node):
             set_pose = copy.deepcopy(self.goal_pose)
             self.place_pose = self.place_locations[self.place_counter]
             
-            offset = math.sin(math.pi/2) * 0.03
+            offset = math.sin(math.pi/2) * 0.035
             # Would be a different sign if on the other side
             set_pose.position.x = self.place_pose.position.x - offset
             if self.top_ori == 1:
@@ -572,7 +572,7 @@ class Test(Node):
         elif self.state == State.PREPUSH:
             prepush_pose = copy.deepcopy(self.goal_pose)
             
-            offset = math.sin(math.pi/2) * 0.08
+            offset = math.sin(math.pi/2) * 0.1
             prepush_pose.position.x = self.place_pose.position.x - offset
             if self.top_ori == 1:
                 if self.place_counter < 3:
@@ -599,18 +599,23 @@ class Test(Node):
             self.state = State.PUSH
         elif self.state == State.PUSH:
             push_pose = copy.deepcopy(self.goal_pose)
-            offset = math.sin(math.pi/2) * 0.02 # 0.03
-            push_pose.position.x = self.place_pose.position.x - offset
+            
+            
             if self.top_ori == 1:
                 if self.place_counter < 3:
+                    offset = math.sin(math.pi/2) * 0.02 # 0.03
                     push_pose.position.y = self.place_pose.position.y - offset
                 else:
+                    offset = math.sin(math.pi/2) * 0.025 # 0.03
                     push_pose.position.y = self.place_pose.position.y + offset
             else:
                 if self.place_counter < 3:
+                    offset = math.sin(math.pi/2) * 0.03 # 0.03
                     push_pose.position.y = self.place_pose.position.y + offset
                 else:
+                    offset = math.sin(math.pi/2) * 0.02 # 0.03
                     push_pose.position.y = self.place_pose.position.y - offset
+            push_pose.position.x = self.place_pose.position.x - offset
             push_pose.position.z = self.place_pose.position.z
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    push_pose, 0.25,
@@ -805,11 +810,11 @@ class Test(Node):
                 # HARDCODED OFFSET LMAO WILL IT WORK?
                 self.get_logger().info(f'y init: {t.transform.translation.y}')
                 if self.goal_pose.position.y > 0:
-                    self.goal_pose.position.x += 0.012
-                    self.goal_pose.position.y -= 1.95*self.tower_top_pose.position.y
+                    self.goal_pose.position.x += 0.018
+                    self.goal_pose.position.y -= -0.008 # 1.95*self.tower_top_pose.position.y
                 else:
-                    self.goal_pose.position.x += 0.012
-                    self.goal_pose.position.y -= 2.3*self.tower_top_pose.position.y
+                    self.goal_pose.position.x += 0.018
+                    self.goal_pose.position.y -= -0.009 # 2.3*self.tower_top_pose.position.y
                 # if self.goal_pose.position.y < 0:
                 #     self.goal_pose.position.y -= self.tower_top_pose.position.y
                 # else: 

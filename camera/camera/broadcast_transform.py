@@ -51,6 +51,7 @@ class Broadcast(Node):
     def timer_callback(self):
         #create tf between the tag and the rotated frame
         self.cam_to_base.header.stamp = self.get_clock().now().to_msg()
+        # self.get_logger().info("BROADCAST")
         self.cam_to_base.header.frame_id = self.frame_camera
         self.cam_to_base.child_frame_id = self.frame_base
         self.cam_to_base.transform.translation.x = self.tx
