@@ -119,31 +119,20 @@ class Cam(Node):
 
         self.piece_depth = 30 # 3 cm, but depth units here are in mm
 
+        # Variables for averaging (median-ing?) locations
         self.avg_sec = 3.0
         self.avg_frames = int(self.avg_sec*self.freq)
         self.ct = 0
         self.avg_piece = Pose()
-
-        # For averaging (median-ing?) the coordinates of piece
         self.piece_x = []
         self.piece_y = []
         self.piece_z = []
-
         self.avg_area = 0
 
         # For storing the coordinates of the top of the tower
         self.starting_top = None
-        self.current_top = None
-        self.line_square = None
-
-        # For finding the orientation of the tower
-        self.top_ori = 0
-
-        # cv2.namedWindow('Mask')
-        # cv2.createTrackbar('kernel size', 'Mask', kernel_size, 100, self.kernel_trackbar)
         
         cv2.namedWindow('Color')
-        
         cv2.createTrackbar('origin x', 'Color', self.sq_orig[0], 1000, self.sqx_trackbar)
         cv2.createTrackbar('origin y', 'Color' , self.sq_orig[1], 1000, self.sqy_trackbar)
         cv2.createTrackbar('size', 'Color' , self.sq_sz, 700, self.sqw_trackbar)
@@ -151,7 +140,6 @@ class Cam(Node):
         cv2.createTrackbar('band start', 'Color' , self.band_start, 1000, self.band_start_tb)
         cv2.createTrackbar('edge low', 'Color' , self.edge_low, 200, self.edge_low_tb)
         cv2.createTrackbar('edge high', 'Color' , self.edge_high, 200, self.edge_high_tb)
-        
 
         # load machine learning model
         model_path = get_package_share_path('camera') / 'keras_model.h5'
@@ -217,6 +205,7 @@ class Cam(Node):
         self.state = State.WAITINGMOTION
     
     def finished_place_cb(self, _):
+        """Indication that the movement node has placed the brick on top"""
         self.get_logger().info('Finished placing')
         self.state = State.FINDHANDS
 
@@ -425,9 +414,6 @@ class Cam(Node):
         if self.starting_top is not None:
             self.starting_top.header.stamp = self.get_clock().now().to_msg()
             self.tf_broadcaster.sendTransform(self.starting_top)
-        if self.current_top is not None:
-            self.current_top.header.stamp = self.get_clock().now().to_msg()
-            self.tf_broadcaster.sendTransform(self.current_top)
 
     def timer_callback(self):
 
@@ -526,13 +512,6 @@ class Cam(Node):
                             self.starting_top.transform.translation.x = avg_x
                             self.starting_top.transform.translation.y = avg_y
                             self.starting_top.transform.translation.z = avg_z
-                        else:
-                            self.current_top = TransformStamped()
-                            self.current_top.header.frame_id = self.frame_camera
-                            self.current_top.child_frame_id = 'current_top'
-                            self.current_top.transform.translation.x = avg_x
-                            self.current_top.transform.translation.y = avg_y
-                            self.current_top.transform.translation.z = avg_z
                         # Go down past the top pieces, or else this will also be detected as table.
                         # UNCOMMENT THESE LATER
                         self.scan_index = self.tower_top + self.band_width
@@ -552,9 +531,6 @@ class Cam(Node):
                         ori = Int16()
                         ori.data = line_direction
                         self.top_ori_pub.publish(ori)
-                        # self.get_logger().info(f"top ori: {self.top_ori}")
-                        # self.get_logger().info(f"r ist: {self.r_list}")
-                        # self.get_logger().info(f"theta ist: {self.theta_list}")
                         self.top_pub.publish(num_pieces)
                         self.state = State.FINDTABLE
                         self.get_logger().info(f"Top orientation is: {line_direction}")
