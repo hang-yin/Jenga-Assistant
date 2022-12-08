@@ -8,7 +8,9 @@ from geometry_msgs.msg import TransformStamped
 
 
 class Broadcast(Node):
+    """Publishes a static transform between the camera frame and panda_link0 from a yaml."""
     def __init__(self):
+        """Set up a broadcaster, retrieve parameters from a yaml, and initialize variables."""
         super().__init__('broadcast')
         # Import parameters from tf.yaml
         self.declare_parameters(
@@ -50,7 +52,8 @@ class Broadcast(Node):
 
 
     def timer_callback(self):
-        #create tf between the tag and the rotated frame
+        """Continuously published the transform between the camera and panda_link0."""
+        #create tf between camera and panda_link0
         self.cam_to_base.header.stamp = self.get_clock().now().to_msg()
         self.cam_to_base.header.frame_id = self.frame_camera
         self.cam_to_base.child_frame_id = self.frame_base

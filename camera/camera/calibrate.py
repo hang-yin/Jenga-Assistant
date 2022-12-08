@@ -15,7 +15,7 @@ class State(Enum):
     """
     Current state of the system.
 
-    Determines what the main timer function should be doing on each iteration
+    Determines what the main timer function should be doing on each iteration.
     """
     LISTEN = auto(),
     CALIBRATE = auto(),
@@ -105,7 +105,15 @@ def deg_to_rad(deg):
     return rad
 
 class Calibrate(Node):
+    """
+    Run a calibration for the robot using april tags and the tf tree.
+
+    Listen to the existing transformations between the ccamera and the tag and the end effector and
+    the robot. Use the realtions to create a tf between the camera in the base so that objects in
+    the camera's view can be found by the robot.
+    """
     def __init__(self):
+        """Initialize variables and set up a broadcaster."""
         super().__init__('cali')
         self.freq = 60.
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
@@ -142,6 +150,12 @@ class Calibrate(Node):
         self.avg_rot_w = []
 
     def timer_callback(self):
+        """
+        Use existing transforms to create a transform between panda_link0 and the camera. 
+
+        Use listeners to get transforms then utilizing quaternion operations get the appropriate
+        transform from the camera to panda_link0 and write it to a yaml for future use. 
+        """
         if self.state == State.LISTEN:
             #listener for the camera to tag
             try:
@@ -221,13 +235,15 @@ class Calibrate(Node):
                     self.avg_rot_w.append(cam_base.transform.rotation.w)
                     self.count += 1
                 else:
-                    self.dump = {'/**':{'ros__parameters': {'x_trans': float(np.mean(self.avg_trans_x)),
-                                                    'y_trans': float(np.mean(self.avg_trans_y)),
-                                                    'z_trans': float(np.mean(self.avg_trans_z)),
-                                                    'x_rot': float(np.mean(self.avg_rot_x)),
-                                                    'y_rot': float(np.mean(self.avg_rot_y)),
-                                                    'z_rot': float(np.mean(self.avg_rot_z)),
-                                                    'w_rot': float(np.mean(self.avg_rot_w))}}}
+                    # Write the transform parameters to a yaml for later use without calibrating
+                    self.dump = {'/**':{'ros__parameters': 
+                                       {'x_trans': float(np.mean(self.avg_trans_x)),
+                                        'y_trans': float(np.mean(self.avg_trans_y)),
+                                        'z_trans': float(np.mean(self.avg_trans_z)),
+                                        'x_rot': float(np.mean(self.avg_rot_x)),
+                                        'y_rot': float(np.mean(self.avg_rot_y)),
+                                        'z_rot': float(np.mean(self.avg_rot_z)),
+                                        'w_rot': float(np.mean(self.avg_rot_w))}}}
                     self.state = State.WRITE
             except:
                 self.get_logger().info(
