@@ -9,7 +9,7 @@ import pyrealsense2 as rs2
 from enum import Enum, auto
 from std_srvs.srv import Empty
 from geometry_msgs.msg import Pose
-from math import sqrt, dist
+from math import dist
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 from std_msgs.msg import Bool, Int16
@@ -34,6 +34,7 @@ class State(Enum):
     FINDHANDS = auto()
     # Waiting for motion to finish
     WAITINGMOTION = auto()
+
 
 class Cam(Node):
     def __init__(self):
@@ -77,7 +78,7 @@ class Cam(Node):
         self.tf_broadcaster = TransformBroadcaster(self)
         self.brick = TransformStamped()
         self.frame_brick = "brick"
-        self.frame_camera ='camera_link'
+        self.frame_camera = 'camera_link'
 
         # These will be updated from my subscribers to camera data
         self.color_frame = None
@@ -86,10 +87,10 @@ class Cam(Node):
 
         # For smoothing the image
         kernel_size = 25
-        self.kernel = np.ones((kernel_size,kernel_size),np.uint8)
+        self.kernel = np.ones((kernel_size, kernel_size), np.uint8)
 
         # Bounding rectangle
-        self.sq_orig = [415,0]
+        self.sq_orig = [415, 0]
         self.sq_sz = 500
         self.rect = None
         self.update_rect()
@@ -117,7 +118,7 @@ class Cam(Node):
         # Little bit less than the area of 1 piece when it's on the top
         self.top_area_threshold = 16000
 
-        self.piece_depth = 30 # 3 cm, but depth units here are in mm
+        self.piece_depth = 30  # 3 cm, but depth units here are in mm
 
         # Variables for averaging (median-ing?) locations
         self.avg_sec = 3.0
@@ -133,7 +134,7 @@ class Cam(Node):
         self.starting_top = None
 
         self.window = 'Detections Through Scanning'
-        
+
         cv2.namedWindow(self.window)
         cv2.createTrackbar('origin x', self.window, self.sq_orig[0], 1000, self.sqx_trackbar)
         cv2.createTrackbar('origin y', self.window, self.sq_orig[1], 1000, self.sqy_trackbar)
@@ -169,7 +170,7 @@ class Cam(Node):
                                [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]],
                                [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]+self.sq_sz],
                                [self.sq_orig[0], self.sq_orig[1]+self.sq_sz]]],
-                               dtype=np.int32)
+                             dtype=np.int32)
 
     def band_width_tb(self, val):
         """Adjust the scanning band width"""
@@ -181,7 +182,7 @@ class Cam(Node):
 
     def kernel_trackbar(self, val):
         """Adjust the size of the kernel"""
-        self.kernel = np.ones((val,val),np.uint8)
+        self.kernel = np.ones((val, val), np.uint8)
 
     def scan_service_callback(self, _, response):
         """Make the camera scan for pieces sticking out"""
@@ -198,12 +199,12 @@ class Cam(Node):
         self.state = State.WAITINGMOTION
         self.get_logger().info("Pause Scanning")
         return response
-    
+
     def piece_found_cb(self, _):
         """Stop publishing brick tf data, movement nodes found the brick"""
         self.get_logger().info('Brick found')
         self.state = State.WAITINGMOTION
-    
+
     def finished_place_cb(self, _):
         """Indication that the movement node has placed the brick on top"""
         self.get_logger().info('Finished placing')
@@ -238,7 +239,7 @@ class Cam(Node):
             elif cameraInfo.distortion_model == 'equidistant':
                 self.intrinsics.model = rs2.distortion.kannala_brandt4
             self.intrinsics.coeffs = [i for i in cameraInfo.d]
-        except CvBridgeError as e:
+        except CvBridgeError:
             self.get_logger().info("Getting intrinsics failed?")
             return
 
@@ -252,8 +253,8 @@ class Cam(Node):
         current_frame = self.br.imgmsg_to_cv2(data)
         self.depth_frame = current_frame
 
-    def get_mask(self, care_about_square = True, get_lines = False):
-        """ Finds large contours in a narrow slice of the depth frame 
+    def get_mask(self, care_about_square=True, get_lines=False):
+        """ Finds large contours in a narrow slice of the depth frame
 
             Args:
                 care_about_square: Whether I want the contour to be rectangular.
@@ -273,13 +274,13 @@ class Cam(Node):
         color_cpy = np.array(self.color_frame)
         # Only keep stuff that's within the appropriate depth band.
         depth_mask = cv2.inRange(np.array(depth_cpy), self.band_start,
-                                self.band_start+self.band_width)
+                                 self.band_start+self.band_width)
         color_mask = cv2.inRange(np.array(color_cpy), 1, 225)
         # This operation helps to remove "dots" on the depth image.
         # Kernel higher dimensional = smoother. It's also less important if camera is farther away.
         depth_mask = cv2.morphologyEx(depth_mask, cv2.MORPH_CLOSE, self.kernel)
         # All 0s, useful for following bitwise operations.
-        bounding_mask = np.zeros((self.intrinsics.height,self.intrinsics.width), np.int8)
+        bounding_mask = np.zeros((self.intrinsics.height, self.intrinsics.width), np.int8)
         # Creating a square over the area defined in self.rect
         square = cv2.fillPoly(bounding_mask, [self.rect], 255)
         # Blacking out everything that is not within square
@@ -289,22 +290,22 @@ class Cam(Node):
         # Find the contours of this cropped mask to help locate tower.
         contours, _ = cv2.findContours(depth_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         centroids, areas, large_contours = [], [], []
-        for c in contours: 
+        for c in contours:
             M = cv2.moments(c)
             area = cv2.contourArea(c)
-            try: 
+            try:
                 cx = int(M['m10']/M['m00'])
                 cy = int(M['m01']/M['m00'])
-                centroid = (cx,cy)
+                centroid = (cx, cy)
                 if area > 100:
                     centroids.append(centroid)
                     areas.append(area)
                     large_contours.append(c)
-            except: 
+            except ZeroDivisionError:
                 pass
         largest_area, centroid_pose, = None, None
         max_centroid, box, box_area = None, None, None
-        if len(areas) != 0: 
+        if len(areas) != 0:
             # There is something large in the image.
             largest_index = np.argmax(areas)
             largest_area = areas[largest_index]
@@ -325,20 +326,20 @@ class Cam(Node):
             box = cv2.boxPoints(min_rect)
             box = np.intp(box)
             # Save original box area to test if the contour is a good fit
-            box_area = dist(box[0],box[1])*dist(box[1],box[2])
+            box_area = dist(box[0], box[1])*dist(box[1], box[2])
 
         # Display the images
         color_rect = cv2.rectangle(np.array(self.color_frame),
                                    self.rect[0][0], self.rect[0][2],
-                                   (255,0,0), 2)
-        
-        drawn_contours = cv2.drawContours(color_rect, large_contours, -1, (0,255,0), 3)
+                                   (255, 0, 0), 2)
+
+        drawn_contours = cv2.drawContours(color_rect, large_contours, -1, (0, 255, 0), 3)
         if max_centroid is not None:
-            drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0,0,255), 5)
-            drawn_contours = cv2.drawContours(drawn_contours, [box], 0, (255,0,0), 3)
+            drawn_contours = cv2.circle(drawn_contours, max_centroid, 5, (0, 0, 255), 5)
+            drawn_contours = cv2.drawContours(drawn_contours, [box], 0, (255, 0, 0), 3)
             contour_ratio = largest_area/box_area
             # self.get_logger().info(f"CONTOUR RATIO: {contour_ratio}")
-            if care_about_square and (contour_ratio<0.7):
+            if care_about_square and (contour_ratio < 0.7):
                 # The contour is not really a rectangle and therefore doesn't work well
                 largest_area, centroid_pose = None, None
 
@@ -347,7 +348,7 @@ class Cam(Node):
         if get_lines:
             # We need to look at the color image for determining lines on tower top
             gray = cv2.cvtColor(color_cpy, cv2.COLOR_BGR2GRAY)
-            bounding_mask_new = np.zeros((self.intrinsics.height,self.intrinsics.width), np.int8)
+            bounding_mask_new = np.zeros((self.intrinsics.height, self.intrinsics.width), np.int8)
             # We will crop the area to be in the box defined by min area rect
             if box is not None:
                 # Shrink the box width and height so that edges are not in masked image
@@ -356,10 +357,10 @@ class Cam(Node):
                 new_h = scale*min_rect[1][1]
                 new_rect = ((min_rect[0][0], min_rect[0][1]), (new_w, new_h), min_rect[2])
                 new_box = cv2.boxPoints(new_rect)
-                new_box = [[int(new_box[0][0]),int(new_box[0][1])],
-                        [int(new_box[1][0]),int(new_box[1][1])],
-                        [int(new_box[2][0]),int(new_box[2][1])],
-                        [int(new_box[3][0]),int(new_box[3][1])]]
+                new_box = [[int(new_box[0][0]), int(new_box[0][1])],
+                           [int(new_box[1][0]), int(new_box[1][1])],
+                           [int(new_box[2][0]), int(new_box[2][1])],
+                           [int(new_box[3][0]), int(new_box[3][1])]]
                 new_box = np.array(new_box)
                 # Create a new mask
                 square_new = cv2.fillPoly(bounding_mask_new, [new_box], 255)
@@ -381,10 +382,10 @@ class Cam(Node):
                         arr = np.array(r_theta[0], dtype=np.float64)
                         # r is the slope of the line
                         r, _ = arr
-                        if r<0:
+                        if r < 0:
                             num_negative += 1
                         else:
-                            num_positive +=1
+                            num_positive += 1
                     # self.get_logger().info(f"Negative: {num_negative}, Positive: {num_positive}")
                     # Since our tower is at 45 deg WRT the tower, one of these will always
                     # overpower the other. This determines starting tower orientation
@@ -445,7 +446,7 @@ class Cam(Node):
                     elif label == 0:
                         self.no_hand_count = 0
                 # self.get_logger().info(self.labels[np.argmax(probabilities)])
-        
+
         elif self.state == State.WAITINGMOTION:
             # Just print out the camera data
             largest_area, _, _ = self.get_mask()
@@ -488,11 +489,12 @@ class Cam(Node):
                         self.piece_y = []
                         self.piece_z = []
                         self.get_logger().info("FOUND TOWER TOP!!!!!!")
-                        self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
-                                            f"area: {largest_area}\n")
-                        self.get_logger().info(f"Centroid pose in cam frame:\n{avg_x},{avg_y},{avg_z}")
+                        self.get_logger().info(f"depth: {self.band_start+self.band_width}," +
+                                               f"area: {largest_area}\n")
+                        self.get_logger().info("Centroid pose in cam frame:" +
+                                               f"\n{avg_x},{avg_y},{avg_z}")
                         self.tower_top = self.band_start+self.band_width
-                        self.scan_start = self.tower_top + self.band_width # Maybe don't include +
+                        self.scan_start = self.tower_top + self.band_width  # Maybe don't include +
                         # This will begin publishing to the tf tree
                         if self.starting_top is None:
                             self.starting_top = TransformStamped()
@@ -544,7 +546,7 @@ class Cam(Node):
                 if largest_area > self.table_area_threshold:
                     # We believe there is an object at this depth
                     self.get_logger().info("FOUND TABLE!!!!!!")
-                    self.get_logger().info(f"depth: {self.band_start+self.band_width},"+
+                    self.get_logger().info(f"depth: {self.band_start+self.band_width}," +
                                            f"area: {largest_area}\n")
                     self.table = self.band_start
                     self.scan_index = self.scan_start
