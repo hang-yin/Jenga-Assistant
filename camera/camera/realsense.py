@@ -204,7 +204,6 @@ class Cam(Node):
         self.sq_sz = val
         self.update_rect()
 
-<<<<<<< HEAD
     def update_rect(self):
         """Update the bounding square."""
         self.rect = np.array([[self.sq_orig,
@@ -213,8 +212,6 @@ class Cam(Node):
                                [self.sq_orig[0], self.sq_orig[1]+self.sq_sz]]],
                              dtype=np.int32)
 
-=======
->>>>>>> main
     def band_width_tb(self, val):
         """Adjust the scanning band width."""
         self.band_width = val
@@ -226,13 +223,6 @@ class Cam(Node):
     def kernel_trackbar(self, val):
         """Adjust the size of the kernel."""
         self.kernel = np.ones((val, val), np.uint8)
-
-    def update_rect(self):
-        self.rect = np.array([[self.sq_orig,
-                               [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]],
-                               [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]+self.sq_sz],
-                               [self.sq_orig[0], self.sq_orig[1]+self.sq_sz]]],
-                               dtype=np.int32)
 
     def scan_service_callback(self, _, response):
         """Make the camera scan for pieces sticking out."""
