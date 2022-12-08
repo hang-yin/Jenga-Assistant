@@ -18,7 +18,7 @@ from ament_index_python.packages import get_package_share_path
 
 
 class State(Enum):
-    """The current state of the brick."""
+    """The current state of the scan."""
 
     # Waiting to get frames
     WAITING = auto(),
@@ -37,7 +37,34 @@ class State(Enum):
 
 
 class Cam(Node):
+    """
+    Node for OpenCV analysis on the jenga tower.
+
+    Subscribes to:
+        /camera/color/image_raw
+        /camera/aligned_depth_to_color/image_raw
+        /camera/aligned_depth_to_color/camera_info
+        piece_found
+        finished_place
+        layer_added
+
+    Publishes to:
+        jenga_piece
+        top_size
+        top_ori
+
+    Services:
+        scan
+        stop
+        findtower
+
+    Broadcasted frames:
+        starting_top
+        brick
+    """
+
     def __init__(self):
+        """Initialize CV node."""
         super().__init__('cam')
         self.freq = 60.
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
@@ -150,22 +177,22 @@ class Cam(Node):
         self.no_hand_count = 0
 
     def sqx_trackbar(self, val):
-        """Adjust the x origin of bounding square"""
+        """Adjust the x origin of bounding square."""
         self.sq_orig[0] = val
         self.update_rect()
 
     def sqy_trackbar(self, val):
-        """Adjust the y origin of bounding square"""
+        """Adjust the y origin of bounding square."""
         self.sq_orig[1] = val
         self.update_rect()
 
     def sqw_trackbar(self, val):
-        """Adjust the side length of bounding square"""
+        """Adjust the side length of bounding square."""
         self.sq_sz = val
         self.update_rect()
 
     def update_rect(self):
-        """Update the bounding square"""
+        """Update the bounding square."""
         self.rect = np.array([[self.sq_orig,
                                [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]],
                                [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]+self.sq_sz],
@@ -173,19 +200,19 @@ class Cam(Node):
                              dtype=np.int32)
 
     def band_width_tb(self, val):
-        """Adjust the scanning band width"""
+        """Adjust the scanning band width."""
         self.band_width = val
 
     def band_start_tb(self, val):
-        """Adjust the scanning band start"""
+        """Adjust the scanning band start."""
         self.band_start = val
 
     def kernel_trackbar(self, val):
-        """Adjust the size of the kernel"""
+        """Adjust the size of the kernel."""
         self.kernel = np.ones((val, val), np.uint8)
 
     def scan_service_callback(self, _, response):
-        """Make the camera scan for pieces sticking out"""
+        """Make the camera scan for pieces sticking out."""
         if self.tower_top and self.table:
             self.scan_index = self.scan_start
             self.state = State.SCANNING
@@ -195,35 +222,35 @@ class Cam(Node):
         return response
 
     def stop_service_callback(self, _, response):
-        """Stop continously scanning"""
+        """Stop continously scanning."""
         self.state = State.WAITINGMOTION
         self.get_logger().info("Pause Scanning")
         return response
 
     def piece_found_cb(self, _):
-        """Stop publishing brick tf data, movement nodes found the brick"""
+        """Stop publishing brick tf data, movement nodes found the brick."""
         self.get_logger().info('Brick found')
         self.state = State.WAITINGMOTION
 
     def finished_place_cb(self, _):
-        """Indication that the movement node has placed the brick on top"""
+        """Movement node has placed the brick on top."""
         self.get_logger().info('Finished placing')
         self.state = State.FINDHANDS
 
     def layer_added_cb(self, _):
-        """Movement node has placed a layer of blocks. We can now scan one more layer up"""
+        """Movement node has placed a layer of blocks. We can now scan one more layer up."""
         self.get_logger().info('Layer added')
         self.scan_start -= self.piece_depth
 
     def calib_service_callback(self, _, response):
-        """Re caluclate the height of the tower"""
+        """Re caluclate the height of the tower."""
         self.state = State.FINDTOP
         self.scan_index = self.scan_start
         self.get_logger().info("Searching for tower top")
         return response
 
     def info_callback(self, cameraInfo):
-        """Store the intrinsics of the camera"""
+        """Store the intrinsics of the camera."""
         try:
             if self.intrinsics:
                 return
@@ -244,30 +271,38 @@ class Cam(Node):
             return
 
     def color_callback(self, data):
-        """Store current RGB frame"""
+        """Store current RGB frame."""
         color_frame = self.br.imgmsg_to_cv2(data, desired_encoding='bgr8')
         self.color_frame = color_frame
 
     def depth_callback(self, data):
-        """Store current depth frame"""
+        """Store current depth frame."""
         current_frame = self.br.imgmsg_to_cv2(data)
         self.depth_frame = current_frame
 
     def get_mask(self, care_about_square=True, get_lines=False):
-        """ Finds large contours in a narrow slice of the depth frame
+        """
+        Find large contours in depth frame.
 
-            Args:
-                care_about_square: Whether I want the contour to be rectangular.
-                    (If the ratio of contour area/minimum bounding rectangle > 0.8)
-                    If this condition is not met, ignore any results.
-                get_lines: Whether I want to calculate the orientation of the layer
-                    (For geting starting orientation of the tower primarily)
-            Returns:
-                largest_area: The area of the largest contour. None if no contours
-                centroid_pose: Deprojected pose of centroid of largest contour.
-                    None if no contours.
-                line_direction: -1 or +1, if the lines on the tower top are left/right
-                    None if get_lines is False
+        Create contours of a slice of the depth frame, and display the largest one.
+        On the largest contour, find a minimum bounding rectangle, centroid, and area.
+
+        Args
+        ----
+            care_about_square: Whether I want the contour to be rectangular.
+                (If the ratio of contour area/minimum bounding rectangle > 0.8)
+                If this condition is not met, ignore any results.
+            get_lines: Whether I want to calculate the orientation of the layer
+                (For geting starting orientation of the tower primarily)
+
+        Returns
+        -------
+            largest_area: The area of the largest contour. None if no contours
+            centroid_pose: Deprojected pose of centroid of largest contour.
+                None if no contours.
+            line_direction: -1 or +1, if the lines on the tower top are left/right
+                None if get_lines is False
+
         """
         # Do this in case the subscriber somehow updates in the middle of the function
         depth_cpy = np.array(self.depth_frame)
@@ -400,14 +435,13 @@ class Cam(Node):
         return largest_area, centroid_pose, line_direction
 
     def publish_top(self):
-        """Broadcast the top of the tower to the tf tree"""
+        """Broadcast the top of the tower to the tf tree."""
         if self.starting_top is not None:
             self.starting_top.header.stamp = self.get_clock().now().to_msg()
             self.tf_broadcaster.sendTransform(self.starting_top)
 
     def timer_callback(self):
-        """State machine for detecting the tower and pieces"""
-
+        """State machine for detecting the tower and pieces."""
         # Every time you need to publish the top of the tower
         self.publish_top()
 
