@@ -103,6 +103,25 @@ class Test(Node):
         """Create callbacks, initialize variables, start timer."""
         super().__init__('cv_test')
         # Start timer
+        self.declare_parameters(
+            namespace='',
+            parameters=[
+                ('w_rot', -0.04259473268430952),
+                ('x_rot', 0.7329464768310298),
+                ('x_trans', 0.5690304232559326),
+                ('y_rot', 0.6788123266849486),
+                ('y_trans', 0.003084971991525019),
+                ('z_rot', -0.013746853789119589),
+                ('z_trans', 0.7704838271477458)
+            ])
+
+        self.rw = self.get_parameter("w_rot").get_parameter_value().double_value
+        self.rx = self.get_parameter("x_rot").get_parameter_value().double_value
+        self.ry = self.get_parameter("y_rot").get_parameter_value().double_value
+        self.rz = self.get_parameter("z_rot").get_parameter_value().double_value
+        self.tx = self.get_parameter("x_trans").get_parameter_value().double_value
+        self.ty = self.get_parameter("y_trans").get_parameter_value().double_value
+        self.tz = self.get_parameter("z_trans").get_parameter_value().double_value
         self.freq = 100.
         self.cbgroup = MutuallyExclusiveCallbackGroup()
         period = 1.0 / self.freq
@@ -225,7 +244,7 @@ class Test(Node):
         """
         self.execute = True
         self.start_pose = None
-        self.state = State.REMOVETOWER # place tower??
+        self.state = State.PLACEBLOCK
         return response
     
     def jenga_callback(self, request, response):
@@ -296,19 +315,36 @@ class Test(Node):
         plane_pose.orientation.y = 0.0
         plane_pose.orientation.z = 0.0
         plane_pose.orientation.w = 1.0
+        self.get_logger().info("Placing plane")
         await self.PlanEx.place_block(plane_pose, [10.0, 10.0, 0.1], 'plane')
+        self.get_logger().info("Plane placed")
     
     async def place_tower(self):
         # TODO update with tower location from tfs
         tower_pose = Pose()
         tower_pose.position.x = 0.46
         tower_pose.position.y = 0.0
-        tower_pose.position.z = 0.09
+        tower_pose.position.z = 0.15
         tower_pose.orientation.x = 0.9226898
         tower_pose.orientation.y = 0.3855431
         tower_pose.orientation.z = 0.0
         tower_pose.orientation.w = 0.0
-        await self.PlanEx.place_block(tower_pose, [0.15, 0.15, 0.18], 'tower')
+        self.get_logger().info("Placing tower")
+        await self.PlanEx.place_block(tower_pose, [0.15, 0.15, 0.30], 'tower')
+        self.get_logger().info("Tower placed")
+    
+    async def place_camera(self, tx, ty, tz, rx, ry, rz, rw):
+        camera_pose = Pose()
+        camera_pose.position.x = tx
+        camera_pose.position.y = ty
+        camera_pose.position.z = tz
+        camera_pose.orientation.x = rx
+        camera_pose.orientation.y = ry
+        camera_pose.orientation.z = rz
+        camera_pose.orientation.w = rw
+        self.get_logger().info("Placing camera")
+        await self.PlanEx.place_block(camera_pose, [0.1, 0.15, 0.06], 'camera')
+        self.get_logger().info("Camera placed")
 
     async def timer_callback(self):
         """State maching that dictates which functions from the class are being called."""
@@ -324,6 +360,7 @@ class Test(Node):
             self.state = State.IDLE
             await self.place_plane()
             # await self.place_tower()
+            await self.place_camera(self.tx, self.ty, self.tz, self.rx, self.ry, self.rz, self.rw,)
             self.prev_state = State.PLACEPLANE
             # await self.PlanEx.grab()
         elif self.state == State.CALL:
@@ -479,7 +516,8 @@ class Test(Node):
                 self.get_logger().info('ORIENTING')
                 self.prev_state = State.READY
                 self.state = State.ORIENT2
-            elif (self.prev_state == State.POSTPUSH) or (self.prev_state == State.POSTPLACEPOKER):
+            elif (self.prev_state == State.POSTPUSH) or (self.prev_state == State.POSTPLACEPOKER) or\
+                 (self.prev_state == State.DESTROY):
                 # await self.place_tower()
                 self.future = await self.PlanEx.plan_to_pose(self.start_pose,
                                                                     ready_pose, joint_position,
@@ -547,6 +585,10 @@ class Test(Node):
                                                                 self.execute)
             self.prev_state = State.ORIENT2
             self.state = State.SET
+        elif self.state == State.REMOVETOWER:
+            self.future = await self.PlanEx.removeTower()
+            self.state = State.DESTROY
+            self.prev_state = State.REMOVETOWER
         elif self.state == State.SET:
             # TODO need six positions for the block: left1, center1, right1, left2, center2, right2
             # for now, we will hard code this to be left1
@@ -664,11 +706,11 @@ class Test(Node):
             self.state = State.READY
         
         elif self.state == State.PLACEBLOCK:
+            self.get_logger().info('Place tower')
             self.prev_state = State.PLACEBLOCK
-            self.state = State.IDLE
-            # place block
-            await self.PlanEx.place_block(self.block_pose, [0.15, 0.05, 0.3], 'block')
-            time.sleep(3)
+            self.state = State.PREDESTROY
+            # place bower
+            await self.place_tower()
         
         elif self.state == State.PREPICKUP:
             self.prev_state = State.PREPICKUP
@@ -794,7 +836,37 @@ class Test(Node):
             self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
                                                                    postplacepoker_pose, 1.0,
                                                                    self.execute)
-
+        elif self.state == State.PREDESTROY:
+            self.get_logger().info('Predestroy')
+            self.goal_pose.position.x = 0.622
+            self.goal_pose.position.y = 0.153
+            self.goal_pose.position.z = 0.149
+            self.goal_pose.orientation.x = 0.687
+            self.goal_pose.orientation.y = 0.09
+            self.goal_pose.orientation.z = 0.179
+            self.goal_pose.orientation.w = 0.698
+            # joint_position = [-0.41734628201340934, 1.1581524200269224, 1.0433443045698418, 
+            #                   -2.112617755844691, -2.878713578149638, 1.397055253859289,
+            #                   1.433553425220326]
+            self.future = await self.PlanEx.plan_to_pose(self.start_pose,
+                                                         self.goal_pose, None,
+                                                         0.01, self.execute)
+            self.state = State.REMOVETOWER
+            self.prev_state = State.PREDESTROY
+        elif self.state == State.DESTROY:
+            self.get_logger().info('Destroying')
+            self.destroy_pose.position.x = 0.622
+            self.destroy_pose.position.y = -0.3
+            self.destroy_pose.position.z = 0.146
+            self.destroy_pose.orientation.x = 0.556
+            self.destroy_pose.orientation.y = 0.436
+            self.destroy_pose.orientation.z = 0.432
+            self.destroy_pose.orientation.w = 0.56
+            self.future = await self.PlanEx.plan_to_cartisian_pose(self.start_pose,
+                                                                   self.destroy_pose, 1.5,
+                                                                   self.execute)
+            self.state = State.READY
+            self.prev_state = State.DESTROY
         elif self.state == State.FINDPIECE:
             try:
                 t = self.tf_buffer.lookup_transform('panda_link0', 'brick', rclpy.time.Time())
