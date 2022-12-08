@@ -157,7 +157,7 @@ class Cam(Node):
         # Little bit less than the area of 1 piece when it's on the top
         self.top_area_threshold = 16000
 
-        self.piece_depth = 30  # 3 cm, but depth units here are in mm
+        self.piece_depth = 0.03 #  # 3 cm, but depth units here are in mm
 
         # Variables for averaging (median-ing?) locations
         self.avg_sec = 3.0
@@ -253,7 +253,7 @@ class Cam(Node):
     def layer_added_cb(self, _):
         """Movement node has placed a layer of blocks. We can now scan one more layer up."""
         self.get_logger().info('Layer added')
-        self.scan_start -= self.piece_depth
+        self.scan_start -= 1000*self.piece_depth
 
     def calib_service_callback(self, _, response):
         """Re caluclate the height of the tower."""
