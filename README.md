@@ -5,6 +5,14 @@ Katie Hughes, Alyssa Chen, Hang Yin, Liz Metzger
 
 This package is meant to turn a Franka Emika Panda arm into a Jenga assistant! It uses computer vision to detect Jenga bricks and place them on top of the tower. The robot plans and executes trajectories using a custom MoveGroup API.
 
+Upon starting the package for the first time the robot needs to be calibrated. This process adds a tf to the tf tree between the panda hand and the camera by using known transforms between the camera and an april tag and the end effector and the base of the robot.
+
+Once calibrated it uses a depth map and computer vision to find the top of the tower, the orientation of the top of the tower, and the table. Once these are determined then the program inters a mode where it scans between the top of the tower and the table to find any pushed out blocks. After finding a block, the centroid is added to the tf tree so that the robot can move to the location of the brick. Once the robot has grabbed the brick it will grab the block, pull it out of the tower, move to the top of the tower, and place the block in the appropriate orientation. Once the block is placed the program goes back into scanning mode and looks for another block.
+
+While scanning the program will not send a block postion if the machine learning model detects that there is a person in the frame. Once it detects 80 frames without detecting anyone then it will start looking for a block to send the position to.
+
+In the main branch the program runs where the robot completes every turn but in the branch turns it is implemented so that the robot takes turns with another player. This code has not been tested but does work in theory. 
+
 How to run:
 
 * Plug into the Franka and the realsense camera.
@@ -19,4 +27,4 @@ If you need to calibrate:
 Otherwise:
 * Run `ros2 launch camera jenga_vision.launch.py`
 * In the pop up window, ensure that the tower is visible in the color frame and make sure that it is inside the bounding square (if not, adjust the size with the trackbars)
-3.  Remove a piece about halfway from the tower (and ensure you can see it from the camera window). When you step away from the table, the robot will grab and place it!
+* Remove a piece about halfway from the tower (and ensure you can see it from the camera window). When you step away from the table, the robot will grab and place it!
