@@ -13,7 +13,6 @@ from geometry_msgs.msg import Pose, Point, Quaternion
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from shape_msgs.msg import SolidPrimitive
-# from plan_execute_interface.msg import CartesianRequest # check if this is right
 from std_msgs.msg import Header
 import math
 import copy
@@ -54,7 +53,6 @@ class PlanAndExecute:
         self.node._execute_client = ActionClient(self.node,
                                                  ExecuteTrajectory,
                                                  '/execute_trajectory')
-        # create an action client for gripper
         self.node._gripper_client = ActionClient(self.node,
                                                  Grasp,
                                                  '/panda_gripper/grasp')
@@ -73,13 +71,6 @@ class PlanAndExecute:
                                                callback_group=self.node.cbgroup)
         if not self.node.cartisian.wait_for_service(timeout_sec=5.0):
             raise RuntimeError('Timeout waiting for "cartisian" service to become available')
-        """
-        self.node.grasp = self.node.create_client(GraspPlanning,
-                                               "/compute_cartesian_path",
-                                               callback_group=self.node.cbgroup)
-        if not self.node.cartisian.wait_for_service(timeout_sec=5.0):
-            raise RuntimeError('Timeout waiting for "cartisian" service to become available')
-        """
         self.move_group = self.node.movegroup
         self.node.js_sub = self.node.create_subscription(JointState,
                                                          "/joint_states",
@@ -97,7 +88,7 @@ class PlanAndExecute:
         self.master_goal.request.workspace_parameters.max_corner.x = 1.0
         self.master_goal.request.workspace_parameters.max_corner.y = 1.0
         self.master_goal.request.workspace_parameters.max_corner.z = 1.0
-        self.master_goal.request.group_name = 'panda_manipulator' # need to updated folder?
+        self.master_goal.request.group_name = 'panda_manipulator'
         self.master_goal.request.num_planning_attempts = 10
         self.master_goal.request.allowed_planning_time = 5.0
         self.master_goal.request.planner_id = ''
@@ -129,62 +120,18 @@ class PlanAndExecute:
         new_str = (str(req)).replace(',', ',\n')
         self.node.get_logger().info(new_str)
 
-    def euler_from_quaternion(self, x, y, z, w):
-        """
-        Convert a quaternion into euler angles (roll, pitch, yaw)
-        roll is rotation around x in radians (counterclockwise)
-        pitch is rotation around y in radians (counterclockwise)
-        yaw is rotation around z in radians (counterclockwise)
-        """
-        t0 = +2.0 * (w * x + y * z)
-        t1 = +1.0 - 2.0 * (x * x + y * y)
-        roll_x = math.atan2(t0, t1)
-     
-        t2 = +2.0 * (w * y - z * x)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch_y = math.asin(t2)
-     
-        t3 = +2.0 * (w * z + x * y)
-        t4 = +1.0 - 2.0 * (y * y + z * z)
-        yaw_z = math.atan2(t3, t4)
-        if roll_x < 0:
-            roll_x = roll_x + 2*math.pi
-        if pitch_y < 0:
-            pitch_y = pitch_y + 2*math.pi
-        if yaw_z < 0:
-            yaw_z = yaw_z + 2*math.pi
-        return roll_x, pitch_y, yaw_z # in radians
-
-    def get_quaternion_from_euler(self, roll, pitch, yaw):
-        """
-        Convert an Euler angle to a quaternion.
-        
-        Input
-            :param roll: The roll (rotation around x-axis) angle in radians.
-            :param pitch: The pitch (rotation around y-axis) angle in radians.
-            :param yaw: The yaw (rotation around z-axis) angle in radians.
-        
-        Output
-            :return qx, qy, qz, qw: The orientation in quaternion [x,y,z,w] format
-        """
-        qx = (math.sin(roll/2) * math.cos(pitch/2) * math.cos(yaw/2) -
-              math.cos(roll/2) * math.sin(pitch/2) * math.sin(yaw/2))
-        qy = (math.cos(roll/2) * math.sin(pitch/2) * math.cos(yaw/2) +
-              math.sin(roll/2) * math.cos(pitch/2) * math.sin(yaw/2))
-        qz = (math.cos(roll/2) * math.cos(pitch/2) * math.sin(yaw/2) -
-              math.sin(roll/2) * math.sin(pitch/2) * math.cos(yaw/2))
-        qw = (math.cos(roll/2) * math.cos(pitch/2) * math.cos(yaw/2) +
-              math.sin(roll/2) * math.sin(pitch/2) * math.sin(yaw/2))
- 
-        return [qx, qy, qz, qw]
-
     def js_callback(self, data):
         """Save js with the joint state data (sensor_msgs/JointStates type)."""
         self.js = data
 
     def fill_constraints(self, joint_names, joint_positions, tol):
-        """Fill the joint constraints field with information from the joint states message."""
+        """Fill the joint constraints field with information from the joint states message.
+
+        Args: 
+            joint_names[] (str): List of robot joint names.
+            joint_positions[] (float): List of joint position corresponding to joint_names.
+            tol (float): Allowable tolerance for joints.
+        """
         self.node.get_logger().info("Filling Constraints")
         constraints = []
         for n, i in enumerate(joint_names):
@@ -200,7 +147,15 @@ class PlanAndExecute:
                                                                  joint_constraints=constraints)]
 
     def createIKreq(self, end_pos, end_orientation):
-        """Create an IK message filled with info from the goal pose and orientation."""
+        """Create an IK message filled with info from the goal pose and orientation.
+
+        Args: 
+            end_pose (Point): The end/goal position of the robot.
+            end_pose (Quaternion): The end/goal orientation of the robot.
+
+        Returns:
+            request: The end position IK message from end goal pose
+        """
         request = PositionIKRequest()
         request.group_name = self.master_goal.request.group_name
         request.robot_state.joint_state.name = self.js.name
@@ -215,6 +170,16 @@ class PlanAndExecute:
         return request
 
     def createWaypoints(self, start_pose, end_pose, max_step):
+        """Creates a list of poses  that follow a straight line. 
+        
+        Args: 
+            start_pose (Pose): The start pose of the robot.
+            end_pose (Pose): The end/goal pose of the robot.
+            max_step (float): The biggest step size that the robot can make.
+
+        Returns:
+            points[] (Pose): List of pose points from start to end that are in a straight line.
+        """
         points = [start_pose]
         xi = start_pose.position.x
         yi = start_pose.position.y
@@ -224,49 +189,33 @@ class PlanAndExecute:
         zf = end_pose.position.z
         last_point = copy.copy(end_pose)
         last_point.orientation = start_pose.orientation 
-        # xoi, yoi, zoi = self.euler_from_quaternion(start_pose.orientation.x,
-        #                                            start_pose.orientation.y, 
-        #                                            start_pose.orientation.z,
-        #                                            start_pose.orientation.w)
-        # xof, yof, zof = self.euler_from_quaternion(end_pose.orientation.x,
-        #                                            end_pose.orientation.y, 
-        #                                            end_pose.orientation.z,
-        #                                            end_pose.orientation.w)
         self.node.get_logger().info("initial and final angles")
         d = math.sqrt((xf-xi)**2 + (yf-yi)**2 + (zf-zi)**2)
         sp = math.ceil(d / max_step)+1
         sx = (xf-xi)/sp
         sy = (yf-yi)/sp
         sz = (zf-zi)/sp
-        # sox = (xof-xoi)/sp
-        # soy = (yof-yoi)/sp
-        # soz = (zof-zoi)/sp
         self.node.get_logger().info("delta angles")
         for i in range(sp):
             npose = points[i]
             npose.position.x = points[i].position.x + sx
             npose.position.y = points[i].position.y + sy
             npose.position.z = points[i].position.z + sz
-            # nx, ny, nz = xof, yof, zof = self.euler_from_quaternion(points[i].orientation.x,
-            #                                                         points[i].orientation.y, 
-            #                                                         points[i].orientation.z,
-            #                                                         points[i].orientation.w)
-            # nx = nx + sox
-            # ny = ny + soy
-            # nz = nz + soz
-            # self.printBlock([nx, ny, nz])
-            # [npose.orientation.x, npose.orientation.y,
-            #  npose.orientation.z, npose.orientation.w] = self.get_quaternion_from_euler(nx, ny, nz)
-            # self.printBlock(npose)
             points.append(npose)
         points.append(last_point)
-        #self.printBlock(len(points))
         self.node.get_logger().info("POINTS")
-        #self.printBlock(points)
         return points
 
     def createCartreq(self, start_pose, end_pose):
-        """Create an Cartisian message filled with info from the goal pose and orientation."""
+        """Create an Cartisian message filled with info from the goal pose and orientation.
+
+        Args: 
+            start_pose (Pose): The start pose of the robot.
+            end_pose (Pose): The end/goal pose of the robot.
+
+        Returns:
+            Cartreq: Cartesian request information.
+        """
         max_step = 0.005
         points = self.createWaypoints(start_pose, end_pose, max_step)
         self.node.get_logger().info("creating cartisian message")
@@ -292,7 +241,13 @@ class PlanAndExecute:
                path_constraints
 
     def getStartPose(self):
-        """Calculate the postion and orientation of the robot based on the tf frames."""
+        """Calculate the postion and orientation of the robot based on the tf frames.
+
+        Args: None
+
+        Returns: 
+            startpose (Pose): The current pose of the robot. 
+        """
         startpose = Pose()
         temp_frame_id = self.master_goal.request.workspace_parameters.header.frame_id
         t = self.tf_buffer.lookup_transform(
@@ -309,7 +264,18 @@ class PlanAndExecute:
         return startpose
 
     async def plan_to_position(self, start_pose, end_pos, tol, execute):
-        """Return MoveGroup action from a start pose to an end position."""
+        """Return MoveGroup action from a start pose to an end position.
+
+        Args:
+            start_pose (Pose): The start pose of the robot.
+            end_pos (Pose): The end/goal positin of the robot.
+            tol (float): The allowable tolerance for the robot joints.
+            execute (boolean): True to execute the IK plan, False to plan.
+
+        Returns:
+            executed_result: The result after the execute if execute is true.
+            plan_result: The results of the plan if execute is false.
+        """
         self.node.get_logger().info("Plan to position")
         if not start_pose:
             start_pose = self.getStartPose()
@@ -323,20 +289,28 @@ class PlanAndExecute:
         request = self.createIKreq(end_pos.position, start_pose.orientation)
         IK_response = await self.callIK(request)
         if IK_response:
-            # Create a plan off current joint states
             plan_result = await self.plan(IK_response, None, tol)
             if execute:
-                # execute the plan
                 execute_result = await self.execute(plan_result)
                 return execute_result
             else:
                 return plan_result
         else:
-            # IK service has failed
             return None
 
     async def plan_to_orientation(self, start_pose, end_orientation, tol, execute):
-        """Return MoveGroup action from a start pose to an end orientation."""
+        """Return MoveGroup action from a start pose to an end orientation.
+
+        Args:
+            start_pose (Pose): The start pose of the robot.
+            end_orientaion (Pose): The end/goal pose of the robot.
+            tol (float): The allowable tolerance for the robot joints.
+            execute (boolean): True to execute the IK plan, False to plan.
+
+        Returns:
+            executed_result: The result after the execute if execute is true.
+            plan_result: The results of the plan if execute is flase.
+        """
         if not start_pose:
             start_pose = self.getStartPose()
             self.master_goal.request.start_state.joint_state = self.js
@@ -349,10 +323,8 @@ class PlanAndExecute:
         request = self.createIKreq(start_pose.position, end_orientation.orientation)
         IK_response = await self.callIK(request)
         if IK_response:
-            # Create a plan off current joint states
             plan_result = await self.plan(IK_response, None, tol)
             if execute:
-                # execute the plan
                 self.node.get_logger().info("Executing plan")
                 execute_result = await self.execute(plan_result)
                 self.node.get_logger().info("Plan executed")
@@ -360,11 +332,21 @@ class PlanAndExecute:
             else:
                 return plan_result
         else:
-            # IK service has failed
             return None
 
     async def plan_to_pose(self, start_pose, end_pose, joint_pos, tol, execute):
-        """Return MoveGroup action from a start to end pose (position + orientation)."""
+        """Return MoveGroup action from a start to end pose (position + orientation).
+
+        Args:
+            start_pose (Pose): The start pose of the robot.
+            end_pose (Pose): The end/goal pose of the robot.
+            tol (float): The allowable tolerance for the robot joints.
+            execute (boolean): True to execute the IK plan, False to plan.
+
+        Returns:
+            executed_result: The result after the execute if execute is true.
+            plan_result: The results of the plan if execute is false.
+        """
         self.node.get_logger().info("Plan to Pose")
         if not start_pose:
             start_pose = self.getStartPose()
@@ -381,34 +363,31 @@ class PlanAndExecute:
         request = self.createIKreq(end_pose.position, end_pose.orientation)
         IK_response = await self.callIK(request)
         if IK_response:
-            # Create a plan off current joint states
             plan_result = await self.plan(IK_response, joint_pos, tol)
             if execute:
-                # execute the plan
                 execute_result = await self.execute(plan_result)
                 return execute_result
             else:
                 return plan_result
         else:
-            # IK service has failed
             return None
 
     async def plan_to_cartisian_pose(self, start_pose, end_pose, v, execute):
-        """Return MoveGroup action from a start to end pose (position + orientation)."""
+        """Return MoveGroup action from a start to end pose (position + orientation).
+
+        Args:
+            start_pose (Pose): The start pose of the robot.
+            end_pose (Pose): The end/goal pose of the robot.
+            v (float): Velocity multiplier to change cartesian speed.
+            execute (boolean): True to execute the IK plan, False to plan.
+
+        Returns:
+            executed_result: The result after the execute if execute is true.
+        """
         self.node.get_logger().info("Plan to Pose")
-        cart_successed = False
-        # while not cart_successed:
-        # if not start_pose:
         start_pose = self.getStartPose()
         self.master_goal.request.start_state.joint_state = self.js
         self.fill_constraints(self.js.name, self.js.position, 0.005)
-        # else:
-        #     request_start = self.createIKreq(start_pose.position, start_pose.orientation)
-        #     request_temp = GetCartesianPath.Request(ik_request=request_start)
-        #     response_start = await self.node.IK.call_async(request_temp)
-        #     self.master_goal.request.start_state.joint_state = response_start.solution.joint_state
-        #     self.node.get_logger().info(response_start)
-        #     self.node.get_logger().info(self.master_goal.request.start_state.joint_state)
 
         self.master_goal.planning_options.plan_only = not execute
         self.node.get_logger().info("requesting cartisian message")
@@ -422,20 +401,9 @@ class PlanAndExecute:
                                             max_step, jump_threshold, prismatic_jump_threshold, 
                                             revolute_jump_threshold, avoid_collisions,
                                             path_constraints)
-            # if len(Cart_response.joint_trajectory.points) > 1:
-            #     cart_successed = True
-            # else:
-            #     self.node.get_logger().info("cartisian service failed, trying again")
-            #     # add a random offset to the end_pose
-            #     end_pose.position.x += random.uniform(-0.01, 0.01)
         self.node.get_logger().info("finished cartstian service")
-        # if Cart_response:
-            # Create a plan off current joint states
-            # plan_result = await self.plan(Cart_response)
         
         if execute:
-            
-            # decrease velocity
             for point in Cart_response.joint_trajectory.points:
                 total_time = point.time_from_start.nanosec + point.time_from_start.sec * 1000000000
                 total_time *= 1.0/v
@@ -447,28 +415,18 @@ class PlanAndExecute:
                 
                 for i in range(len(point.accelerations)):
                     point.accelerations[i] *= v
-            
-            # execute the plan
-            # self.node.get_logger().info("\n\n\n cart response \n\n\n")
             self.node.get_logger().info(f"Cart Response Len: {len(Cart_response.joint_trajectory.points)}")
-            # self.printBlock(Cart_response)
             traj_goal = ExecuteTrajectory.Goal(trajectory=Cart_response)
             execute_future = await self.node._execute_client.send_goal_async(traj_goal)
             execute_result = await execute_future.get_result_async()
             self.node.get_logger().info("finished executing cartstian service")
             return execute_result
-        #     else:
-        #         # return plan_result
-        # else:
-        #     # IK service has failed
-        #     return None
 
     async def callCart(self, Cartheader, Cartstart_state, Cartgroup_name, Cartlink_name,
                        Cartwaypoints, Cartmax_step, Cartjump_threshold,
                        Cartprismatic_jump_threshold, Cartrevolute_jump_threshold,
                        Cartavoid_collisions, Cartpath_constraints):
-        """Compute joint states using inverse kinematics from a IKrequest message."""
-        #self.node.get_logger().info("Computing Cartisian!")
+        """Compute cartesian path of from the Cartesian message."""
         response = await self.node.cartisian.call_async(GetCartesianPath.Request(header=Cartheader, 
                                                         start_state=Cartstart_state,
                                                         group_name=Cartgroup_name,
@@ -485,21 +443,6 @@ class PlanAndExecute:
             self.node.get_logger().info("Cartisian service Failed :(")
             return None
         else:
-            #self.node.get_logger().info("Cartisian Succeeded :)")
-            #self.node.get_logger().info("start_state:")
-            #self.printBlock(response.start_state)
-            #self.node.get_logger().info("robot traj:")
-            #self.printBlock(response.solution)
-            # sol = JointState()
-            # sol.header = response.solution.joint_trajectory.header
-            # self.node.get_logger().info("joint names:")
-            # self.printBlock(response.solution.joint_trajectory.joint_names)
-            # sol.name = response.solution.joint_trajectory.joint_names+['panda_finger_joint1', 
-            #                                                            'panda_finger_joint2']
-            # # there can be multiple positions in the robot trajectory
-            # self.node.get_logger().info("joint positions:")
-            # self.printBlock(list(response.solution.joint_trajectory.points[0].positions))
-            # sol.position = list(response.solution.joint_trajectory.points[0].positions)+[0.035, 0.035]
             self.printBlock(type(response.solution))
             return response.solution
 
@@ -569,15 +512,11 @@ class PlanAndExecute:
         self.node.block_pub.publish(scene)
     
     async def grab(self, width):
-        # self.node.get_logger().info("grabbing path")
-        # grasp_request = GraspPlanning.Request()
-        # grasp_request.group_name = 'panda_arm'
-        # grasp_request.robot_state = self.js
-        # grasp_request.allowed_touch_objects = ['block']
-        # grasp_request.support_surface_name = 'plane'
-        # grasp_response = await self.node.grasp.call_async(grasp_request)
-        #grab = await self.node.planscene.call_async()
-        #pass
+        """Sends Service to Robot to grasp gripper.
+
+        Args:
+            width: Width of expected object to be grabbed. 
+        """
         self.node.get_logger().info("grabbing")
         self.node._gripper_client.wait_for_server()
         self.node.get_logger().info("gripper client connected")
@@ -589,6 +528,7 @@ class PlanAndExecute:
         self.node.get_logger().info("grabbed")
     
     async def release(self):
+        """Releases grippers after grabbing object."""
         self.node.get_logger().info("releasing")
         self.node._gripper_client.wait_for_server()
         self.node.get_logger().info("gripper client connected")

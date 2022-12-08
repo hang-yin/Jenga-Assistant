@@ -88,7 +88,6 @@ class Test(Node):
     def __init__(self):
         """Create callbacks, initialize variables, start timer."""
         super().__init__('simple_move')
-        # Start timer
         self.freq = 100.
         self.cbgroup = MutuallyExclusiveCallbackGroup()
         period = 1.0 / self.freq
@@ -106,14 +105,6 @@ class Test(Node):
         self.prev_state = State.START
         self.state = State.START
         self.ct = 0
-        # self.ready_pose = Pose()
-        # self.ready_pose.position.x = 0.3060891
-        # self.ready_pose.position.y = 0.0
-        # self.ready_pose.position.z = 0.486882
-        # self.ready_pose.orientation.x = 1.0
-        # self.ready_pose.orientation.y = 0.0
-        # self.ready_pose.orientation.z = 0.0
-        # self.ready_pose.orientation.w = 0.0
         self.goal_pose = Pose()
         self.block_pose = Pose()
         self.future = None
