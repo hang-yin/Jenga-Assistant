@@ -129,7 +129,7 @@ class Cam(Node):
         # Little bit less than the area of 1 piece when it's on the top
         self.top_area_threshold = 16000
 
-        self.piece_depth = 0.029 # 3 cm
+        self.piece_depth = 30 # 3 cm, but depth units here are in mm
 
         self.avg_sec = 3.0
         self.avg_frames = int(self.avg_sec*self.freq)
@@ -206,7 +206,7 @@ class Cam(Node):
         """ Make the camera scan for pieces sticking out """
         # Only valid if the tower and table have a height
         if self.tower_top and self.table:
-            self.scan_index = self.tower_top +1.2*self.band_width
+            self.scan_index = self.scan_start
             self.state = State.SCANNING
             self.get_logger().info("Begin Scanning for pieces")
         else:
@@ -386,8 +386,7 @@ class Cam(Node):
                             num_negative += 1
                         else:
                             num_positive +=1
-                    self.get_logger().info(f"Negative: {num_negative}, Positive: {num_positive}")
-                    # determine the orientation based on which there are more of
+                    # self.get_logger().info(f"Negative: {num_negative}, Positive: {num_positive}")
                     if num_negative > num_positive:
                         line_direction = -1
                     else:
@@ -547,12 +546,13 @@ class Cam(Node):
 
         elif self.state == State.SCANNING:
             # Keep scanning downwards
+            self.get_logger().info(f"Scan index: {self.scan_index}")
             self.band_start = self.scan_index
             self.scan_index += self.scan_step
             # Reset scan if too big.
             if self.scan_index+1.2*self.band_width > self.table:
                 self.scan_index = self.scan_start
-                self.get_logger().info("Reset scan")
+                self.get_logger().info("Didn't find anything in scan")
                 self.state = State.FINDHANDS
             else:
                 # Look for piece sticking out in range from top to table
