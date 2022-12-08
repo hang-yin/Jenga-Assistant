@@ -7,11 +7,11 @@ This package is meant to turn a Franka Emika Panda arm into a Jenga assistant! I
 
 Upon starting the package for the first time the robot needs to be calibrated. This process adds a tf to the tf tree between the panda hand and the camera by using known transforms between the camera and an april tag and the end effector and the base of the robot.
 
-Once calibrated it uses a depth map and computer vision to find the top of the tower, the orientation of the top of the tower, and the table. Once these are determined then the program inters a mode where it scans between the top of the tower and the table to find any pushed out blocks. After finding a block, the centroid is added to the tf tree so that the robot can move to the location of the brick. Once the robot has grabbed the brick it will grab the block, pull it out of the tower, move to the top of the tower, and place the block in the appropriate orientation. Once the block is placed the program goes back into scanning mode and looks for another block.
+Once calibrated it uses a depth map and computer vision to find the top of the tower, the orientation of the top of the tower, and the table. Once these are determined then the program inters a mode where it scans between the top of the tower and the table to find any pushed out blocks. After finding a block, the centroid is added to the tf tree so that the robot can move to the location of the block. Once the robot has moved to the block it will grab the block, pull it out of the tower, move to the top of the tower, and place the block in the appropriate orientation. Once the block is placed the program goes back into scanning mode and looks for another block.
 
 While scanning the program will not send a block postion if the machine learning model detects that there is a person in the frame. Once it detects 80 frames without detecting anyone then it will start looking for a block to send the position to.
 
-In the main branch the program runs where the robot completes every turn but in the branch turns it is implemented so that the robot takes turns with another player. This code has not been tested but does work in theory. 
+In the main branch the program runs where the robot completes every turn but in the branch turns it is implemented so that the robot takes turns with another player. This can be adjusted by changing the number of players in the turns.yaml from 1 to 2.
 
 How to run:
 
