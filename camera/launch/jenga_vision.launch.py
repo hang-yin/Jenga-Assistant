@@ -1,9 +1,7 @@
-
-import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
-from ament_index_python.packages import get_package_share_path, get_package_share_directory
+from ament_index_python.packages import get_package_share_path
 from launch.conditions import LaunchConfigurationEquals
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
@@ -12,12 +10,12 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     camera_path = get_package_share_path('camera')
-    default_rviz_config_path  = camera_path / 'april.rviz'
+    default_rviz_config_path = camera_path / 'april.rviz'
     default_april_config_path = camera_path / 'april.yaml'
     default_tf_config_path = camera_path / 'tf.yaml'
 
     rviz_launch_arg = DeclareLaunchArgument(
-        name='rviz_pub', 
+        name='rviz_pub',
         default_value='true',
         choices=['true', 'false'],
         description='Flag to enable rviz2')
@@ -28,7 +26,7 @@ def generate_launch_description():
         description='Absolute path to rviz config file')
 
     cali_launch_arg = DeclareLaunchArgument(
-        name='calibrate', 
+        name='calibrate',
         default_value='false',
         choices=['true', 'false'],
         description='Launch calibration node')
@@ -55,18 +53,6 @@ def generate_launch_description():
         condition=LaunchConfigurationEquals('calibrate', 'true')
     )
 
-
-    # launch_franka = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource([
-    #             PathJoinSubstitution([
-    #                 FindPackageShare('franka_moveit_config'),
-    #                 'launch/moveit.launch.py'
-    #             ])
-    #         ]),
-    #     launch_arguments=[('robot_ip', 'dont-care'), ('use_fake_hardware', 'true')]
-    # )
-
-
     launch_realsense = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
                 PathJoinSubstitution([
@@ -89,11 +75,11 @@ def generate_launch_description():
     )
 
     april_node = Node(
-        package ='apriltag_ros',
+        package='apriltag_ros',
         executable='apriltag_node',
         output='screen',
         remappings=[('/image_rect', '/camera/color/image_raw'),
-                   ('/camera_info', '/camera/color/camera_info')],
+                    ('/camera_info', '/camera/color/camera_info')],
         parameters=[default_april_config_path],
         condition=LaunchConfigurationEquals('calibrate', 'true')
     )
@@ -107,6 +93,5 @@ def generate_launch_description():
         rviz_node,
         april_node,
         cv_node,
-        cali_node,
-        # launch_franka
+        cali_node
     ])

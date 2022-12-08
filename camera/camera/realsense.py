@@ -66,9 +66,12 @@ class Cam(Node):
     def __init__(self):
         """Initialize CV node."""
         super().__init__('cam')
+        # set timer frequency
         self.freq = 60.
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
 
+        # create subscriptions: camera color, camera depth, camera aligned color and depth,
+        # piece found, finished place, layer added
         self.color_sub = self.create_subscription(Image,
                                                   "/camera/color/image_raw",
                                                   self.color_callback,
@@ -93,17 +96,24 @@ class Cam(Node):
                                                         'layer_added',
                                                         self.layer_added_cb,
                                                         10)
+        # create publishers: jenga piece, top size, top ori
         self.piece_pub = self.create_publisher(Pose, 'jenga_piece', 10)
         self.top_pub = self.create_publisher(Int16, 'top_size', 10)
         self.top_ori_pub = self.create_publisher(Int16, 'top_ori', 10)
+
+        # create services: scan, stop, findtower
         self.scan = self.create_service(Empty, "scan", self.scan_service_callback)
         self.stop = self.create_service(Empty, "stop", self.stop_service_callback)
         self.calib = self.create_service(Empty, "findtower", self.calib_service_callback)
+
+        # create cv bridge
         self.br = CvBridge()
 
         # Initialize the transform broadcaster
         self.tf_broadcaster = TransformBroadcaster(self)
         self.brick = TransformStamped()
+
+        # create frames
         self.frame_brick = "brick"
         self.frame_camera = 'camera_link'
 
@@ -128,8 +138,6 @@ class Cam(Node):
         # depth "bands"
         self.band_start = 570
         self.band_width = 20
-        self.edge_high = 75
-        self.edge_low = 66
         self.tower_top = None
         self.table = None
         self.scan_start = 450
@@ -137,6 +145,10 @@ class Cam(Node):
         self.max_scan = 1000
         self.scan_step = 0.5
         self.centroid_origin = None
+
+        # thresholds for line detection
+        self.edge_high = 75
+        self.edge_low = 66
 
         # Contour area threshold for detecting the table
         self.table_area_threshold = 10000
@@ -176,6 +188,7 @@ class Cam(Node):
         self.labels = open(label_path, 'r').readlines()
         self.no_hand_count = 0
 
+    # TRACKBAR FUNCTIONS
     def sqx_trackbar(self, val):
         """Adjust the x origin of bounding square."""
         self.sq_orig[0] = val
@@ -191,6 +204,7 @@ class Cam(Node):
         self.sq_sz = val
         self.update_rect()
 
+<<<<<<< HEAD
     def update_rect(self):
         """Update the bounding square."""
         self.rect = np.array([[self.sq_orig,
@@ -199,6 +213,8 @@ class Cam(Node):
                                [self.sq_orig[0], self.sq_orig[1]+self.sq_sz]]],
                              dtype=np.int32)
 
+=======
+>>>>>>> main
     def band_width_tb(self, val):
         """Adjust the scanning band width."""
         self.band_width = val
@@ -210,6 +226,13 @@ class Cam(Node):
     def kernel_trackbar(self, val):
         """Adjust the size of the kernel."""
         self.kernel = np.ones((val, val), np.uint8)
+
+    def update_rect(self):
+        self.rect = np.array([[self.sq_orig,
+                               [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]],
+                               [self.sq_orig[0]+self.sq_sz, self.sq_orig[1]+self.sq_sz],
+                               [self.sq_orig[0], self.sq_orig[1]+self.sq_sz]]],
+                               dtype=np.int32)
 
     def scan_service_callback(self, _, response):
         """Make the camera scan for pieces sticking out."""
@@ -403,7 +426,6 @@ class Cam(Node):
                 square_new = cv2.inRange(square_new, 1, 255)
                 # Cropping the grayscale image so that only what is within the new square remains.
                 color_mask = cv2.bitwise_and(gray, gray, mask=square_new)
-                # cv2.imshow('color mask', color_mask)
                 # Apply edge detection method on the image
                 edges = cv2.Canny(color_mask, self.edge_low, self.edge_high, apertureSize=3)
                 # This returns an array of r and theta values
@@ -452,7 +474,6 @@ class Cam(Node):
             if all(w is not None for w in wait_for):
                 self.get_logger().info("Searching for tower top!!")
                 self.state = State.FINDTOP
-                # self.state = State.WAITINGMOTION
 
         elif self.state == State.FINDHANDS:
             # Just print out the camera data
@@ -463,9 +484,8 @@ class Cam(Node):
                 image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
                 image = (image / 127.5) - 1
                 probabilities = self.model.predict(image)
-                # TODO: if argmax(probabilities) is consistently equal to "no-hand" for a while
-                # then we can call /scan to grab the block
                 label = np.argmax(probabilities)
+                # if no hand has been detected for 80 frames then scan for a piece
                 if self.no_hand_count > 80:
                     self.no_hand_count = 0
                     self.get_logger().info("Start scanning!!!\n")
@@ -474,7 +494,6 @@ class Cam(Node):
                     self.state = State.SCANNING
                 else:
                     self.get_logger().info(f"no_hand_count: {self.no_hand_count}")
-                    # self.get_logger().info(f"label: {label}")
                     if label == 1:
                         self.no_hand_count += 1
                     elif label == 0:
@@ -499,14 +518,12 @@ class Cam(Node):
                 self.piece_z = []
                 self.ct = 0
                 self.state = State.FINDHANDS
-
             largest_area, centroid_pose, line_direction = self.get_mask(get_lines=True)
             if largest_area:
                 # self.get_logger().info(f"Largest area {largest_area}")
                 # If the area is larger than some threshold, it is probably the top of the tower
                 if largest_area > self.top_area_threshold:
                     if self.ct < self.avg_frames:
-                        # self.get_logger().info(f'Current pose: {centroid_pose.position}')
                         # Record the position
                         self.piece_x.append(centroid_pose.position.x)
                         self.piece_y.append(centroid_pose.position.y)
@@ -562,7 +579,6 @@ class Cam(Node):
                         self.get_logger().info("Searching for table!")
 
         elif self.state == State.FINDTABLE:
-            # Basically same logic as findtop.
             # Keep scanning downwards
             self.band_start = self.scan_index
             self.scan_index += self.scan_step
@@ -603,7 +619,6 @@ class Cam(Node):
                 if largest_area:
                     if largest_area > self.piece_area_threshold:
                         if self.ct < self.avg_frames:
-                            # self.get_logger().info(f'Current pose: {centroid_pose.position}')
                             self.piece_x.append(centroid_pose.position.x)
                             self.piece_y.append(centroid_pose.position.y)
                             self.piece_z.append(centroid_pose.position.z)
@@ -634,6 +649,7 @@ class Cam(Node):
                             self.brick.transform.rotation.w = self.avg_piece.orientation.w
                             # Go to broadcast this piece in tf tree
                             self.state = State.PUBLISHPIECE
+
         elif self.state == State.PUBLISHPIECE:
             # Continue to publish camera image
             _, _, _ = self.get_mask()

@@ -1,15 +1,18 @@
 import rclpy
 from rclpy.node import Node
-import numpy as np
-from tf2_ros import TransformBroadcaster
 from tf2_ros.buffer import Buffer
-from tf2_ros.transform_listener import TransformListener
+from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
+from tf2_ros.transform_listener import TransformListener
 
 
 class Broadcast(Node):
+    """Publishes a static transform between the camera frame and panda_link0 from a yaml."""
+
     def __init__(self):
+        """Set up a broadcaster, retrieve parameters from a yaml, and initialize variables."""
         super().__init__('broadcast')
+        # Import parameters from tf.yaml
         self.declare_parameters(
             namespace='',
             parameters=[
@@ -22,6 +25,7 @@ class Broadcast(Node):
                 ('z_trans', 0.0)
             ])
 
+        # Assign parameter values
         self.rw = self.get_parameter("w_rot").get_parameter_value().double_value
         self.rx = self.get_parameter("x_rot").get_parameter_value().double_value
         self.ry = self.get_parameter("y_rot").get_parameter_value().double_value
@@ -30,6 +34,7 @@ class Broadcast(Node):
         self.ty = self.get_parameter("y_trans").get_parameter_value().double_value
         self.tz = self.get_parameter("z_trans").get_parameter_value().double_value
 
+        # Set timer frequence
         self.freq = 60.
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
 
@@ -39,19 +44,16 @@ class Broadcast(Node):
         # Create a listener
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        
 
         # Define frames
         self.frame_camera = "camera_link"
         self.frame_base = "panda_link0"
-
         self.cam_to_base = TransformStamped()
 
-
     def timer_callback(self):
-        #create tf between the tag and the rotated frame
+        """Continuously published the transform between the camera and panda_link0."""
+        # create tf between camera and panda_link0
         self.cam_to_base.header.stamp = self.get_clock().now().to_msg()
-        # self.get_logger().info("BROADCAST")
         self.cam_to_base.header.frame_id = self.frame_camera
         self.cam_to_base.child_frame_id = self.frame_base
         self.cam_to_base.transform.translation.x = self.tx
