@@ -883,10 +883,10 @@ class Test(Node):
                 # HARDCODED OFFSET LMAO WILL IT WORK?
                 self.get_logger().info(f'y init: {t.transform.translation.y}')
                 if self.goal_pose.position.y > 0:
-                    self.goal_pose.position.x += 0.018
+                    self.goal_pose.position.x += 0.009
                     self.goal_pose.position.y -= -0.008 # 1.95*self.tower_top_pose.position.y
                 else:
-                    self.goal_pose.position.x += 0.018
+                    self.goal_pose.position.x += 0.013
                     self.goal_pose.position.y -= -0.009 # 2.3*self.tower_top_pose.position.y
                 # if self.goal_pose.position.y < 0:
                 #     self.goal_pose.position.y -= self.tower_top_pose.position.y
