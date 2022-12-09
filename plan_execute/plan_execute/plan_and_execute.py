@@ -422,7 +422,7 @@ class PlanAndExecute:
 
     async def callCart(self, Cartheader, Cartstart_state, Cartgroup_name, Cartlink_name,
                        Cartwaypoints, Cartmax_step, Cartjump_threshold,
-                       Cartprismatic_jump_threshold, Cartrevolute_jump_threshold,
+                       pris_jump_thres, rev_jump_thres,
                        Cartavoid_collisions, Cartpath_constraints):
         """Compute cartesian path of from the Cartesian message."""
         response = await self.node.cartisian.call_async(GetCartesianPath.Request(header=Cartheader,
@@ -432,10 +432,8 @@ class PlanAndExecute:
                                                         waypoints=Cartwaypoints,
                                                         max_step=Cartmax_step,
                                                         jump_threshold=Cartjump_threshold,
-                                                        prismatic_jump_threshold=\
-                                                            Cartprismatic_jump_threshold,
-                                                        revolute_jump_threshold=\
-                                                            Cartrevolute_jump_threshold,
+                                                        prismatic_jump_threshold=pris_jump_thres,
+                                                        revolute_jump_threshold=rev_jump_thres,
                                                         avoid_collisions=Cartavoid_collisions,
                                                         path_constraints=Cartpath_constraints))
         error_code = response.error_code
