@@ -2,21 +2,20 @@ import numpy as np
 import rclpy
 from moveit_msgs.action import MoveGroup, ExecuteTrajectory
 from rclpy.action import ActionClient
-from moveit_msgs.srv import GetPositionIK, GetPlanningScene, GetCartesianPath, GraspPlanning
+from moveit_msgs.srv import GetPositionIK, GetPlanningScene, GetCartesianPath
 from moveit_msgs.msg import PositionIKRequest, Constraints, JointConstraint, \
                             PlanningScene, PlanningSceneComponents, CollisionObject, \
-                            Constraints, RobotState
+                            RobotState
 from franka_msgs.action import Grasp
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import JointState
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from shape_msgs.msg import SolidPrimitive
 from std_msgs.msg import Header
 import math
 import copy
-import random
 
 
 class PlanAndExecute:
@@ -67,8 +66,8 @@ class PlanAndExecute:
         if not self.node.planscene.wait_for_service(timeout_sec=5.0):
             raise RuntimeError('Timeout waiting for "planscene" service to become available')
         self.node.cartisian = self.node.create_client(GetCartesianPath,
-                                               "/compute_cartesian_path",
-                                               callback_group=self.node.cbgroup)
+                                                      "/compute_cartesian_path",
+                                                      callback_group=self.node.cbgroup)
         if not self.node.cartisian.wait_for_service(timeout_sec=5.0):
             raise RuntimeError('Timeout waiting for "cartisian" service to become available')
         self.move_group = self.node.movegroup
@@ -102,7 +101,7 @@ class PlanAndExecute:
         self.master_goal.request.max_velocity_scaling_factor = 0.1
         self.master_goal.request.max_acceleration_scaling_factor = 0.1
         self.collision_list = []
-    
+
     async def removeTower(self):
         """Remove a collision object from the planning scene."""
         scene_request = PlanningSceneComponents()
@@ -127,7 +126,7 @@ class PlanAndExecute:
     def fill_constraints(self, joint_names, joint_positions, tol):
         """Fill the joint constraints field with information from the joint states message.
 
-        Args: 
+        Args:
             joint_names[] (str): List of robot joint names.
             joint_positions[] (float): List of joint position corresponding to joint_names.
             tol (float): Allowable tolerance for joints.
@@ -149,7 +148,7 @@ class PlanAndExecute:
     def createIKreq(self, end_pos, end_orientation):
         """Create an IK message filled with info from the goal pose and orientation.
 
-        Args: 
+        Args:
             end_pose (Point): The end/goal position of the robot.
             end_pose (Quaternion): The end/goal orientation of the robot.
 
@@ -170,9 +169,9 @@ class PlanAndExecute:
         return request
 
     def createWaypoints(self, start_pose, end_pose, max_step):
-        """Creates a list of poses  that follow a straight line. 
-        
-        Args: 
+        """Creates a list of poses  that follow a straight line.
+
+        Args:
             start_pose (Pose): The start pose of the robot.
             end_pose (Pose): The end/goal pose of the robot.
             max_step (float): The biggest step size that the robot can make.
@@ -188,7 +187,7 @@ class PlanAndExecute:
         yf = end_pose.position.y
         zf = end_pose.position.z
         last_point = copy.copy(end_pose)
-        last_point.orientation = start_pose.orientation 
+        last_point.orientation = start_pose.orientation
         self.node.get_logger().info("initial and final angles")
         d = math.sqrt((xf-xi)**2 + (yf-yi)**2 + (zf-zi)**2)
         sp = math.ceil(d / max_step)+1
@@ -209,7 +208,7 @@ class PlanAndExecute:
     def createCartreq(self, start_pose, end_pose):
         """Create an Cartisian message filled with info from the goal pose and orientation.
 
-        Args: 
+        Args:
             start_pose (Pose): The start pose of the robot.
             end_pose (Pose): The end/goal pose of the robot.
 
@@ -237,16 +236,16 @@ class PlanAndExecute:
         avoid_collisions = True
         path_constraints = constraint
         return header, start_state, group_name, link_name, waypoints, max_step, jump_threshold,\
-               prismatic_jump_threshold, revolute_jump_threshold, avoid_collisions,\
-               path_constraints
+            prismatic_jump_threshold, revolute_jump_threshold, avoid_collisions,\
+            path_constraints
 
     def getStartPose(self):
         """Calculate the postion and orientation of the robot based on the tf frames.
 
         Args: None
 
-        Returns: 
-            startpose (Pose): The current pose of the robot. 
+        Returns:
+            startpose (Pose): The current pose of the robot.
         """
         startpose = Pose()
         temp_frame_id = self.master_goal.request.workspace_parameters.header.frame_id
@@ -392,30 +391,29 @@ class PlanAndExecute:
         self.master_goal.planning_options.plan_only = not execute
         self.node.get_logger().info("requesting cartisian message")
         header, start_state, group_name, link_name, waypoints, max_step, jump_threshold,\
-        prismatic_jump_threshold, revolute_jump_threshold, avoid_collisions,\
-        path_constraints= self.createCartreq(start_pose, end_pose)
+            prismatic_jump_threshold, revolute_jump_threshold, avoid_collisions,\
+            path_constraints = self.createCartreq(start_pose, end_pose)
         self.node.get_logger().info("recieved cartesian message")
         self.node.get_logger().info("calling cartisian service")
-        cart_successed = False
         Cart_response = await self.callCart(header, start_state, group_name, link_name, waypoints,
-                                            max_step, jump_threshold, prismatic_jump_threshold, 
+                                            max_step, jump_threshold, prismatic_jump_threshold,
                                             revolute_jump_threshold, avoid_collisions,
                                             path_constraints)
         self.node.get_logger().info("finished cartstian service")
-        
+
         if execute:
             for point in Cart_response.joint_trajectory.points:
                 total_time = point.time_from_start.nanosec + point.time_from_start.sec * 1000000000
                 total_time *= 1.0/v
                 point.time_from_start.sec = math.floor(total_time / 1000000000)
                 point.time_from_start.nanosec = math.floor(total_time % 1000000000)
-                
+
                 for i in range(len(point.velocities)):
                     point.velocities[i] *= v
-                
+
                 for i in range(len(point.accelerations)):
                     point.accelerations[i] *= v
-            self.node.get_logger().info(f"Cart Response Len: {len(Cart_response.joint_trajectory.points)}")
+            self.node.get_logger().info(f"Cart Len: {len(Cart_response.joint_trajectory.points)}")
             traj_goal = ExecuteTrajectory.Goal(trajectory=Cart_response)
             execute_future = await self.node._execute_client.send_goal_async(traj_goal)
             execute_result = await execute_future.get_result_async()
@@ -427,17 +425,19 @@ class PlanAndExecute:
                        Cartprismatic_jump_threshold, Cartrevolute_jump_threshold,
                        Cartavoid_collisions, Cartpath_constraints):
         """Compute cartesian path of from the Cartesian message."""
-        response = await self.node.cartisian.call_async(GetCartesianPath.Request(header=Cartheader, 
+        response = await self.node.cartisian.call_async(GetCartesianPath.Request(header=Cartheader,
                                                         start_state=Cartstart_state,
                                                         group_name=Cartgroup_name,
-                                                        link_name = Cartlink_name,
-                                                        waypoints = Cartwaypoints,
-                                                        max_step = Cartmax_step,
-                                                        jump_threshold = Cartjump_threshold, 
-                                                        prismatic_jump_threshold = Cartprismatic_jump_threshold, 
-                                                        revolute_jump_threshold = Cartrevolute_jump_threshold,
-                                                        avoid_collisions = Cartavoid_collisions,
-                                                        path_constraints = Cartpath_constraints))
+                                                        link_name=Cartlink_name,
+                                                        waypoints=Cartwaypoints,
+                                                        max_step=Cartmax_step,
+                                                        jump_threshold=Cartjump_threshold,
+                                                        prismatic_jump_threshold=\
+                                                            Cartprismatic_jump_threshold,
+                                                        revolute_jump_threshold=\
+                                                            Cartrevolute_jump_threshold,
+                                                        avoid_collisions=Cartavoid_collisions,
+                                                        path_constraints=Cartpath_constraints))
         error_code = response.error_code
         if error_code.val == -31:
             self.node.get_logger().info("Cartisian service Failed :(")
@@ -461,9 +461,9 @@ class PlanAndExecute:
     async def plan(self, joint_state, joint_positions, tol):
         """Plan to a joint state."""
         joint_names = joint_state.name
-        if joint_positions == None:
+        if joint_positions is None:
             joint_positions = np.array(joint_state.position)
-        else: 
+        else:
             joint_positions.append(joint_state.position[7])
             joint_positions.append(joint_state.position[8])
             joint_positions = np.array(joint_positions)
@@ -510,12 +510,12 @@ class PlanAndExecute:
         self.collision_list.append(collision)
         scene.world.collision_objects = self.collision_list
         self.node.block_pub.publish(scene)
-    
+
     async def grab(self, width):
         """Sends Service to Robot to grasp gripper.
 
         Args:
-            width: Width of expected object to be grabbed. 
+            width: Width of expected object to be grabbed.
         """
         self.node.get_logger().info("grabbing")
         self.node._gripper_client.wait_for_server()
@@ -526,7 +526,7 @@ class PlanAndExecute:
         grasp_goal.force = 100.0
         await self.node._gripper_client.send_goal_async(grasp_goal)
         self.node.get_logger().info("grabbed")
-    
+
     async def release(self):
         """Releases grippers after grabbing object."""
         self.node.get_logger().info("releasing")
