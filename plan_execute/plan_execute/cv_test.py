@@ -294,7 +294,7 @@ class Test(Node):
         self.get_logger().info("Plane placed")
 
     async def place_tower(self):
-        """Places Jenga tower in RVIZ"""
+        """Places Jenga tower in RVIZ."""
         tower_pose = Pose()
         tower_pose.position.x = 0.46
         tower_pose.position.y = 0.0
@@ -308,7 +308,7 @@ class Test(Node):
         self.get_logger().info("Tower placed")
 
     async def place_camera(self, tx, ty, tz, rx, ry, rz, rw):
-        """Places Camera position in RVIZ"""
+        """Places Camera position in RVIZ."""
         camera_pose = Pose()
         camera_pose.position.x = tx
         camera_pose.position.y = ty

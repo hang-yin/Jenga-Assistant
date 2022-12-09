@@ -124,9 +124,10 @@ class PlanAndExecute:
         self.js = data
 
     def fill_constraints(self, joint_names, joint_positions, tol):
-        """Fill the joint constraints field with information from the joint states message.
+        """
+        Fill the joint constraints field with information from the joint states message.
 
-        Args:
+        Argument Description:
             joint_names[] (str): List of robot joint names.
             joint_positions[] (float): List of joint position corresponding to joint_names.
             tol (float): Allowable tolerance for joints.
@@ -146,14 +147,15 @@ class PlanAndExecute:
                                                                  joint_constraints=constraints)]
 
     def createIKreq(self, end_pos, end_orientation):
-        """Create an IK message filled with info from the goal pose and orientation.
+        """
+        Create an IK message filled with info from the goal pose and orientation.
 
-        Args:
+        Argument Description:
             end_pose (Point): The end/goal position of the robot.
             end_pose (Quaternion): The end/goal orientation of the robot.
 
-        Returns:
-            request: The end position IK message from end goal pose
+        Output Description:
+            request: The end position IK message from end goal pose.
         """
         request = PositionIKRequest()
         request.group_name = self.master_goal.request.group_name
@@ -169,14 +171,15 @@ class PlanAndExecute:
         return request
 
     def createWaypoints(self, start_pose, end_pose, max_step):
-        """Creates a list of poses  that follow a straight line.
+        """
+        Create a list of poses  that follow a straight line.
 
-        Args:
+        Argument Description:
             start_pose (Pose): The start pose of the robot.
             end_pose (Pose): The end/goal pose of the robot.
             max_step (float): The biggest step size that the robot can make.
 
-        Returns:
+        Output Description:
             points[] (Pose): List of pose points from start to end that are in a straight line.
         """
         points = [start_pose]
@@ -206,13 +209,14 @@ class PlanAndExecute:
         return points
 
     def createCartreq(self, start_pose, end_pose):
-        """Create an Cartisian message filled with info from the goal pose and orientation.
+        """
+        Create an Cartisian message filled with info from the goal pose and orientation.
 
-        Args:
+        Argument Description:
             start_pose (Pose): The start pose of the robot.
             end_pose (Pose): The end/goal pose of the robot.
 
-        Returns:
+        Output Description:
             Cartreq: Cartesian request information.
         """
         max_step = 0.005
@@ -240,11 +244,13 @@ class PlanAndExecute:
             path_constraints
 
     def getStartPose(self):
-        """Calculate the postion and orientation of the robot based on the tf frames.
+        """
+        Calculate the postion and orientation of the robot based on the tf frames.
 
-        Args: None
+        Argument Description:
+            None
 
-        Returns:
+        Output Description:
             startpose (Pose): The current pose of the robot.
         """
         startpose = Pose()
@@ -263,15 +269,16 @@ class PlanAndExecute:
         return startpose
 
     async def plan_to_position(self, start_pose, end_pos, tol, execute):
-        """Return MoveGroup action from a start pose to an end position.
+        """
+        Return MoveGroup action from a start pose to an end position.
 
-        Args:
+        Argument Description:
             start_pose (Pose): The start pose of the robot.
             end_pos (Pose): The end/goal positin of the robot.
             tol (float): The allowable tolerance for the robot joints.
             execute (boolean): True to execute the IK plan, False to plan.
 
-        Returns:
+        Output Description:
             executed_result: The result after the execute if execute is true.
             plan_result: The results of the plan if execute is false.
         """
@@ -298,15 +305,16 @@ class PlanAndExecute:
             return None
 
     async def plan_to_orientation(self, start_pose, end_orientation, tol, execute):
-        """Return MoveGroup action from a start pose to an end orientation.
+        """
+        Return MoveGroup action from a start pose to an end orientation.
 
-        Args:
+        Argument Description:
             start_pose (Pose): The start pose of the robot.
             end_orientaion (Pose): The end/goal pose of the robot.
             tol (float): The allowable tolerance for the robot joints.
             execute (boolean): True to execute the IK plan, False to plan.
 
-        Returns:
+        Output Description:
             executed_result: The result after the execute if execute is true.
             plan_result: The results of the plan if execute is flase.
         """
@@ -334,15 +342,16 @@ class PlanAndExecute:
             return None
 
     async def plan_to_pose(self, start_pose, end_pose, joint_pos, tol, execute):
-        """Return MoveGroup action from a start to end pose (position + orientation).
+        """
+        Return MoveGroup action from a start to end pose (position + orientation).
 
-        Args:
+        Argument Description:
             start_pose (Pose): The start pose of the robot.
             end_pose (Pose): The end/goal pose of the robot.
             tol (float): The allowable tolerance for the robot joints.
             execute (boolean): True to execute the IK plan, False to plan.
 
-        Returns:
+        Output Description:
             executed_result: The result after the execute if execute is true.
             plan_result: The results of the plan if execute is false.
         """
@@ -372,15 +381,16 @@ class PlanAndExecute:
             return None
 
     async def plan_to_cartisian_pose(self, start_pose, end_pose, v, execute):
-        """Return MoveGroup action from a start to end pose (position + orientation).
+        """
+        Return MoveGroup action from a start to end pose (position + orientation).
 
-        Args:
+        Argument Description:
             start_pose (Pose): The start pose of the robot.
             end_pose (Pose): The end/goal pose of the robot.
             v (float): Velocity multiplier to change cartesian speed.
             execute (boolean): True to execute the IK plan, False to plan.
 
-        Returns:
+        Output Description:
             executed_result: The result after the execute if execute is true.
         """
         self.node.get_logger().info("Plan to Pose")
@@ -510,9 +520,10 @@ class PlanAndExecute:
         self.node.block_pub.publish(scene)
 
     async def grab(self, width):
-        """Sends Service to Robot to grasp gripper.
+        """
+        Send Service to Robot to grasp gripper.
 
-        Args:
+        Argument Description:
             width: Width of expected object to be grabbed.
         """
         self.node.get_logger().info("grabbing")
