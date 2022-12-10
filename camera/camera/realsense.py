@@ -157,7 +157,7 @@ class Cam(Node):
         # Little bit less than the area of 1 piece when it's on the top
         self.top_area_threshold = 16000
 
-        self.piece_depth = 0.03 #  # 3 cm, but depth units here are in mm
+        self.piece_depth = 0.03  # 3 cm, but depth units here are in mm
 
         # Variables for averaging (median-ing?) locations
         self.avg_sec = 3.0
